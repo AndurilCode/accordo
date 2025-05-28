@@ -131,7 +131,7 @@ def register_management_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent through error recovery with mandatory execution steps."""
         # Log error in session
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"ERROR: {error_details}")
         
         return f"""🚨 ERROR RECOVERY MODE
@@ -170,7 +170,7 @@ def register_management_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent to fix validation issues with mandatory execution steps."""
         # Log validation issues in session
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"VALIDATION ISSUES: {issues}")
         
         return f"""🔧 FIXING VALIDATION ISSUES
@@ -209,7 +209,7 @@ def register_management_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent to escalate critical issues to the user with mandatory execution steps."""
         # Update session to error status and log
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(client_id, status=WorkflowStatus.ERROR)
         add_log_to_session(client_id, f"CRITICAL ERROR - ESCALATED: {error_details}")
         
@@ -250,7 +250,7 @@ def register_management_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent to update the project changelog with mandatory execution steps."""
         # Log changelog update in session
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"Updating project changelog for: {task_description}")
         
         return f"""📝 UPDATING CHANGELOG

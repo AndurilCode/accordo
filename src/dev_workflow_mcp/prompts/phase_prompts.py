@@ -19,7 +19,7 @@ def register_phase_prompts(mcp: FastMCP):
     def init_workflow_guidance(task_description: str, ctx: Context) -> str:
         """Initialize a new development workflow with mandatory execution guidance."""
         # Get or create client session
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         session = get_or_create_session(client_id, task_description)
         
         # Add task to items if not already present
@@ -58,7 +58,7 @@ def register_phase_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent through the ANALYZE phase with mandatory execution steps."""
         # Update session state
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.ANALYZE,
@@ -101,7 +101,7 @@ def register_phase_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent through the BLUEPRINT phase with mandatory execution steps."""
         # Update session state
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.BLUEPRINT,
@@ -141,7 +141,7 @@ def register_phase_prompts(mcp: FastMCP):
     def construct_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the CONSTRUCT phase with mandatory execution steps."""
         # Update session state
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.CONSTRUCT,
@@ -181,7 +181,7 @@ def register_phase_prompts(mcp: FastMCP):
     def validate_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the VALIDATE phase with mandatory execution steps."""
         # Update session state
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.VALIDATE,
@@ -220,7 +220,7 @@ def register_phase_prompts(mcp: FastMCP):
     ) -> str:
         """Guide the agent to revise the blueprint with mandatory execution steps."""
         # Add feedback to session log
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"Plan revision requested: {feedback}")
         
         return f"""🔄 REVISING BLUEPRINT

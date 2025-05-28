@@ -24,7 +24,7 @@ def register_transition_prompts(mcp: FastMCP):
     ) -> str:
         """Guide agent to update workflow_state.md with mandatory execution steps."""
         # Get client session and update state
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         
         # Convert string parameters to enums
         try:
@@ -69,7 +69,7 @@ def register_transition_prompts(mcp: FastMCP):
     def create_workflow_state_file_guidance(task_description: str, ctx: Context) -> str:
         """Guide agent to create initial workflow_state.md file with mandatory execution steps."""
         # Get or create client session
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         session = get_or_create_session(client_id, task_description)
         
         return f"""📄 CREATING WORKFLOW STATE FILE
@@ -257,7 +257,7 @@ def register_transition_prompts(mcp: FastMCP):
     @mcp.tool()
     def get_workflow_state_markdown(ctx: Context) -> str:
         """Guide agent to get current workflow state as markdown for debugging/display."""
-        client_id = ctx.client_id if ctx else "default"
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         markdown = export_session_to_markdown(client_id)
         
         if markdown:
