@@ -134,12 +134,14 @@ The server provides the following workflow guidance tools that provide **mandato
 - `escalate_to_user_guidance` - Escalate critical issues with mandatory steps
 - `changelog_update_guidance` - Update project changelog with mandatory steps
 
-#### Transition Guidance
-- `update_workflow_state_guidance` - Update workflow state file with mandatory steps
-- `create_workflow_state_file_guidance` - Create initial state file with mandatory steps
+#### Project Setup Guidance
 - `check_project_config_guidance` - Verify project configuration with mandatory steps
 - `create_project_config_guidance` - Create project config template with mandatory steps
-- `validate_workflow_files_guidance` - Validate workflow files with mandatory steps
+- `validate_project_config_guidance` - Validate project configuration with mandatory steps
+
+#### Transition Guidance
+- `update_workflow_state_guidance` - Update workflow state with mandatory steps
+- `get_workflow_state_markdown` - Get current workflow state for debugging/display
 
 ### Workflow Process
 
@@ -150,54 +152,80 @@ The server provides the following workflow guidance tools that provide **mandato
 5. **Validate**: Agent tests and validates the implementation
 6. **Complete**: Agent finalizes and moves to next item (if any)
 
+### How It Works
+
+The workflow system uses **centralized session management** that automatically handles all state tracking:
+
+- **No Manual File Editing**: All workflow state is managed automatically
+- **Real-time State Updates**: Each guidance tool updates and returns the current state
+- **Complete Visibility**: You always see the updated workflow state after each action
+- **Automatic Logging**: All actions and transitions are logged with timestamps
+
 ### Required Files
 
-The workflow requires two files in your project root:
-
-#### workflow_state.md
-Tracks the current workflow state, progress, and logs. Created automatically by the `init_workflow_guidance`.
+The workflow requires one configuration file in your project root:
 
 #### project_config.md
 Contains project configuration including:
-- Project structure
-- Dependencies
-- Test commands
-- Build commands
-- Changelog
+- Project structure and information
+- Dependencies and versions
+- Test commands and build processes
+- Project changelog
+
+*Note: workflow_state.md is now managed automatically through the centralized session system*
 
 ## Example Usage
 
 ```python
-# In your MCP client (e.g., Cursor)
+# In your MCP client (e.g., Cursor or Claude Desktop)
 
 # 1. Start a new workflow
-# Call guidance: init_workflow_guidance
+# Call: init_workflow_guidance
 # Parameters: task_description="Add user authentication to the API"
 
 # 2. The agent will be guided through each phase:
 # - analyze_phase_guidance: Understand requirements
-# - blueprint_phase_guidance: Create implementation plan
+# - blueprint_phase_guidance: Create implementation plan  
 # - construct_phase_guidance: Implement the changes
 # - validate_phase_guidance: Test and validate
 # - complete_workflow_guidance: Finalize and update changelog
 
-# 3. If there are more items, the workflow continues automatically
+# 3. Each step automatically updates and shows the current workflow state
+# 4. If there are more items, the workflow continues automatically
 ```
 
-## Mandatory Execution Guidance
+## Centralized State Management
 
-Each guidance tool provides authoritative instructions that agents must execute exactly:
+Each guidance tool provides real-time state updates and clear next steps:
 
-✅ STATE UPDATED AUTOMATICALLY:
+**✅ STATE UPDATED AUTOMATICALLY:**
 - Phase → ANALYZE
 - Status → RUNNING
 - Analysis phase initiated
 
-📋 CURRENT WORKFLOW STATE:
-[Shows the complete updated workflow state]
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+# workflow_state.md
+_Last updated: 2024-12-19_
 
-📊 REQUIRED ACTIONS:
-1. Read and understand project_config.md
-2. Read relevant existing code  
-3. Write clear requirements summary
-4. Log findings as you discover them
+## State
+Phase: ANALYZE
+Status: RUNNING
+CurrentItem: Add user authentication to the API
+
+## Plan
+<!-- The AI fills this in during the BLUEPRINT phase -->
+
+## Items
+| id | description | status |
+|----|-------------|--------|
+| 1 | Add user authentication to the API | pending |
+
+## Log
+[2024-12-19 14:30:15] 🚀 WORKFLOW INITIALIZED: Add user authentication to the API
+[2024-12-19 14:30:16] 📊 ANALYZE PHASE STARTED: Add user authentication to the API
+```
+
+**🔄 NEXT STEP:**
+Call: `blueprint_phase_guidance`
+Parameters: task_description="Add user authentication to the API", requirements_summary="..."
