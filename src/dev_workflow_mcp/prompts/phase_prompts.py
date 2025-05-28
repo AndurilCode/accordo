@@ -1,15 +1,30 @@
 """Phase-specific workflow prompts with explicit next-prompt guidance."""
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from pydantic import Field
+from ..utils.session_manager import (
+    get_or_create_session,
+    update_session_state,
+    add_log_to_session,
+    add_item_to_session
+)
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 
 
 def register_phase_prompts(mcp: FastMCP):
     """Register all phase-related prompts."""
 
     @mcp.tool()
-    def init_workflow_guidance(task_description: str) -> str:
+    def init_workflow_guidance(task_description: str, ctx: Context = None) -> str:
         """Initialize a new development workflow with mandatory execution guidance."""
+        # Get or create client session
+        client_id = ctx.client_id if ctx else "default"
+        session = get_or_create_session(client_id, task_description)
+        
+        # Add task to items if not already present
+        if not any(item.description == task_description for item in session.items):
+            add_item_to_session(client_id, task_description)
+        
         return f"""🚀 INITIALIZING DEVELOPMENT WORKFLOW
 
         Task: {task_description}
@@ -38,8 +53,18 @@ def register_phase_prompts(mcp: FastMCP):
             default="project_config.md",
             description="Path to project configuration file",
         ),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent through the ANALYZE phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.ANALYZE,
+            status=WorkflowStatus.RUNNING,
+            current_item=task_description
+        )
+        
         return f"""📊 ANALYZE PHASE - NO CODING OR PLANNING YET
 
         Current task: {task_description}
@@ -71,8 +96,17 @@ def register_phase_prompts(mcp: FastMCP):
         requirements_summary: str = Field(
             description="Summary from the analysis phase"
         ),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent through the BLUEPRINT phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.BLUEPRINT,
+            status=WorkflowStatus.RUNNING
+        )
+        
         return f"""📋 BLUEPRINT PHASE - PLANNING TIME
 
         Task: {task_description}
@@ -103,8 +137,16 @@ def register_phase_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def construct_phase_guidance(task_description: str) -> str:
+    def construct_phase_guidance(task_description: str, ctx: Context = None) -> str:
         """Guide the agent through the CONSTRUCT phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.CONSTRUCT,
+            status=WorkflowStatus.RUNNING
+        )
+        
         return f"""🔨 CONSTRUCT PHASE - IMPLEMENTATION
 
         Task: {task_description}
@@ -135,8 +177,16 @@ def register_phase_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def validate_phase_guidance(task_description: str) -> str:
+    def validate_phase_guidance(task_description: str, ctx: Context = None) -> str:
         """Guide the agent through the VALIDATE phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.VALIDATE,
+            status=WorkflowStatus.RUNNING
+        )
+        
         return f"""✅ VALIDATE PHASE - FINAL VERIFICATION
 
         Task: {task_description}
@@ -165,27 +215,37 @@ def register_phase_prompts(mcp: FastMCP):
     def revise_blueprint_guidance(
         task_description: str,
         feedback: str = Field(description="User feedback on the rejected plan"),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent to revise the blueprint with mandatory execution steps."""
+        # Add feedback to session log
+        client_id = ctx.client_id if ctx else "default"
+        add_log_to_session(client_id, f"Plan revision requested: {feedback}")
+        
         return f"""🔄 REVISING BLUEPRINT
 
         Task: {task_description}
         User Feedback: {feedback}
 
         REQUIRED ACTIONS:
-        1. Update workflow_state.md: Status=RUNNING
+        1. Update workflow_state.md: Phase=BLUEPRINT, Status=RUNNING
 
-        2. Analyze the user feedback carefully
+        2. Review user feedback carefully
 
-        3. Revise the ## Plan section addressing all feedback points
+        3. Revise the ## Plan section addressing all concerns:
+        - Incorporate user suggestions
+        - Fix identified issues
+        - Improve clarity and detail
 
-        4. Ensure the revised plan is more detailed and addresses concerns
+        4. Update workflow_state.md: Status=NEEDS_PLAN_APPROVAL
 
-        5. Update workflow_state.md: Status=NEEDS_PLAN_APPROVAL
+        5. Wait for user confirmation of revised plan
 
-        6. Present the revised plan to the user
+        ✅ WHEN USER APPROVES REVISED PLAN:
+        Call prompt: 'construct_phase_guidance'
+        Parameters: task_description="{task_description}"
 
-        ✅ WHEN REVISION COMPLETE:
-        Call prompt: 'blueprint_phase_guidance'
-        Parameters: task_description="{task_description}", requirements_summary="Plan revised based on feedback: {feedback}"
+        ❌ IF USER REJECTS REVISED PLAN:
+        Call prompt: 'revise_blueprint_guidance'
+        Parameters: task_description="{task_description}", feedback="<new user feedback>"
         """

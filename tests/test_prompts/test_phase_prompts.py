@@ -152,7 +152,7 @@ class TestPhasePrompts:
         assert "REVISING BLUEPRINT" in result
         assert task in result
         assert feedback in result
-        assert "blueprint_phase_guidance" in result
+        assert "construct_phase_guidance" in result
 
     @pytest.mark.asyncio
     async def test_tool_parameters(self):

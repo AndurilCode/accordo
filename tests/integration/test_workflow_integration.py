@@ -24,15 +24,18 @@ class TestWorkflowStateFileOperations:
         """Test creating and reading a workflow state file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-client")
 
-            # Create initial state
+            # Create initial state (creates session)
             state_manager.create_initial_state("Test task description")
+
+            # Export session to file for validation
+            state_manager.export_to_file()
 
             # Verify file was created
             assert os.path.exists(state_file)
 
-            # Read the state back
+            # Read the state back (from session)
             content = state_manager.read_state()
             assert "Test task description" in content
             assert "Phase: INIT" in content
@@ -42,7 +45,7 @@ class TestWorkflowStateFileOperations:
         """Test updating different sections of workflow state file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-update-client")
 
             # Create initial state
             state_manager.create_initial_state("Integration test task")
@@ -53,7 +56,7 @@ class TestWorkflowStateFileOperations:
             )
             assert success
 
-            # Read and verify updates
+            # Read and verify updates (from session)
             content = state_manager.read_state()
             assert "Phase: CONSTRUCT" in content
             assert "Status: RUNNING" in content
@@ -63,7 +66,7 @@ class TestWorkflowStateFileOperations:
         """Test appending log entries to workflow state file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-log-client")
 
             # Create initial state
             state_manager.create_initial_state("Log test task")
@@ -80,7 +83,7 @@ class TestWorkflowStateFileOperations:
                 success = state_manager.append_to_log(entry)
                 assert success
 
-            # Read and verify all entries are present
+            # Read and verify all entries are present (from session)
             content = state_manager.read_state()
             for entry in log_entries:
                 assert entry in content
@@ -89,10 +92,13 @@ class TestWorkflowStateFileOperations:
         """Test workflow state validation with real file content."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-validation-client")
 
             # Create initial state
             state_manager.create_initial_state("Validation test task")
+
+            # Export session to file for validation
+            state_manager.export_to_file()
 
             # Validate the created file
             is_valid, errors = validate_workflow_state(state_file)
@@ -101,6 +107,7 @@ class TestWorkflowStateFileOperations:
 
             # Update state and validate again
             state_manager.update_state_section("BLUEPRINT", "NEEDS_PLAN_APPROVAL")
+            state_manager.export_to_file()  # Export updated session
             is_valid, errors = validate_workflow_state(state_file)
             assert is_valid
             assert len(errors) == 0
@@ -113,11 +120,12 @@ class TestEndToEndWorkflowTransitions:
         """Test a complete workflow from INIT to COMPLETED."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-lifecycle-client")
 
             # 1. Initialize workflow
             state_manager.create_initial_state("Build a simple web app")
             content = state_manager.read_state()
+            # Session starts with INIT phase
             assert "Phase: INIT" in content
             assert "Status: READY" in content
 
@@ -161,7 +169,7 @@ class TestEndToEndWorkflowTransitions:
         """Test workflow with error states and recovery."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-error-client")
 
             # Initialize and start workflow
             state_manager.create_initial_state("Error recovery test")
@@ -193,9 +201,13 @@ class TestEndToEndWorkflowTransitions:
         """Test workflow with multiple items in the items table."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-multi-client")
 
-            # Create initial state with multiple items
+            # Create initial state
+            state_manager.create_initial_state("Multi-item workflow test")
+
+            # Since we're using sessions, we need to manually create the file content
+            # for this test that expects specific items table format
             initial_content = """# workflow_state.md
 _Last updated: 2024-12-19_
 
@@ -217,15 +229,20 @@ Standard workflow rules apply.
 | 2 | Implement user authentication | pending |
 | 3 | Create database schema | pending |
 | 4 | Build REST API | pending |
-| 5 | Add unit tests | pending |
 
 ## Log
 <!-- AI appends detailed reasoning, tool output, and errors here -->
+
+## ArchiveLog
+<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->
 """
 
-            # Write initial content
+            # Write initial content to file and migrate to session
             with open(state_file, "w") as f:
                 f.write(initial_content)
+            
+            # Migrate file content to session
+            state_manager.migrate_from_file()
 
             # Process through workflow phases
             state_manager.update_state_section(
@@ -298,8 +315,11 @@ class TestProjectConfigIntegration:
             config_file = os.path.join(temp_dir, "project_config.md")
 
             # Create workflow state file
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-combined-client")
             state_manager.create_initial_state("Combined validation test")
+            
+            # Export session to file for validation
+            state_manager.export_to_file()
 
             # Create project config file
             config_content = """# Project Configuration
@@ -334,7 +354,7 @@ class TestWorkflowStateModelIntegration:
         """Test WorkflowState model parsing real file content."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-model-client")
 
             # Create initial state
             state_manager.create_initial_state("Model integration test")
@@ -349,6 +369,7 @@ class TestWorkflowStateModelIntegration:
 
             # Create a WorkflowState instance
             workflow_state = WorkflowState(
+                client_id="test-model-client",
                 phase=WorkflowPhase.CONSTRUCT,
                 status=WorkflowStatus.RUNNING,
                 current_item="Test item",
@@ -371,13 +392,14 @@ class TestWorkflowStateModelIntegration:
         """Test log rotation with real file operations."""
         with tempfile.TemporaryDirectory() as temp_dir:
             state_file = os.path.join(temp_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-rotation-client")
 
             # Create initial state
             state_manager.create_initial_state("Log rotation test")
 
             # Create a WorkflowState instance
             workflow_state = WorkflowState(
+                client_id="test-rotation-client",
                 phase=WorkflowPhase.CONSTRUCT,
                 status=WorkflowStatus.RUNNING,
                 items=[],
@@ -411,13 +433,14 @@ class TestErrorHandlingIntegration:
             os.chmod(readonly_dir, 0o444)  # Read-only
 
             state_file = os.path.join(readonly_dir, "workflow_state.md")
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-permission-client")
 
             try:
-                # This should handle the permission error gracefully
-                result = state_manager.create_initial_state("Permission test")
-                # The method should return None or handle the error
-                assert result is None or isinstance(result, str)
+                # With session backend, this should succeed (creates session, not file)
+                state_manager.create_initial_state("Permission test")
+                content = state_manager.read_state()
+                assert content is not None
+                assert "Permission test" in content
             except PermissionError:
                 # This is also acceptable - the error should be caught at a higher level
                 pass
@@ -446,11 +469,12 @@ This section is incomplete
             assert len(errors) > 0
 
             # Test state manager with malformed file
-            state_manager = StateManager(state_file)
+            state_manager = StateManager(state_file, "test-malformed-client")
             content = state_manager.read_state()
-            assert content == malformed_content  # Should read the content as-is
+            # With session backend, this returns session markdown, not file content
+            assert content is not None
+            assert "# workflow_state.md" in content
 
-            # Updating should handle the malformed content gracefully
+            # Updating should succeed with session backend
             success = state_manager.update_state_section("CONSTRUCT", "RUNNING")
-            # Should either succeed (by finding/creating sections) or fail gracefully
-            assert isinstance(success, bool)
+            assert success is True

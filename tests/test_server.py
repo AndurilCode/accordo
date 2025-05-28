@@ -71,7 +71,7 @@ class TestMainFunction:
         """Test that main function calls mcp.run with correct parameters."""
         main()
 
-        mock_run.assert_called_once_with(transport="sse", host="127.0.0.1", port=8000)
+        mock_run.assert_called_once_with(transport="stdio")
 
 
 class TestToolExecution:
