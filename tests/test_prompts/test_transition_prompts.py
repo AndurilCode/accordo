@@ -24,7 +24,7 @@ class TestTransitionPrompts:
         register_transition_prompts(mock_mcp)
 
         # Verify that mcp.tool() was called for each prompt function
-        assert mock_mcp.tool.call_count == 5  # 5 prompt functions
+        assert mock_mcp.tool.call_count == 6  # 6 prompt functions
 
         # Verify the decorator was called (tool registration)
         mock_mcp.tool.assert_called()

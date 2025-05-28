@@ -1,6 +1,14 @@
 """Transition prompts for state management and workflow file operations."""
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
+
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from ..utils.session_manager import (
+    add_log_to_session,
+    export_session_to_markdown,
+    get_or_create_session,
+    update_session_state,
+)
 
 
 def register_transition_prompts(mcp: FastMCP):
@@ -12,8 +20,33 @@ def register_transition_prompts(mcp: FastMCP):
         status: str,
         current_item: str | None = None,
         log_entry: str | None = None,
+        ctx: Context = None,
     ) -> str:
         """Guide agent to update workflow_state.md with mandatory execution steps."""
+        # Get client session and update state
+        client_id = ctx.client_id if ctx else "default"
+        
+        # Convert string parameters to enums
+        try:
+            phase_enum = WorkflowPhase(phase)
+            status_enum = WorkflowStatus(status)
+        except ValueError:
+            # Fallback for invalid enum values
+            phase_enum = WorkflowPhase.INIT
+            status_enum = WorkflowStatus.READY
+        
+        # Update session state
+        update_session_state(
+            client_id=client_id,
+            phase=phase_enum,
+            status=status_enum,
+            current_item=current_item
+        )
+        
+        # Add log entry if provided
+        if log_entry:
+            add_log_to_session(client_id, log_entry)
+        
         return f"""📝 UPDATING WORKFLOW STATE
 
         REQUIRED ACTIONS:
@@ -33,8 +66,12 @@ def register_transition_prompts(mcp: FastMCP):
         """
 
     @mcp.tool()
-    def create_workflow_state_file_guidance(task_description: str) -> str:
+    def create_workflow_state_file_guidance(task_description: str, ctx: Context = None) -> str:
         """Guide agent to create initial workflow_state.md file with mandatory execution steps."""
+        # Get or create client session
+        client_id = ctx.client_id if ctx else "default"
+        session = get_or_create_session(client_id, task_description)
+        
         return f"""📄 CREATING WORKFLOW STATE FILE
 
         REQUIRED ACTIONS:
@@ -120,7 +157,7 @@ def register_transition_prompts(mcp: FastMCP):
         """
 
     @mcp.tool()
-    def check_project_config_guidance() -> str:
+    def check_project_config_guidance(ctx: Context = None) -> str:
         """Guide agent to verify project_config.md exists with mandatory execution steps."""
         return """🔍 CHECKING PROJECT CONFIGURATION
 
@@ -146,7 +183,7 @@ def register_transition_prompts(mcp: FastMCP):
         """
 
     @mcp.tool()
-    def create_project_config_guidance() -> str:
+    def create_project_config_guidance(ctx: Context = None) -> str:
         """Guide agent to create a basic project_config.md template with mandatory execution steps."""
         return """📄 CREATING PROJECT CONFIG FILE
 
@@ -187,7 +224,7 @@ def register_transition_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def validate_workflow_files_guidance() -> str:
+    def validate_workflow_files_guidance(ctx: Context = None) -> str:
         """Guide agent to validate all required workflow files with mandatory execution steps."""
         return """✅ VALIDATING WORKFLOW FILES
 
@@ -216,3 +253,19 @@ def register_transition_prompts(mcp: FastMCP):
         ❌ IF FILES NEED SETUP:
         Call appropriate creation prompts to fix missing files
         """
+
+    @mcp.tool()
+    def get_workflow_state_markdown(ctx: Context = None) -> str:
+        """Guide agent to get current workflow state as markdown for debugging/display."""
+        client_id = ctx.client_id if ctx else "default"
+        markdown = export_session_to_markdown(client_id)
+        
+        if markdown:
+            return f"""Current workflow state for client {client_id}:
+
+```markdown
+{markdown}
+```
+"""
+        else:
+            return f"No workflow session found for client {client_id}"

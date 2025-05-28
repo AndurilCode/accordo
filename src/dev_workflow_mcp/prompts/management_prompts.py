@@ -1,15 +1,35 @@
 """Management prompts for workflow completion, iteration, and error handling."""
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from pydantic import Field
+from ..utils.session_manager import (
+    get_session,
+    update_session_state,
+    add_log_to_session,
+    mark_item_completed_in_session,
+    get_or_create_session
+)
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 
 
 def register_management_prompts(mcp: FastMCP):
     """Register all management-related prompts."""
 
     @mcp.tool()
-    def complete_workflow_guidance(task_description: str) -> str:
+    def complete_workflow_guidance(task_description: str, ctx: Context = None) -> str:
         """Guide the agent through workflow completion with mandatory execution steps."""
+        # Update session to completed status
+        client_id = ctx.client_id if ctx else "default"
+        session = get_session(client_id)
+        
+        if session:
+            update_session_state(client_id, status=WorkflowStatus.COMPLETED)
+            # Mark current item as completed if it matches task description
+            for item in session.items:
+                if item.description == task_description and item.status == "pending":
+                    mark_item_completed_in_session(client_id, item.id)
+                    break
+        
         return f"""🎉 COMPLETING WORKFLOW
 
         Task: {task_description}
@@ -37,8 +57,23 @@ def register_management_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def iterate_next_item_guidance() -> str:
+    def iterate_next_item_guidance(ctx: Context = None) -> str:
         """Guide the agent to process the next workflow item with mandatory execution steps."""
+        # Find next pending item and update session
+        client_id = ctx.client_id if ctx else "default"
+        session = get_session(client_id)
+        
+        next_item = None
+        if session:
+            next_item = session.get_next_pending_item()
+            if next_item:
+                update_session_state(
+                    client_id=client_id,
+                    phase=WorkflowPhase.ANALYZE,
+                    status=WorkflowStatus.READY,
+                    current_item=next_item.description
+                )
+        
         return """🔄 ITERATING TO NEXT ITEM
 
         REQUIRED ACTIONS:
@@ -57,8 +92,17 @@ def register_management_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def finalize_workflow_guidance() -> str:
+    def finalize_workflow_guidance(ctx: Context = None) -> str:
         """Guide the agent to finalize the entire workflow with mandatory execution steps."""
+        # Reset session to initial state
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            current_item=None
+        )
+        
         return """🏁 FINALIZING WORKFLOW
 
         REQUIRED ACTIONS:
@@ -83,8 +127,13 @@ def register_management_prompts(mcp: FastMCP):
         error_details: str = Field(
             description="Description of the error that occurred"
         ),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent through error recovery with mandatory execution steps."""
+        # Log error in session
+        client_id = ctx.client_id if ctx else "default"
+        add_log_to_session(client_id, f"ERROR: {error_details}")
+        
         return f"""🚨 ERROR RECOVERY MODE
 
         Task: {task_description}
@@ -117,8 +166,13 @@ def register_management_prompts(mcp: FastMCP):
     def fix_validation_issues_guidance(
         task_description: str,
         issues: str = Field(description="Description of validation issues found"),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent to fix validation issues with mandatory execution steps."""
+        # Log validation issues in session
+        client_id = ctx.client_id if ctx else "default"
+        add_log_to_session(client_id, f"VALIDATION ISSUES: {issues}")
+        
         return f"""🔧 FIXING VALIDATION ISSUES
 
         Task: {task_description}
@@ -151,8 +205,14 @@ def register_management_prompts(mcp: FastMCP):
         error_details: str = Field(
             description="Critical error details requiring user intervention"
         ),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent to escalate critical issues to the user with mandatory execution steps."""
+        # Update session to error status and log
+        client_id = ctx.client_id if ctx else "default"
+        update_session_state(client_id, status=WorkflowStatus.ERROR)
+        add_log_to_session(client_id, f"CRITICAL ERROR - ESCALATED: {error_details}")
+        
         return f"""⚠️  ESCALATING TO USER
 
         Task: {task_description}
@@ -186,8 +246,13 @@ def register_management_prompts(mcp: FastMCP):
             default="project_config.md",
             description="Path to project configuration file",
         ),
+        ctx: Context = None,
     ) -> str:
         """Guide the agent to update the project changelog with mandatory execution steps."""
+        # Log changelog update in session
+        client_id = ctx.client_id if ctx else "default"
+        add_log_to_session(client_id, f"Updating project changelog for: {task_description}")
+        
         return f"""📝 UPDATING CHANGELOG
 
         Task: {task_description}
