@@ -14,6 +14,74 @@ An MCP (Model Context Protocol) server that provides structured workflow guidanc
 
 ## Installation
 
+### Option 1: MCP Client Configuration (Recommended)
+
+For use with MCP clients like Cursor, add this configuration to your `mcp.json` file:
+
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
+    }
+  }
+}
+````
+
+#### Cursor Configuration
+
+**Location of mcp.json:**
+- **Windows**: `%APPDATA%\Cursor\User\mcp.json`
+- **macOS**: `~/Library/Application Support/Cursor/User/mcp.json` 
+- **Linux**: `~/.config/Cursor/User/mcp.json`
+
+**Setup Steps:**
+1. Create the configuration file at the appropriate location for your OS
+2. Add the JSON configuration above
+3. Restart Cursor to load the server
+4. Access MCP settings: `Cmd/Ctrl + Shift + J` → Navigate to "MCP" tab
+5. Verify the workflow-commander server appears and shows a green status
+
+**Alternative Configuration Methods:**
+- **Project-specific**: Create `.cursor/mcp.json` in your project directory
+- **Global**: Use `~/.cursor/mcp.json` for access across all projects
+
+#### Claude Desktop Configuration
+
+**Location of claude_desktop_config.json:**
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+**Setup Steps:**
+1. Ensure you have [Claude Desktop](https://claude.ai/download) installed
+2. Create or edit the configuration file at the appropriate location
+3. Add the workflow-commander server configuration:
+
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Restart Claude Desktop
+5. Test the connection by asking Claude: "What workflow guidance tools are available?"
+
+**Prerequisites for both clients:**
+- Node.js installed for running MCP servers
+- `uvx` available in your PATH (install with `pip install uvx` if needed)
+
+After adding the configuration, restart your MCP client to load the server.
+
+### Option 2: Local Development Installation
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -26,9 +94,16 @@ uv sync
 pip install -e .
 ```
 
+### Option 3: Direct Installation
+
+```bash
+# Install directly from GitHub
+uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp
+```
+
 ## Usage
 
-### Running the Server
+### Running the Server (Local Development)
 
 ```bash
 # Run the MCP server
@@ -113,88 +188,16 @@ Contains project configuration including:
 
 Each guidance tool provides authoritative instructions that agents must execute exactly:
 
-```
-✅ WHEN COMPLETE:
-Call prompt: 'blueprint_phase_guidance'
-Parameters: task_description="Add user authentication", requirements_summary="..."
-```
+✅ STATE UPDATED AUTOMATICALLY:
+- Phase → ANALYZE
+- Status → RUNNING
+- Analysis phase initiated
 
-This ensures the agent follows the exact workflow without deviation and prevents hallucinations.
+📋 CURRENT WORKFLOW STATE:
+[Shows the complete updated workflow state]
 
-## Error Handling
-
-The workflow includes comprehensive error handling:
-
-- **Simple Errors**: Fixed and workflow continues
-- **Complex Issues**: Return to BLUEPRINT phase
-- **Critical Errors**: Escalated to user with detailed context
-
-## State Management
-
-The workflow maintains state in `workflow_state.md`:
-
-```markdown
-## State
-Phase: CONSTRUCT
-Status: RUNNING
-CurrentItem: Add user authentication to the API
-
-## Items
-| id | description | status |
-|----|-------------|--------|
-| 1 | Add user authentication to the API | pending |
-| 2 | Implement rate limiting | pending |
-
-## Log
-[14:30:15] Started CONSTRUCT phase
-[14:32:22] Created auth middleware
-[14:35:10] Added JWT token validation
-```
-
-## Development
-
-### Project Structure
-
-```
-src/dev_workflow_mcp/
-├── server.py              # Main MCP server
-├── models/                # Pydantic models
-│   ├── workflow_state.py  # Workflow state models
-│   └── responses.py       # Response models
-├── prompts/               # Workflow guidance tools
-│   ├── phase_prompts.py   # Phase-specific guidance
-│   ├── management_prompts.py # Management guidance
-│   └── transition_prompts.py # State transition guidance
-├── utils/                 # Utilities
-│   ├── state_manager.py   # State file operations
-│   └── validators.py      # File validation
-└── templates/             # File templates
-    ├── workflow_state_template.md
-    └── project_config_template.md
-```
-
-### Testing
-
-```bash
-# Run tests
-python -m pytest
-
-# Run linter
-ruff check .
-
-# Format code
-ruff format .
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run linting and tests
-6. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+📊 REQUIRED ACTIONS:
+1. Read and understand project_config.md
+2. Read relevant existing code  
+3. Write clear requirements summary
+4. Log findings as you discover them
