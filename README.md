@@ -5,7 +5,6 @@ An MCP (Model Context Protocol) server that provides structured workflow guidanc
 ## Features
 
 - **Structured Workflow**: Guides agents through ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
-- **State Management**: Maintains workflow state in `workflow_state.md` file
 - **Mandatory Guidance**: Each tool provides authoritative instructions that agents must execute exactly
 - **Prompt Chaining**: Each guidance tool explicitly specifies the next tool to call
 - **Error Recovery**: Built-in error handling and recovery guidance
