@@ -52,14 +52,20 @@ def register_transition_prompts(mcp: FastMCP):
         REQUIRED ACTIONS:
         1. Update timestamp: _Last updated: {{current_date}}_
 
-        2. Update ## State section:
+        2. Reset ## Plan section with:
+        <!-- The AI fills this in during the BLUEPRINT phase -->
+
+        3. Clear ## Log section with:
+        <!-- AI appends detailed reasoning, tool output, and errors here -->
+
+        3. Update ## State section:
         Phase: {phase}
         Status: {status}
         CurrentItem: {current_item or "null"}
 
-        {f"3. Append to ## Log section:\\n{log_entry}" if log_entry else ""}
-
         4. Maintain all other sections unchanged
+
+        {f"5. Append to ## Log section:\\n{log_entry}" if log_entry else ""}
 
         ✅ AFTER UPDATE:
         Return to your previous workflow prompt as instructed.
