@@ -1,22 +1,22 @@
 """Management prompts for workflow completion, iteration, and error handling."""
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from pydantic import Field
-from ..utils.session_manager import (
-    get_session,
-    update_session_state,
-    add_log_to_session,
-    mark_item_completed_in_session,
-    get_or_create_session
-)
+
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from ..utils.session_manager import (
+    add_log_to_session,
+    get_session,
+    mark_item_completed_in_session,
+    update_session_state,
+)
 
 
 def register_management_prompts(mcp: FastMCP):
     """Register all management-related prompts."""
 
     @mcp.tool()
-    def complete_workflow_guidance(task_description: str, ctx: Context = None) -> str:
+    def complete_workflow_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through workflow completion with mandatory execution steps."""
         # Update session to completed status
         client_id = ctx.client_id if ctx else "default"
@@ -57,7 +57,7 @@ def register_management_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def iterate_next_item_guidance(ctx: Context = None) -> str:
+    def iterate_next_item_guidance(ctx: Context) -> str:
         """Guide the agent to process the next workflow item with mandatory execution steps."""
         # Find next pending item and update session
         client_id = ctx.client_id if ctx else "default"
@@ -92,7 +92,7 @@ def register_management_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def finalize_workflow_guidance(ctx: Context = None) -> str:
+    def finalize_workflow_guidance(ctx: Context) -> str:
         """Guide the agent to finalize the entire workflow with mandatory execution steps."""
         # Reset session to initial state
         client_id = ctx.client_id if ctx else "default"
@@ -124,10 +124,10 @@ def register_management_prompts(mcp: FastMCP):
     @mcp.tool()
     def error_recovery_guidance(
         task_description: str,
+        ctx: Context,
         error_details: str = Field(
             description="Description of the error that occurred"
-        ),
-        ctx: Context = None,
+        ),  
     ) -> str:
         """Guide the agent through error recovery with mandatory execution steps."""
         # Log error in session
@@ -165,8 +165,8 @@ def register_management_prompts(mcp: FastMCP):
     @mcp.tool()
     def fix_validation_issues_guidance(
         task_description: str,
+        ctx: Context,
         issues: str = Field(description="Description of validation issues found"),
-        ctx: Context = None,
     ) -> str:
         """Guide the agent to fix validation issues with mandatory execution steps."""
         # Log validation issues in session
@@ -202,10 +202,10 @@ def register_management_prompts(mcp: FastMCP):
     @mcp.tool()
     def escalate_to_user_guidance(
         task_description: str,
+        ctx: Context,
         error_details: str = Field(
             description="Critical error details requiring user intervention"
         ),
-        ctx: Context = None,
     ) -> str:
         """Guide the agent to escalate critical issues to the user with mandatory execution steps."""
         # Update session to error status and log
@@ -242,11 +242,11 @@ def register_management_prompts(mcp: FastMCP):
     @mcp.tool()
     def changelog_update_guidance(
         task_description: str,
+        ctx: Context,
         project_config_path: str = Field(
             default="project_config.md",
             description="Path to project configuration file",
-        ),
-        ctx: Context = None,
+        ),        
     ) -> str:
         """Guide the agent to update the project changelog with mandatory execution steps."""
         # Log changelog update in session

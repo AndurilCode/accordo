@@ -1,21 +1,22 @@
 """Phase-specific workflow prompts with explicit next-prompt guidance."""
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from pydantic import Field
+
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from ..utils.session_manager import (
+    add_item_to_session,
+    add_log_to_session,
     get_or_create_session,
     update_session_state,
-    add_log_to_session,
-    add_item_to_session
 )
-from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 
 
 def register_phase_prompts(mcp: FastMCP):
     """Register all phase-related prompts."""
 
     @mcp.tool()
-    def init_workflow_guidance(task_description: str, ctx: Context = None) -> str:
+    def init_workflow_guidance(task_description: str, ctx: Context) -> str:
         """Initialize a new development workflow with mandatory execution guidance."""
         # Get or create client session
         client_id = ctx.client_id if ctx else "default"
@@ -49,11 +50,11 @@ def register_phase_prompts(mcp: FastMCP):
     @mcp.tool()
     def analyze_phase_guidance(
         task_description: str,
+        ctx: Context,
         project_config_path: str = Field(
             default="project_config.md",
             description="Path to project configuration file",
         ),
-        ctx: Context = None,
     ) -> str:
         """Guide the agent through the ANALYZE phase with mandatory execution steps."""
         # Update session state
@@ -93,10 +94,10 @@ def register_phase_prompts(mcp: FastMCP):
     @mcp.tool()
     def blueprint_phase_guidance(
         task_description: str,
+        ctx: Context,
         requirements_summary: str = Field(
             description="Summary from the analysis phase"
         ),
-        ctx: Context = None,
     ) -> str:
         """Guide the agent through the BLUEPRINT phase with mandatory execution steps."""
         # Update session state
@@ -137,7 +138,7 @@ def register_phase_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def construct_phase_guidance(task_description: str, ctx: Context = None) -> str:
+    def construct_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the CONSTRUCT phase with mandatory execution steps."""
         # Update session state
         client_id = ctx.client_id if ctx else "default"
@@ -177,7 +178,7 @@ def register_phase_prompts(mcp: FastMCP):
 """
 
     @mcp.tool()
-    def validate_phase_guidance(task_description: str, ctx: Context = None) -> str:
+    def validate_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the VALIDATE phase with mandatory execution steps."""
         # Update session state
         client_id = ctx.client_id if ctx else "default"
@@ -214,8 +215,8 @@ def register_phase_prompts(mcp: FastMCP):
     @mcp.tool()
     def revise_blueprint_guidance(
         task_description: str,
+        ctx: Context,
         feedback: str = Field(description="User feedback on the rejected plan"),
-        ctx: Context = None,
     ) -> str:
         """Guide the agent to revise the blueprint with mandatory execution steps."""
         # Add feedback to session log
