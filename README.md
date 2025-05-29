@@ -26,7 +26,7 @@ For use with MCP clients like Cursor, add this configuration to your `mcp.json` 
     }
   }
 }
-````
+```
 
 #### Cursor Configuration
 
@@ -99,6 +99,45 @@ pip install -e .
 # Install directly from GitHub
 uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp
 ```
+
+## Bootstrap Configuration
+
+### Quick Setup for AI Assistants
+
+To quickly configure execute-tasks guidelines for AI assistants (Cursor, GitHub Copilot, Claude) in any project, run this one-liner in your project directory:
+
+```bash
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash
+```
+
+This command will:
+- Download and execute the bootstrap script
+- Deploy execute-tasks configuration files for:
+  - **Cursor**: `.cursor/rules/execute-tasks.mdc` (with YAML frontmatter)
+  - **GitHub Copilot**: `.github/copilot-instructions.md`
+  - **Claude**: `./CLAUDE.md`
+- Skip files that already contain execute-tasks content
+- Create necessary directories automatically
+
+**Manual Options:**
+
+```bash
+# Deploy to specific assistants only
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s copilot
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s claude
+
+# Deploy to multiple specific assistants
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor copilot
+```
+
+**What Gets Configured:**
+
+The bootstrap script deploys task execution guidelines that instruct AI assistants to:
+- Use workflow guidance tools for complex, multi-step tasks
+- Follow mandatory execution instructions precisely
+- Maintain workflow state synchronization
+- Utilize proper error recovery and escalation patterns
 
 ## Usage
 
