@@ -2,6 +2,10 @@
 
 An MCP (Model Context Protocol) server that provides structured workflow guidance to guide coding agents through a disciplined development process. This server helps prevent hallucinations and ensures consistent, methodical development by providing step-by-step **mandatory execution guidance** through defined phases.
 
+## Acknowledgments
+
+This project was inspired by the workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've adapted and extended these ideas to create a more structured, MCP-based approach to development workflow guidance.
+
 ## Features
 
 - **Structured Workflow**: Guides agents through ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
