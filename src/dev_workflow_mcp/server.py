@@ -1,13 +1,12 @@
 """Main MCP server implementation."""
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 
 from .prompts.management_prompts import register_management_prompts
 from .prompts.phase_prompts import register_phase_prompts
 from .prompts.project_prompts import register_project_prompts
 from .prompts.transition_prompts import register_transition_prompts
-from .utils import session_manager
-from .utils.session_manager import get_session_stats, export_session_to_markdown
+from .utils.session_manager import export_session_to_markdown, get_session_stats
 
 # Initialize the MCP server
 mcp = FastMCP("Development Workflow")

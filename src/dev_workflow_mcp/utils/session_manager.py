@@ -1,18 +1,21 @@
 """Session manager for client-based workflow state persistence."""
 
 import threading
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import UTC, datetime
 
-from ..models.workflow_state import WorkflowState, WorkflowPhase, WorkflowStatus, WorkflowItem
-
+from ..models.workflow_state import (
+    WorkflowItem,
+    WorkflowPhase,
+    WorkflowState,
+    WorkflowStatus,
+)
 
 # Global session store with thread-safe access
-client_sessions: Dict[str, WorkflowState] = {}
+client_sessions: dict[str, WorkflowState] = {}
 session_lock = threading.Lock()
 
 
-def get_session(client_id: str) -> Optional[WorkflowState]:
+def get_session(client_id: str) -> WorkflowState | None:
     """Get workflow session for a client."""
     with session_lock:
         return client_sessions.get(client_id)
@@ -49,7 +52,7 @@ def update_session(client_id: str, **kwargs) -> bool:
                 setattr(session, field, value)
         
         # Update timestamp
-        session.last_updated = datetime.now()
+        session.last_updated = datetime.now(UTC)
         
         return True
 
@@ -63,13 +66,13 @@ def delete_session(client_id: str) -> bool:
         return False
 
 
-def get_all_sessions() -> Dict[str, WorkflowState]:
+def get_all_sessions() -> dict[str, WorkflowState]:
     """Get all current sessions (returns a copy for safety)."""
     with session_lock:
         return client_sessions.copy()
 
 
-def export_session_to_markdown(client_id: str) -> Optional[str]:
+def export_session_to_markdown(client_id: str) -> str | None:
     """Export a session as markdown string."""
     with session_lock:
         session = client_sessions.get(client_id)
@@ -103,9 +106,9 @@ def add_log_to_session(client_id: str, entry: str) -> bool:
 
 def update_session_state(
     client_id: str,
-    phase: Optional[WorkflowPhase] = None,
-    status: Optional[WorkflowStatus] = None,
-    current_item: Optional[str] = None
+    phase: WorkflowPhase | None = None,
+    status: WorkflowStatus | None = None,
+    current_item: str | None = None
 ) -> bool:
     """Update session state fields."""
     updates = {}
@@ -137,7 +140,7 @@ def add_item_to_session(client_id: str, description: str) -> bool:
         # Add new item
         new_item = WorkflowItem(id=next_id, description=description, status="pending")
         session.items.append(new_item)
-        session.last_updated = datetime.now()
+        session.last_updated = datetime.now(UTC)
         
         return True
 
@@ -151,12 +154,12 @@ def mark_item_completed_in_session(client_id: str, item_id: int) -> bool:
         
         result = session.mark_item_completed(item_id)
         if result:
-            session.last_updated = datetime.now()
+            session.last_updated = datetime.now(UTC)
         
         return result
 
 
-def get_session_stats() -> Dict[str, int]:
+def get_session_stats() -> dict[str, int]:
     """Get statistics about current sessions."""
     with session_lock:
         stats = {
@@ -179,7 +182,7 @@ def get_session_stats() -> Dict[str, int]:
 
 def cleanup_completed_sessions(keep_recent_hours: int = 24) -> int:
     """Remove completed sessions older than specified hours."""
-    cutoff_time = datetime.now().timestamp() - (keep_recent_hours * 3600)
+    cutoff_time = datetime.now(UTC).timestamp() - (keep_recent_hours * 3600)
     
     with session_lock:
         to_remove = []
