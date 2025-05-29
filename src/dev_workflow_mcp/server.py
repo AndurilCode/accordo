@@ -4,6 +4,7 @@ from fastmcp import FastMCP
 
 from .prompts.management_prompts import register_management_prompts
 from .prompts.phase_prompts import register_phase_prompts
+from .prompts.project_prompts import register_project_prompts
 from .prompts.transition_prompts import register_transition_prompts
 
 # Initialize the MCP server
@@ -13,12 +14,7 @@ mcp = FastMCP("Development Workflow")
 register_phase_prompts(mcp)
 register_management_prompts(mcp)
 register_transition_prompts(mcp)
-
-
-@mcp.tool()
-def hello_workflow() -> str:
-    """A simple hello world workflow tool."""
-    return "Hello from dev workflow MCP!"
+register_project_prompts(mcp)
 
 
 def main():

@@ -1,191 +1,351 @@
 """Phase-specific workflow prompts with explicit next-prompt guidance."""
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from pydantic import Field
+
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from ..utils.session_manager import (
+    add_item_to_session,
+    add_log_to_session,
+    export_session_to_markdown,
+    get_or_create_session,
+    update_session_state,
+)
 
 
 def register_phase_prompts(mcp: FastMCP):
     """Register all phase-related prompts."""
 
     @mcp.tool()
-    def init_workflow_guidance(task_description: str) -> str:
+    def init_workflow_guidance(task_description: str, ctx: Context) -> str:
         """Initialize a new development workflow with mandatory execution guidance."""
-        return f"""🚀 INITIALIZING DEVELOPMENT WORKFLOW
+        # Get or create client session
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        session = get_or_create_session(client_id, task_description)
+        
+        # Add task to items if not already present
+        if not any(item.description == task_description for item in session.items):
+            add_item_to_session(client_id, task_description)
+        
+        # Update session to INIT state
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            current_item=task_description
+        )
+        add_log_to_session(client_id, f"🚀 WORKFLOW INITIALIZED: {task_description}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
 
-        Task: {task_description}
+        return f"""🚀 WORKFLOW INITIALIZED
 
-        ACTIONS TO TAKE:
-        1. Create or update workflow_state.md with:
-        - Phase: INIT
-        - Status: READY
-        - CurrentItem: "{task_description}"
+**Task:** {task_description}
 
-        2. Ensure project_config.md exists and is readable
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → INIT
+- Status → READY
+- CurrentItem → {task_description}
+- Task added to Items table
+- Workflow initialized
 
-        3. Append task to the Items table in workflow_state.md (do not delete any existing items):
-        | 1 | {task_description} | pending |
-        4. Move any existing Log section to ArchiveLog section
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        ✅ WHEN COMPLETE:
-        Call prompt: 'analyze_phase_guidance'
-        Parameters: task_description="{task_description}"
+**📋 SETUP REQUIREMENTS:**
+- Ensure project_config.md exists and is readable
+- Verify project structure is accessible
+
+**🔄 NEXT STEP:**
+Call: `analyze_phase_guidance`
+Parameters: task_description="{task_description}"
+
+🎯 **Workflow initialized automatically - ready to begin analysis!**
 """
 
     @mcp.tool()
     def analyze_phase_guidance(
         task_description: str,
+        ctx: Context,
         project_config_path: str = Field(
             default="project_config.md",
             description="Path to project configuration file",
         ),
     ) -> str:
         """Guide the agent through the ANALYZE phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.ANALYZE,
+            status=WorkflowStatus.RUNNING,
+            current_item=task_description
+        )
+        add_log_to_session(client_id, f"📊 ANALYZE PHASE STARTED: {task_description}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
+        
         return f"""📊 ANALYZE PHASE - NO CODING OR PLANNING YET
 
-        Current task: {task_description}
+**Task:** {task_description}
 
-        REQUIRED ACTIONS:
-        1. Update workflow_state.md: Phase=ANALYZE, Status=RUNNING
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → ANALYZE
+- Status → RUNNING
+- Analysis phase initiated
 
-        2. Read and understand {project_config_path}:
-        - Note project structure
-        - Identify test commands
-        - Understand dependencies
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        3. Read relevant existing code and documentation
+**📊 REQUIRED ACTIONS:**
+1. Read and understand {project_config_path}:
+   - Note project structure
+   - Identify test commands  
+   - Understand dependencies
 
-        4. Write a clear requirements summary in ## Log section
+2. Read relevant existing code and documentation
 
-        5. Update workflow_state.md: Status=READY
+3. Write clear requirements summary in your analysis
 
-        ⚠️  IMPORTANT: NO code writing or planning in this phase!
+4. Log findings as you discover them
 
-        ✅ WHEN COMPLETE:
-        Call prompt: 'blueprint_phase_guidance'
-        Parameters: task_description="{task_description}", requirements_summary="<your analysis summary>"
+**⚠️ IMPORTANT:** NO code writing or planning in this phase!
+
+**🔄 WHEN ANALYSIS COMPLETE:**
+Call: `blueprint_phase_guidance`
+Parameters: task_description="{task_description}", requirements_summary="<your analysis summary>"
+
+🎯 **Analysis phase started automatically - focus on understanding requirements!**
 """
 
     @mcp.tool()
     def blueprint_phase_guidance(
         task_description: str,
+        ctx: Context,
         requirements_summary: str = Field(
             description="Summary from the analysis phase"
         ),
     ) -> str:
         """Guide the agent through the BLUEPRINT phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.BLUEPRINT,
+            status=WorkflowStatus.RUNNING
+        )
+        add_log_to_session(client_id, f"📋 BLUEPRINT PHASE STARTED: {task_description}")
+        add_log_to_session(client_id, f"Analysis Summary: {requirements_summary}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
+        
         return f"""📋 BLUEPRINT PHASE - PLANNING TIME
 
-        Task: {task_description}
-        Analysis: {requirements_summary}
+**Task:** {task_description}
+**Analysis:** {requirements_summary}
 
-        REQUIRED ACTIONS:
-        1. Update workflow_state.md: Phase=BLUEPRINT, Status=RUNNING
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → BLUEPRINT
+- Status → RUNNING
+- Analysis summary logged
 
-        2. Decompose the task into ordered, atomic steps
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        3. Write detailed plan in ## Plan section including:
-        - File-by-file changes needed
-        - Order of implementation
-        - Test strategies
-        - Risk mitigation
+**📋 REQUIRED ACTIONS:**
+1. Decompose task into ordered, atomic steps
 
-        4. Update workflow_state.md: Status=NEEDS_PLAN_APPROVAL
+2. Write detailed implementation plan including:
+   - File-by-file changes needed
+   - Order of implementation
+   - Test strategies
+   - Risk mitigation
 
-        5. Wait for user confirmation of the plan
+3. Create clear, actionable steps that can be executed systematically
 
-        ✅ WHEN USER APPROVES PLAN:
-        Call prompt: 'construct_phase_guidance'
-        Parameters: task_description="{task_description}"
+**⚠️ PLAN APPROVAL REQUIRED:**
+Once you complete the plan, update status to NEEDS_PLAN_APPROVAL and wait for user confirmation.
 
-        ❌ IF USER REJECTS PLAN:
-        Call prompt: 'revise_blueprint_guidance'
-        Parameters: task_description="{task_description}", feedback="<user feedback>"
+**✅ WHEN USER APPROVES PLAN:**
+Call: `construct_phase_guidance`
+Parameters: task_description="{task_description}"
+
+**❌ IF USER REJECTS PLAN:**
+Call: `revise_blueprint_guidance`
+Parameters: task_description="{task_description}", feedback="<user feedback>"
+
+🎯 **Blueprint phase started automatically - create detailed implementation plan!**
 """
 
     @mcp.tool()
-    def construct_phase_guidance(task_description: str) -> str:
+    def construct_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the CONSTRUCT phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.CONSTRUCT,
+            status=WorkflowStatus.RUNNING
+        )
+        add_log_to_session(client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
+        
         return f"""🔨 CONSTRUCT PHASE - IMPLEMENTATION
 
-        Task: {task_description}
+**Task:** {task_description}
 
-        REQUIRED ACTIONS:
-        1. Update workflow_state.md: Phase=CONSTRUCT, Status=RUNNING
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → CONSTRUCT
+- Status → RUNNING
+- Implementation phase initiated
 
-        2. Follow the approved ## Plan exactly, step by step
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        3. After EACH atomic change:
-        a. Run test/linter commands from project_config.md
-        b. Capture output in ## Log section
-        c. Fix any issues before proceeding
+**🔨 REQUIRED ACTIONS:**
+1. Follow the approved plan exactly, step by step
 
-        4. Log each step completion in ## Log
+2. **After EACH atomic change:**
+   - Run test/linter commands from project_config.md
+   - Capture output and log results
+   - Fix any issues before proceeding
 
-        5. When all plan steps complete: Update Status=READY
+3. Log each step completion with detailed notes
 
-        ⚠️  CRITICAL: Follow the plan exactly - no deviations!
+4. Maintain quality and test coverage throughout
 
-        ✅ WHEN ALL STEPS COMPLETE:
-        Call prompt: 'validate_phase_guidance'
-        Parameters: task_description="{task_description}"
+**⚠️ CRITICAL:** Follow the plan exactly - no deviations without replanning!
 
-        🚨 IF TESTS FAIL OR ERRORS OCCUR:
-        Call prompt: 'error_recovery_guidance'
-        Parameters: task_description="{task_description}", error_details="<error description>"
+**✅ WHEN ALL STEPS COMPLETE:**
+Call: `validate_phase_guidance`
+Parameters: task_description="{task_description}"
+
+**🚨 IF TESTS FAIL OR ERRORS OCCUR:**
+Call: `error_recovery_guidance`
+Parameters: task_description="{task_description}", error_details="<error description>"
+
+🎯 **Construction phase started automatically - implement plan systematically!**
 """
 
     @mcp.tool()
-    def validate_phase_guidance(task_description: str) -> str:
+    def validate_phase_guidance(task_description: str, ctx: Context) -> str:
         """Guide the agent through the VALIDATE phase with mandatory execution steps."""
+        # Update session state
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.VALIDATE,
+            status=WorkflowStatus.RUNNING
+        )
+        add_log_to_session(client_id, f"✅ VALIDATE PHASE STARTED: {task_description}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
+        
         return f"""✅ VALIDATE PHASE - FINAL VERIFICATION
 
-        Task: {task_description}
+**Task:** {task_description}
 
-        REQUIRED ACTIONS:
-        1. Update workflow_state.md: Phase=VALIDATE, Status=RUNNING
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → VALIDATE
+- Status → RUNNING
+- Validation phase initiated
 
-        2. Run full test suite and E2E checks
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        3. Verify all acceptance criteria are met
+**✅ REQUIRED ACTIONS:**
+1. Run full test suite and E2E checks
 
-        4. Check code quality and documentation
+2. Verify all acceptance criteria are met
 
-        5. Log all validation results in ## Log
+3. Check code quality and documentation
 
-        ✅ IF ALL TESTS PASS:
-        Call prompt: 'complete_workflow_guidance'
-        Parameters: task_description="{task_description}"
+4. Perform integration testing
 
-        ❌ IF VALIDATION FAILS:
-        Call prompt: 'fix_validation_issues_guidance'
-        Parameters: task_description="{task_description}", issues="<validation issues>"
-        """
+5. Log all validation results with detailed findings
+
+**✅ IF ALL TESTS PASS:**
+Call: `complete_workflow_guidance`
+Parameters: task_description="{task_description}"
+
+**❌ IF VALIDATION FAILS:**
+Call: `fix_validation_issues_guidance`
+Parameters: task_description="{task_description}", issues="<validation issues>"
+
+🎯 **Validation phase started automatically - verify implementation quality!**
+"""
 
     @mcp.tool()
     def revise_blueprint_guidance(
         task_description: str,
+        ctx: Context,
         feedback: str = Field(description="User feedback on the rejected plan"),
     ) -> str:
         """Guide the agent to revise the blueprint with mandatory execution steps."""
+        # Update session state and add feedback to log
+        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        update_session_state(
+            client_id=client_id,
+            phase=WorkflowPhase.BLUEPRINT,
+            status=WorkflowStatus.RUNNING
+        )
+        add_log_to_session(client_id, f"🔄 PLAN REVISION REQUESTED: {feedback}")
+        
+        # Get updated state to return
+        updated_state = export_session_to_markdown(client_id)
+        
         return f"""🔄 REVISING BLUEPRINT
 
-        Task: {task_description}
-        User Feedback: {feedback}
+**Task:** {task_description}
+**User Feedback:** {feedback}
 
-        REQUIRED ACTIONS:
-        1. Update workflow_state.md: Status=RUNNING
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → BLUEPRINT
+- Status → RUNNING  
+- Revision feedback logged
 
-        2. Analyze the user feedback carefully
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
 
-        3. Revise the ## Plan section addressing all feedback points
+**🔄 REQUIRED ACTIONS:**
+1. Review user feedback carefully
 
-        4. Ensure the revised plan is more detailed and addresses concerns
+2. Revise the implementation plan addressing all concerns:
+   - Incorporate user suggestions
+   - Fix identified issues  
+   - Improve clarity and detail
+   - Address any missing requirements
 
-        5. Update workflow_state.md: Status=NEEDS_PLAN_APPROVAL
+3. Update plan with revised approach
 
-        6. Present the revised plan to the user
+**⚠️ PLAN APPROVAL REQUIRED:**
+Once you complete the revised plan, update status to NEEDS_PLAN_APPROVAL and wait for user confirmation.
 
-        ✅ WHEN REVISION COMPLETE:
-        Call prompt: 'blueprint_phase_guidance'
-        Parameters: task_description="{task_description}", requirements_summary="Plan revised based on feedback: {feedback}"
-        """
+**✅ WHEN USER APPROVES REVISED PLAN:**
+Call: `construct_phase_guidance`
+Parameters: task_description="{task_description}"
+
+**❌ IF USER REJECTS REVISED PLAN:**
+Call: `revise_blueprint_guidance` 
+Parameters: task_description="{task_description}", feedback="<new user feedback>"
+
+🎯 **Plan revision initiated automatically - address feedback systematically!**
+"""

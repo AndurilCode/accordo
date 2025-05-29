@@ -1,153 +1,78 @@
-"""State manager for workflow state file operations."""
+"""State manager for workflow state operations - now purely session-based."""
 
-from datetime import UTC, datetime
-from pathlib import Path
+from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from .session_manager import (
+    add_log_to_session,
+    export_session_to_markdown,
+    get_or_create_session,
+    update_session_state,
+)
 
 
 class StateManager:
-    """Manages workflow state file operations."""
+    """Manages workflow state with session-based backend."""
 
-    def __init__(self, state_file: str = "workflow_state.md"):
-        """Initialize state manager with state file path."""
-        self.state_file = Path(state_file)
-
-    def file_exists(self) -> bool:
-        """Check if workflow state file exists."""
-        return self.state_file.exists()
+    def __init__(self, state_file: str = "workflow_state.md", client_id: str = "default"):
+        """Initialize state manager with client ID.
+        
+        Args:
+            state_file: Deprecated parameter kept for backward compatibility, ignored.
+            client_id: Client ID for session management.
+        """
+        # state_file parameter is kept for backward compatibility but ignored
+        self.client_id = client_id
 
     def create_initial_state(self, task_description: str) -> None:
-        """Create initial workflow state file."""
-        template_path = (
-            Path(__file__).parent.parent / "templates" / "workflow_state_template.md"
-        )
-
-        if template_path.exists():
-            with open(template_path) as f:
-                template = f.read()
-
-            # Replace template variables
-            content = template.format(
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%d"),
-                task_description=task_description,
-            )
-        else:
-            # Fallback if template doesn't exist
-            content = self._get_fallback_template(task_description)
-
-        with open(self.state_file, "w") as f:
-            f.write(content)
+        """Create initial workflow state (creates session)."""
+        get_or_create_session(self.client_id, task_description)
 
     def read_state(self) -> str | None:
-        """Read the current workflow state file content."""
-        if not self.file_exists():
-            return None
-
-        with open(self.state_file) as f:
-            return f.read()
+        """Read the current workflow state as markdown."""
+        # Ensure session exists before exporting
+        get_or_create_session(self.client_id, "Default task")
+        return export_session_to_markdown(self.client_id)
 
     def update_state_section(
         self, phase: str, status: str, current_item: str | None = None
     ) -> bool:
-        """Update the State section of the workflow file."""
-        content = self.read_state()
-        if not content:
+        """Update the State section of the workflow (updates session)."""
+        try:
+            phase_enum = WorkflowPhase(phase)
+            status_enum = WorkflowStatus(status)
+            
+            # Ensure session exists before updating
+            get_or_create_session(self.client_id, current_item or "Default task")
+            
+            return update_session_state(
+                client_id=self.client_id,
+                phase=phase_enum,
+                status=status_enum,
+                current_item=current_item
+            )
+        except ValueError:
             return False
-
-        lines = content.split("\n")
-        updated_lines = []
-        in_state_section = False
-        state_section_updated = False
-
-        for line in lines:
-            if line.strip() == "## State":
-                in_state_section = True
-                updated_lines.append(line)
-                # Update timestamp
-                if updated_lines and updated_lines[0].startswith("_Last updated:"):
-                    updated_lines[0] = (
-                        f"_Last updated: {datetime.now(UTC).strftime('%Y-%m-%d')}_"
-                    )
-                continue
-
-            if in_state_section and line.startswith("## "):
-                # End of state section
-                in_state_section = False
-                state_section_updated = True
-
-            if in_state_section:
-                if line.startswith("Phase:"):
-                    updated_lines.append(f"Phase: {phase}")
-                elif line.startswith("Status:"):
-                    updated_lines.append(f"Status: {status}")
-                elif line.startswith("CurrentItem:"):
-                    updated_lines.append(f"CurrentItem: {current_item or 'null'}")
-                else:
-                    updated_lines.append(line)
-            else:
-                updated_lines.append(line)
-
-        if state_section_updated:
-            with open(self.state_file, "w") as f:
-                f.write("\n".join(updated_lines))
-            return True
-
-        return False
 
     def append_to_log(self, entry: str) -> bool:
-        """Append an entry to the Log section."""
-        content = self.read_state()
-        if not content:
-            return False
+        """Append an entry to the Log section (updates session)."""
+        # Ensure session exists before adding log
+        get_or_create_session(self.client_id, "Default task")
+        return add_log_to_session(self.client_id, entry)
 
-        lines = content.split("\n")
-        log_section_found = False
+    def get_client_id(self) -> str:
+        """Get the client ID for this state manager."""
+        return self.client_id
 
-        # Find the Log section and append
-        for i, line in enumerate(lines):
-            if line.strip() == "## Log":
-                log_section_found = True
-                # Find the end of the log section
-                j = i + 1
-                while j < len(lines) and not lines[j].startswith("## "):
-                    j += 1
+    def set_client_id(self, client_id: str) -> None:
+        """Set the client ID for this state manager."""
+        self.client_id = client_id
 
-                # Insert the new entry before the next section
-                timestamp = datetime.now(UTC).strftime("%H:%M:%S")
-                new_entry = f"[{timestamp}] {entry}"
-                lines.insert(j, new_entry)
-                break
 
-        if log_section_found:
-            with open(self.state_file, "w") as f:
-                f.write("\n".join(lines))
-            return True
-
-        return False
-
-    def _get_fallback_template(self, task_description: str) -> str:
-        """Get fallback template if template file doesn't exist."""
-        return f"""# workflow_state.md
-_Last updated: {datetime.now(UTC).strftime("%Y-%m-%d")}_
-
-## State
-Phase: INIT  
-Status: READY  
-CurrentItem: {task_description}  
-
-## Plan
-<!-- The AI fills this in during the BLUEPRINT phase -->
-
-## Rules
-> **Keep every major section under an explicit H2 (`##`) heading so the agent can locate them unambiguously.**
-
-## Items
-| id | description | status |
-|----|-------------|--------|
-| 1 | {task_description} | pending |
-
-## Log
-<!-- AI appends detailed reasoning, tool output, and errors here -->
-
-## ArchiveLog
-<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->
-"""
+# Legacy compatibility function - maintained for existing code
+def create_state_manager(state_file: str = "workflow_state.md", client_id: str = "default") -> StateManager:
+    """Create a state manager instance with session backend.
+    
+    Args:
+        state_file: Deprecated parameter kept for backward compatibility, ignored.
+        client_id: Client ID for session management.
+    """
+    return StateManager(state_file, client_id)

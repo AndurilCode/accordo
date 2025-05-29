@@ -4,17 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.dev_workflow_mcp.server import hello_workflow, main, mcp
-
-
-class TestHelloWorkflow:
-    """Test hello_workflow function."""
-
-    def test_hello_workflow(self):
-        """Test hello workflow function returns expected message."""
-        result = hello_workflow()
-
-        assert "Hello from dev workflow MCP!" in result
+from src.dev_workflow_mcp.server import main, mcp
 
 
 class TestServerInitialization:
@@ -23,14 +13,6 @@ class TestServerInitialization:
     def test_mcp_server_creation(self):
         """Test that MCP server is created with correct name."""
         assert mcp.name == "Development Workflow"
-
-    @pytest.mark.asyncio
-    async def test_hello_workflow_tool_registered(self):
-        """Test that hello_workflow is registered as a tool."""
-        # Check that the function is registered as a tool
-        tools = await mcp.get_tools()
-        tool_names = list(tools.keys())
-        assert "hello_workflow" in tool_names
 
     @pytest.mark.asyncio
     async def test_guidance_tools_registered(self):
@@ -46,7 +28,6 @@ class TestServerInitialization:
             "construct_phase_guidance",
             "validate_phase_guidance",
             "update_workflow_state_guidance",
-            "create_workflow_state_file_guidance",
         ]
 
         for tool_name in expected_tools:
@@ -58,9 +39,9 @@ class TestServerInitialization:
     async def test_tool_count(self):
         """Test that expected number of tools are registered."""
         tools = await mcp.get_tools()
-        # Should have hello_workflow plus all the guidance tools
-        # Based on the guidance files, we expect around 19 tools
-        assert len(tools) >= 19
+        # Should have guidance tools only
+        # Based on the guidance files, we expect around 14 tools
+        assert len(tools) >= 14
 
 
 class TestMainFunction:
@@ -71,29 +52,11 @@ class TestMainFunction:
         """Test that main function calls mcp.run with correct parameters."""
         main()
 
-        mock_run.assert_called_once_with(transport="sse", host="127.0.0.1", port=8000)
+        mock_run.assert_called_once_with(transport="stdio")
 
 
 class TestToolExecution:
     """Test tool registration and structure."""
-
-    @pytest.mark.asyncio
-    async def test_hello_workflow_tool_structure(self):
-        """Test hello_workflow tool is properly registered with correct structure."""
-        # Get the tool
-        tools = await mcp.get_tools()
-        assert "hello_workflow" in tools
-        hello_tool = tools["hello_workflow"]
-
-        # Verify tool structure
-        assert hello_tool.name == "hello_workflow"
-        assert hello_tool.description == "A simple hello world workflow tool."
-        assert hello_tool.parameters["type"] == "object"
-        assert hello_tool.parameters["properties"] == {}
-
-        # Test direct function call
-        result = hello_workflow()
-        assert "Hello from dev workflow MCP!" in result
 
     @pytest.mark.asyncio
     async def test_init_workflow_guidance_tool_structure(self):
@@ -123,7 +86,7 @@ class TestToolExecution:
 
         # Verify tool structure
         assert update_tool.name == "update_workflow_state_guidance"
-        assert "update workflow_state.md" in update_tool.description
+        assert "update the workflow state" in update_tool.description
         assert update_tool.parameters["type"] == "object"
 
         properties = update_tool.parameters["properties"]

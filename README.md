@@ -5,7 +5,6 @@ An MCP (Model Context Protocol) server that provides structured workflow guidanc
 ## Features
 
 - **Structured Workflow**: Guides agents through ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
-- **State Management**: Maintains workflow state in `workflow_state.md` file
 - **Mandatory Guidance**: Each tool provides authoritative instructions that agents must execute exactly
 - **Prompt Chaining**: Each guidance tool explicitly specifies the next tool to call
 - **Error Recovery**: Built-in error handling and recovery guidance
@@ -13,6 +12,74 @@ An MCP (Model Context Protocol) server that provides structured workflow guidanc
 - **Changelog Integration**: Automatically updates project changelog
 
 ## Installation
+
+### Option 1: MCP Client Configuration (Recommended)
+
+For use with MCP clients like Cursor, add this configuration to your `mcp.json` file:
+
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
+    }
+  }
+}
+````
+
+#### Cursor Configuration
+
+**Location of mcp.json:**
+- **Windows**: `%APPDATA%\Cursor\User\mcp.json`
+- **macOS**: `~/Library/Application Support/Cursor/User/mcp.json` 
+- **Linux**: `~/.config/Cursor/User/mcp.json`
+
+**Setup Steps:**
+1. Create the configuration file at the appropriate location for your OS
+2. Add the JSON configuration above
+3. Restart Cursor to load the server
+4. Access MCP settings: `Cmd/Ctrl + Shift + J` → Navigate to "MCP" tab
+5. Verify the workflow-commander server appears and shows a green status
+
+**Alternative Configuration Methods:**
+- **Project-specific**: Create `.cursor/mcp.json` in your project directory
+- **Global**: Use `~/.cursor/mcp.json` for access across all projects
+
+#### Claude Desktop Configuration
+
+**Location of claude_desktop_config.json:**
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+**Setup Steps:**
+1. Ensure you have [Claude Desktop](https://claude.ai/download) installed
+2. Create or edit the configuration file at the appropriate location
+3. Add the workflow-commander server configuration:
+
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Restart Claude Desktop
+5. Test the connection by asking Claude: "What workflow guidance tools are available?"
+
+**Prerequisites for both clients:**
+- Node.js installed for running MCP servers
+- `uvx` available in your PATH (install with `pip install uvx` if needed)
+
+After adding the configuration, restart your MCP client to load the server.
+
+### Option 2: Local Development Installation
 
 ```bash
 # Clone the repository
@@ -26,9 +93,16 @@ uv sync
 pip install -e .
 ```
 
+### Option 3: Direct Installation
+
+```bash
+# Install directly from GitHub
+uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp
+```
+
 ## Usage
 
-### Running the Server
+### Running the Server (Local Development)
 
 ```bash
 # Run the MCP server
@@ -59,12 +133,13 @@ The server provides the following workflow guidance tools that provide **mandato
 - `escalate_to_user_guidance` - Escalate critical issues with mandatory steps
 - `changelog_update_guidance` - Update project changelog with mandatory steps
 
-#### Transition Guidance
-- `update_workflow_state_guidance` - Update workflow state file with mandatory steps
-- `create_workflow_state_file_guidance` - Create initial state file with mandatory steps
+#### Project Setup Guidance
 - `check_project_config_guidance` - Verify project configuration with mandatory steps
 - `create_project_config_guidance` - Create project config template with mandatory steps
-- `validate_workflow_files_guidance` - Validate workflow files with mandatory steps
+
+#### Transition Guidance
+- `update_workflow_state_guidance` - Update workflow state with mandatory steps
+- `get_workflow_state_markdown` - Get current workflow state for debugging/display
 
 ### Workflow Process
 
@@ -75,126 +150,80 @@ The server provides the following workflow guidance tools that provide **mandato
 5. **Validate**: Agent tests and validates the implementation
 6. **Complete**: Agent finalizes and moves to next item (if any)
 
+### How It Works
+
+The workflow system uses **centralized session management** that automatically handles all state tracking:
+
+- **No Manual File Editing**: All workflow state is managed automatically in-memory via MCP server sessions
+- **Real-time State Updates**: Each guidance tool updates and returns the current state
+- **Complete Visibility**: You always see the updated workflow state after each action
+- **Automatic Logging**: All actions and transitions are logged with timestamps
+
 ### Required Files
 
-The workflow requires two files in your project root:
-
-#### workflow_state.md
-Tracks the current workflow state, progress, and logs. Created automatically by the `init_workflow_guidance`.
+The workflow requires one configuration file in your project root:
 
 #### project_config.md
 Contains project configuration including:
-- Project structure
-- Dependencies
-- Test commands
-- Build commands
-- Changelog
+- Project structure and information
+- Dependencies and versions
+- Test commands and build processes
+- Project changelog
+
+*Note: Workflow state is now managed purely through the MCP server session system - no workflow files are created*
 
 ## Example Usage
 
 ```python
-# In your MCP client (e.g., Cursor)
+# In your MCP client (e.g., Cursor or Claude Desktop)
 
 # 1. Start a new workflow
-# Call guidance: init_workflow_guidance
+# Call: init_workflow_guidance
 # Parameters: task_description="Add user authentication to the API"
 
 # 2. The agent will be guided through each phase:
 # - analyze_phase_guidance: Understand requirements
-# - blueprint_phase_guidance: Create implementation plan
+# - blueprint_phase_guidance: Create implementation plan  
 # - construct_phase_guidance: Implement the changes
 # - validate_phase_guidance: Test and validate
 # - complete_workflow_guidance: Finalize and update changelog
 
-# 3. If there are more items, the workflow continues automatically
+# 3. Each step automatically updates and shows the current workflow state
+# 4. If there are more items, the workflow continues automatically
 ```
 
-## Mandatory Execution Guidance
+## Centralized State Management
 
-Each guidance tool provides authoritative instructions that agents must execute exactly:
+Each guidance tool provides real-time state updates and clear next steps:
 
-```
-✅ WHEN COMPLETE:
-Call prompt: 'blueprint_phase_guidance'
-Parameters: task_description="Add user authentication", requirements_summary="..."
-```
+**✅ STATE UPDATED AUTOMATICALLY:**
+- Phase → ANALYZE
+- Status → RUNNING
+- Analysis phase initiated
 
-This ensures the agent follows the exact workflow without deviation and prevents hallucinations.
-
-## Error Handling
-
-The workflow includes comprehensive error handling:
-
-- **Simple Errors**: Fixed and workflow continues
-- **Complex Issues**: Return to BLUEPRINT phase
-- **Critical Errors**: Escalated to user with detailed context
-
-## State Management
-
-The workflow maintains state in `workflow_state.md`:
-
+**📋 CURRENT WORKFLOW STATE:**
 ```markdown
+# Workflow State
+_Last updated: 2024-12-19_
+
 ## State
-Phase: CONSTRUCT
+Phase: ANALYZE
 Status: RUNNING
 CurrentItem: Add user authentication to the API
+
+## Plan
+<!-- The AI fills this in during the BLUEPRINT phase -->
 
 ## Items
 | id | description | status |
 |----|-------------|--------|
 | 1 | Add user authentication to the API | pending |
-| 2 | Implement rate limiting | pending |
 
 ## Log
-[14:30:15] Started CONSTRUCT phase
-[14:32:22] Created auth middleware
-[14:35:10] Added JWT token validation
+[2024-12-19 14:30:15] 🚀 WORKFLOW INITIALIZED: Add user authentication to the API
+[2024-12-19 14:30:16] 📊 ANALYZE PHASE STARTED: Add user authentication to the API
 ```
 
-## Development
-
-### Project Structure
-
-```
-src/dev_workflow_mcp/
-├── server.py              # Main MCP server
-├── models/                # Pydantic models
-│   ├── workflow_state.py  # Workflow state models
-│   └── responses.py       # Response models
-├── prompts/               # Workflow guidance tools
-│   ├── phase_prompts.py   # Phase-specific guidance
-│   ├── management_prompts.py # Management guidance
-│   └── transition_prompts.py # State transition guidance
-├── utils/                 # Utilities
-│   ├── state_manager.py   # State file operations
-│   └── validators.py      # File validation
-└── templates/             # File templates
-    ├── workflow_state_template.md
-    └── project_config_template.md
-```
-
-### Testing
-
-```bash
-# Run tests
-python -m pytest
-
-# Run linter
-ruff check .
-
-# Format code
-ruff format .
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run linting and tests
-6. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+**🔄 NEXT STEP:**
+Call: `blueprint_phase_guidance`
+Parameters: task_description="Add user authentication to the API", requirements_summary="..."
