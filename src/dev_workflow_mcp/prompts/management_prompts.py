@@ -226,7 +226,7 @@ Parameters: task_description="{task_description}", error_details="{error_details
         # Log validation issues in session
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"🔧 VALIDATION ISSUES: {issues}")
-        update_session_state(client_id, status=WorkflowStatus.NEEDS_FIXES)
+        update_session_state(client_id, status=WorkflowStatus.ERROR)
         
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
@@ -237,7 +237,7 @@ Parameters: task_description="{task_description}", error_details="{error_details
 **Issues:** {issues}
 
 **✅ STATE UPDATED AUTOMATICALLY:**
-- Status → NEEDS_FIXES
+- Status → ERROR
 - Issues logged with timestamp
 
 **📋 CURRENT WORKFLOW STATE:**

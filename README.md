@@ -136,7 +136,6 @@ The server provides the following workflow guidance tools that provide **mandato
 #### Project Setup Guidance
 - `check_project_config_guidance` - Verify project configuration with mandatory steps
 - `create_project_config_guidance` - Create project config template with mandatory steps
-- `validate_project_config_guidance` - Validate project configuration with mandatory steps
 
 #### Transition Guidance
 - `update_workflow_state_guidance` - Update workflow state with mandatory steps

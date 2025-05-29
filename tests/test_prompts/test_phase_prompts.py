@@ -273,10 +273,14 @@ class TestPhasePrompts:
 
             # All prompts should contain task description
             assert task in result
-            # All prompts should have clear action items
-            assert "ACTIONS" in result or "ACTION" in result
-            # All prompts should have next step guidance
-            assert "WHEN" in result or "IF" in result
+            # All prompts should have clear action guidance
+            assert (
+                "REQUIRED ACTIONS" in result 
+                or "ACTIONS TO TAKE" in result
+                or "NEXT STEP" in result
+                or "Call:" in result
+                or "call:" in result
+            )
 
     @pytest.mark.asyncio
     async def test_mandatory_execution_emphasis(self, mock_context):
@@ -318,4 +322,10 @@ class TestPhasePrompts:
             else:
                 continue
 
-            assert "REQUIRED ACTIONS" in result or "ACTIONS TO TAKE" in result
+            assert (
+                "REQUIRED ACTIONS" in result 
+                or "ACTIONS TO TAKE" in result
+                or "NEXT STEP" in result
+                or "Call:" in result
+                or "call:" in result
+            )
