@@ -46,7 +46,6 @@ class TestServerInitialization:
             "construct_phase_guidance",
             "validate_phase_guidance",
             "update_workflow_state_guidance",
-            "create_workflow_state_file_guidance",
         ]
 
         for tool_name in expected_tools:
@@ -123,7 +122,7 @@ class TestToolExecution:
 
         # Verify tool structure
         assert update_tool.name == "update_workflow_state_guidance"
-        assert "update workflow_state.md" in update_tool.description
+        assert "update the workflow state" in update_tool.description
         assert update_tool.parameters["type"] == "object"
 
         properties = update_tool.parameters["properties"]
