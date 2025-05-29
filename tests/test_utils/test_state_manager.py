@@ -1,6 +1,5 @@
 """Tests for state manager utility functions."""
 
-
 from src.dev_workflow_mcp.utils import session_manager
 from src.dev_workflow_mcp.utils.state_manager import StateManager
 
@@ -56,7 +55,7 @@ class TestStateManager:
         manager = StateManager(client_id="test-update-client")
         # First create a session
         manager.create_initial_state("Update test task")
-        
+
         result = manager.update_state_section("ANALYZE", "RUNNING", "New task")
         assert result is True
 
@@ -70,7 +69,7 @@ class TestStateManager:
         """Test state section update with None current_item."""
         manager = StateManager(client_id="test-null-client")
         manager.create_initial_state("Null test task")
-        
+
         result = manager.update_state_section("ANALYZE", "RUNNING", None)
         assert result is True
 
@@ -105,7 +104,7 @@ class TestStateManager:
         """Test successful log entry append via session."""
         manager = StateManager(client_id="test-log-client")
         manager.create_initial_state("Log test task")
-        
+
         result = manager.append_to_log("New log entry")
         assert result is True
 
@@ -125,7 +124,7 @@ class TestStateManager:
         """Test client ID getter and setter."""
         manager = StateManager(client_id="original-client")
         assert manager.get_client_id() == "original-client"
-        
+
         manager.set_client_id("new-client")
         assert manager.get_client_id() == "new-client"
 
@@ -173,7 +172,7 @@ class TestStateManagerCompatibility:
     def test_legacy_create_state_manager(self):
         """Test legacy create_state_manager function."""
         from src.dev_workflow_mcp.utils.state_manager import create_state_manager
-        
+
         manager = create_state_manager("ignored_file.md", "legacy-client")
         assert manager.client_id == "legacy-client"
         assert isinstance(manager, StateManager)
@@ -183,7 +182,7 @@ class TestStateManagerCompatibility:
         # Old way: StateManager(state_file, client_id)
         manager = StateManager("some_file.md", "compat-client")
         assert manager.client_id == "compat-client"
-        
+
         # New way: StateManager(client_id=client_id)
         manager2 = StateManager(client_id="new-client")
         assert manager2.client_id == "new-client"

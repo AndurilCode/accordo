@@ -52,6 +52,7 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- Removed all utility tools (hello_workflow, get_session_statistics, health_check_sessions, export_client_session, cleanup_old_sessions) from MCP server to eliminate noise and provide a clean, focused tool interface for agents
 - Fixed all 27 failing unit tests by adding Context parameters to test methods and updating test expectations for session-based state management
 - Improved tool naming from `_prompt` to `_guidance` suffix to clearly indicate mandatory execution guidance that agents must follow exactly
 - Implemented comprehensive unit test suite with 143 tests achieving 99% code coverage across all modules

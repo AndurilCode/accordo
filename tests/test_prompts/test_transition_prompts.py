@@ -155,9 +155,9 @@ class TestTransitionPrompts:
             status="RUNNING",
             ctx=mock_context,
             current_item="Test analysis task",
-            log_entry="Starting analysis phase"
+            log_entry="Starting analysis phase",
         )
-        
+
         assert "Phase → ANALYZE" in update_result
         assert "Status → RUNNING" in update_result
         assert "Test analysis task" in update_result
@@ -200,7 +200,7 @@ class TestTransitionPrompts:
             status="COMPLETED",
             ctx=mock_context,
             current_item="Final validation task",
-            log_entry="All tests passed successfully"
+            log_entry="All tests passed successfully",
         )
 
         assert "Phase → VALIDATE" in result
@@ -221,7 +221,7 @@ class TestTransitionPrompts:
             phase="BLUEPRINT",
             status="NEEDS_PLAN_APPROVAL",
             ctx=mock_context,
-            current_item="Create implementation plan"
+            current_item="Create implementation plan",
         )
 
         # Get the state
