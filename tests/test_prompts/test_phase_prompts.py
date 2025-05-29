@@ -86,8 +86,11 @@ class TestPhasePrompts:
 
         assert "ANALYZE PHASE" in result
         assert task in result
-        assert "NO CODING OR PLANNING YET" in result
+        assert "REQUIREMENTS UNDERSTANDING ONLY" in result
         assert "blueprint_phase_guidance" in result
+        assert "MANDATORY ACTIONS" in result
+        assert "COMPLETION VALIDATION CHECKLIST" in result
+        assert "STRICTLY FORBIDDEN" in result
 
     @pytest.mark.asyncio
     async def test_blueprint_phase_guidance_output(self, mock_context):
@@ -141,8 +144,10 @@ class TestPhasePrompts:
 
         assert "VALIDATE PHASE" in result
         assert task in result
-        assert "FINAL VERIFICATION" in result
+        assert "COMPREHENSIVE QUALITY VERIFICATION" in result
         assert "complete_workflow_guidance" in result
+        assert "MANDATORY VALIDATION SEQUENCE" in result
+        assert "VALIDATION CHECKLIST" in result
 
     @pytest.mark.asyncio
     async def test_revise_blueprint_guidance_output(self, mock_context):
@@ -275,7 +280,7 @@ class TestPhasePrompts:
             assert task in result
             # All prompts should have clear action guidance
             assert (
-                "REQUIRED ACTIONS" in result 
+                "REQUIRED ACTIONS" in result
                 or "ACTIONS TO TAKE" in result
                 or "NEXT STEP" in result
                 or "Call:" in result
@@ -323,7 +328,7 @@ class TestPhasePrompts:
                 continue
 
             assert (
-                "REQUIRED ACTIONS" in result 
+                "REQUIRED ACTIONS" in result
                 or "ACTIONS TO TAKE" in result
                 or "NEXT STEP" in result
                 or "Call:" in result

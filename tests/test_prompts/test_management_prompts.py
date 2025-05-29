@@ -309,8 +309,8 @@ class TestManagementPrompts:
             # All prompts should have clear action guidance (except finalize which is the end)
             if tool_name != "finalize_workflow_guidance":
                 assert (
-                    "ACTIONS" in result 
-                    or "ACTION" in result 
+                    "ACTIONS" in result
+                    or "ACTION" in result
                     or "REQUIRED" in result
                     or "NEXT STEP" in result
                     or "NEXT STEPS" in result
