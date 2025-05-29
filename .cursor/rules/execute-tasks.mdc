@@ -14,6 +14,11 @@ alwaysApply: true
 2. **Follow guidance**: Execute all instructions from tools ending with "_guidance" exactly as specified
 4. **Stay synchronized**: The workflow state file is your source of truth - keep it current throughout the process
 
+### Tools for Analysis/Blueprint
+1. **Context7**: Use it to find up to date documentation about technologies used (e.g. Node.js, python, etc), if there is any error or failure related to unknown APIs.
+2. **Web Search**: USe web search to find common patterns of solutions for the task, if needed.
+3. **GitHub**: If any GitHub reference is provided in your context, search for that content (code, doc, etc) to improve the final Blueprint.
+
 ### Key Principles
 - The response from workflow guidance tools contains your execution plan - treat it as authoritative
 - Don't skip steps or improvise when following workflow instructions
