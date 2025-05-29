@@ -8,8 +8,8 @@ def register_project_prompts(mcp: FastMCP):
 
     @mcp.tool()
     def check_project_config_guidance(ctx: Context) -> str:
-        """Guide agent to verify project_config.md exists with mandatory execution steps."""
-        return """🔍 CHECKING PROJECT CONFIGURATION
+        """Guide agent to verify and validate project_config.md with mandatory execution steps."""
+        return """🔍 CHECKING & VALIDATING PROJECT CONFIGURATION
 
 **📋 REQUIRED ACTIONS:**
 1. Check if project_config.md exists in the current directory
@@ -20,9 +20,13 @@ def register_project_prompts(mcp: FastMCP):
    - ## Test Commands
    - ## Changelog
 
-3. If missing sections, note what needs to be added
+3. Verify that the file is readable and properly formatted
 
-4. If file doesn't exist, create a basic template
+4. Check that test commands are valid for the current project
+
+5. If missing sections or issues found, note what needs to be added/fixed
+
+6. If file doesn't exist, create a basic template
 
 **✅ IF PROJECT_CONFIG.MD IS READY:**
 Continue with your current workflow step
@@ -30,7 +34,10 @@ Continue with your current workflow step
 **❌ IF PROJECT_CONFIG.MD NEEDS SETUP:**
 Call: `create_project_config_guidance`
 
-🎯 **Project configuration verification complete!**
+**❌ IF CONFIG NEEDS FIXES:**
+Call appropriate prompts to fix missing sections
+
+🎯 **Project configuration verification and validation complete!**
 """
 
     @mcp.tool()
@@ -74,31 +81,4 @@ Call: `create_project_config_guidance`
 Return to your previous workflow step
 
 🎯 **Project configuration file created successfully!**
-"""
-
-    @mcp.tool()
-    def validate_project_config_guidance(ctx: Context) -> str:
-        """Guide agent to validate project configuration file with mandatory execution steps."""
-        return """✅ VALIDATING PROJECT CONFIGURATION
-
-**📋 REQUIRED ACTIONS:**
-1. Check project_config.md exists and has required sections:
-   - ## Project Info
-   - ## Dependencies
-   - ## Test Commands
-   - ## Changelog
-
-2. Verify that the file is readable and properly formatted
-
-3. Check that test commands are valid for the current project
-
-4. Report any missing files or sections
-
-**✅ IF PROJECT CONFIG IS VALID:**
-Continue with your current workflow step
-
-**❌ IF CONFIG NEEDS FIXES:**
-Call appropriate prompts to fix missing sections
-
-🎯 **Project configuration validation complete!**
 """ 
