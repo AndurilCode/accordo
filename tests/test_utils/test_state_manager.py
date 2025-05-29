@@ -1,13 +1,12 @@
 """Tests for state manager utility functions."""
 
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
 import pytest
 
-from src.dev_workflow_mcp.utils.state_manager import StateManager
 from src.dev_workflow_mcp.utils import session_manager
+from src.dev_workflow_mcp.utils.state_manager import StateManager
 
 
 class TestStateManager:

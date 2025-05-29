@@ -6,7 +6,6 @@ from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from ..utils.session_manager import (
     add_log_to_session,
     export_session_to_markdown,
-    get_or_create_session,
     update_session_state,
 )
 

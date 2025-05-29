@@ -1,7 +1,6 @@
 """State manager for workflow state file operations - now with session-based backend."""
 
 from pathlib import Path
-from typing import Optional
 
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from .session_manager import (
@@ -32,14 +31,14 @@ class StateManager:
         # Create session which will initialize the state
         get_or_create_session(self.client_id, task_description)
 
-    def read_state(self) -> Optional[str]:
+    def read_state(self) -> str | None:
         """Read the current workflow state as markdown."""
         # Ensure session exists before exporting
         get_or_create_session(self.client_id, "Default task")
         return export_session_to_markdown(self.client_id)
 
     def update_state_section(
-        self, phase: str, status: str, current_item: Optional[str] = None
+        self, phase: str, status: str, current_item: str | None = None
     ) -> bool:
         """Update the State section of the workflow (now updates session)."""
         try:
@@ -74,7 +73,7 @@ class StateManager:
         """Migrate existing workflow_state.md file to session."""
         if self.state_file.exists():
             try:
-                with open(self.state_file, 'r') as f:
+                with open(self.state_file) as f:
                     content = f.read()
                 return migrate_session_from_markdown(self.client_id, content)
             except Exception:
@@ -111,7 +110,7 @@ def create_state_manager(state_file: str = "workflow_state.md", client_id: str =
 def migrate_file_to_session(file_path: str, client_id: str) -> bool:
     """Migrate a workflow state file to session."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             content = f.read()
         return migrate_session_from_markdown(client_id, content)
     except Exception:
