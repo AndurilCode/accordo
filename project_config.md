@@ -52,6 +52,7 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- Fixed all 27 failing unit tests by adding Context parameters to test methods and updating test expectations for session-based state management
 - Improved tool naming from `_prompt` to `_guidance` suffix to clearly indicate mandatory execution guidance that agents must follow exactly
 - Implemented comprehensive unit test suite with 143 tests achieving 99% code coverage across all modules
 - Implemented comprehensive workflow MCP server with phase-based prompts
