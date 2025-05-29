@@ -100,7 +100,9 @@ class TestPhasePrompts:
 
         task = "Test task description"
         summary = "Test requirements summary"
-        result = blueprint_tool.fn(task_description=task, requirements_summary=summary, ctx=mock_context)
+        result = blueprint_tool.fn(
+            task_description=task, requirements_summary=summary, ctx=mock_context
+        )
 
         assert "BLUEPRINT PHASE" in result
         assert task in result
@@ -153,7 +155,9 @@ class TestPhasePrompts:
 
         task = "Test task description"
         feedback = "Test feedback"
-        result = revise_tool.fn(task_description=task, feedback=feedback, ctx=mock_context)
+        result = revise_tool.fn(
+            task_description=task, feedback=feedback, ctx=mock_context
+        )
 
         assert "REVISING BLUEPRINT" in result
         assert task in result
@@ -194,11 +198,15 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
 
         # Test init -> analyze chain
-        init_result = tools["init_workflow_guidance"].fn(task_description="test", ctx=mock_context)
+        init_result = tools["init_workflow_guidance"].fn(
+            task_description="test", ctx=mock_context
+        )
         assert "analyze_phase_guidance" in init_result
 
         # Test analyze -> blueprint chain
-        analyze_result = tools["analyze_phase_guidance"].fn(task_description="test", ctx=mock_context)
+        analyze_result = tools["analyze_phase_guidance"].fn(
+            task_description="test", ctx=mock_context
+        )
         assert "blueprint_phase_guidance" in analyze_result
 
         # Test blueprint -> construct chain
@@ -208,7 +216,9 @@ class TestPhasePrompts:
         assert "construct_phase_guidance" in blueprint_result
 
         # Test construct -> validate chain
-        construct_result = tools["construct_phase_guidance"].fn(task_description="test", ctx=mock_context)
+        construct_result = tools["construct_phase_guidance"].fn(
+            task_description="test", ctx=mock_context
+        )
         assert "validate_phase_guidance" in construct_result
 
     @pytest.mark.asyncio
@@ -218,10 +228,14 @@ class TestPhasePrompts:
         register_phase_prompts(mcp)
         tools = await mcp.get_tools()
 
-        construct_result = tools["construct_phase_guidance"].fn(task_description="test", ctx=mock_context)
+        construct_result = tools["construct_phase_guidance"].fn(
+            task_description="test", ctx=mock_context
+        )
         assert "error_recovery_guidance" in construct_result
 
-        validate_result = tools["validate_phase_guidance"].fn(task_description="test", ctx=mock_context)
+        validate_result = tools["validate_phase_guidance"].fn(
+            task_description="test", ctx=mock_context
+        )
         assert "fix_validation_issues_guidance" in validate_result
 
     @pytest.mark.asyncio
@@ -240,14 +254,20 @@ class TestPhasePrompts:
             ):
                 result = tool.fn(task_description=task, ctx=mock_context)
             elif tool_name == "blueprint_phase_guidance":
-                result = tool.fn(task_description=task, requirements_summary="summary", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task,
+                    requirements_summary="summary",
+                    ctx=mock_context,
+                )
             elif (
                 tool_name == "construct_phase_guidance"
                 or tool_name == "validate_phase_guidance"
             ):
                 result = tool.fn(task_description=task, ctx=mock_context)
             elif tool_name == "revise_blueprint_guidance":
-                result = tool.fn(task_description=task, feedback="feedback", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, feedback="feedback", ctx=mock_context
+                )
             else:
                 continue
 
@@ -281,14 +301,20 @@ class TestPhasePrompts:
             ):
                 result = tool.fn(task_description=task, ctx=mock_context)
             elif tool_name == "blueprint_phase_guidance":
-                result = tool.fn(task_description=task, requirements_summary="summary", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task,
+                    requirements_summary="summary",
+                    ctx=mock_context,
+                )
             elif (
                 tool_name == "construct_phase_guidance"
                 or tool_name == "validate_phase_guidance"
             ):
                 result = tool.fn(task_description=task, ctx=mock_context)
             elif tool_name == "revise_blueprint_guidance":
-                result = tool.fn(task_description=task, feedback="feedback", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, feedback="feedback", ctx=mock_context
+                )
             else:
                 continue
 

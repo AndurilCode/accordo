@@ -43,9 +43,15 @@ class TestValidateProjectConfig:
 
         assert is_valid is False
         assert len(issues) == 3  # Missing 3 sections
-        assert any("Missing required section: ## Dependencies" in issue for issue in issues)
-        assert any("Missing required section: ## Test Commands" in issue for issue in issues)
-        assert any("Missing required section: ## Changelog" in issue for issue in issues)
+        assert any(
+            "Missing required section: ## Dependencies" in issue for issue in issues
+        )
+        assert any(
+            "Missing required section: ## Test Commands" in issue for issue in issues
+        )
+        assert any(
+            "Missing required section: ## Changelog" in issue for issue in issues
+        )
 
     def test_validate_config_file_read_error(self, temp_project_config_file):
         """Test validation when config file cannot be read."""

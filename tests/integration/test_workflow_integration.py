@@ -127,9 +127,7 @@ class TestEndToEndWorkflowTransitions:
 
         # 2. Move to ANALYZE phase
         state_manager.update_state_section("ANALYZE", "RUNNING")
-        state_manager.append_to_log(
-            "Started analysis phase - examining requirements"
-        )
+        state_manager.append_to_log("Started analysis phase - examining requirements")
 
         # 3. Move to BLUEPRINT phase
         state_manager.update_state_section("BLUEPRINT", "RUNNING")
@@ -151,9 +149,7 @@ class TestEndToEndWorkflowTransitions:
 
         # 7. Complete workflow
         state_manager.update_state_section("VALIDATE", "COMPLETED")
-        state_manager.append_to_log(
-            "All tests passed, workflow completed successfully"
-        )
+        state_manager.append_to_log("All tests passed, workflow completed successfully")
 
         # Verify final state
         final_content = state_manager.read_state()
@@ -227,6 +223,7 @@ class TestProjectConfigIntegration:
         """Test project config validation with real file content."""
         with tempfile.TemporaryDirectory() as temp_dir:
             import os
+
             config_file = os.path.join(temp_dir, "project_config.md")
 
             # Create valid project config
@@ -344,7 +341,7 @@ class TestSessionManagementIntegration:
         for i, manager in enumerate(managers):
             content = manager.read_state()
             assert f"Task for {clients[i]}" in content
-            
+
             # Verify isolation - shouldn't contain other clients' tasks
             for j, other_client in enumerate(clients):
                 if i != j:
@@ -353,7 +350,7 @@ class TestSessionManagementIntegration:
     def test_session_state_persistence(self):
         """Test that session state persists across StateManager instances."""
         client_id = "persistent-client"
-        
+
         # Create initial state with first manager
         manager1 = StateManager(client_id=client_id)
         manager1.create_initial_state("Persistent task")
@@ -362,7 +359,7 @@ class TestSessionManagementIntegration:
 
         # Create second manager with same client_id
         manager2 = StateManager(client_id=client_id)
-        
+
         # Should access the same session
         content = manager2.read_state()
         assert "Persistent task" in content
@@ -373,7 +370,7 @@ class TestSessionManagementIntegration:
 
         # Update through second manager
         manager2.append_to_log("Second log entry")
-        
+
         # First manager should see the update
         updated_content = manager1.read_state()
         assert "Second log entry" in updated_content

@@ -90,8 +90,13 @@ class TestManagementPrompts:
 
         result = iterate_tool.fn(ctx=mock_context)
 
-        assert "PROCESSING NEXT WORKFLOW ITEM" in result or "NO MORE ITEMS TO PROCESS" in result
-        assert "analyze_phase_guidance" in result or "finalize_workflow_guidance" in result
+        assert (
+            "PROCESSING NEXT WORKFLOW ITEM" in result
+            or "NO MORE ITEMS TO PROCESS" in result
+        )
+        assert (
+            "analyze_phase_guidance" in result or "finalize_workflow_guidance" in result
+        )
 
     @pytest.mark.asyncio
     async def test_finalize_workflow_guidance_output(self, mock_context):
@@ -120,7 +125,9 @@ class TestManagementPrompts:
 
         task = "Test task"
         error_details = "Test error occurred"
-        result = error_tool.fn(task_description=task, error_details=error_details, ctx=mock_context)
+        result = error_tool.fn(
+            task_description=task, error_details=error_details, ctx=mock_context
+        )
 
         assert "ERROR RECOVERY MODE" in result
         assert task in result
@@ -159,7 +166,9 @@ class TestManagementPrompts:
 
         task = "Test task"
         error_details = "Critical error details"
-        result = escalate_tool.fn(task_description=task, error_details=error_details, ctx=mock_context)
+        result = escalate_tool.fn(
+            task_description=task, error_details=error_details, ctx=mock_context
+        )
 
         assert "ESCALATING TO USER" in result
         assert task in result
@@ -211,7 +220,9 @@ class TestManagementPrompts:
         tools = await mcp.get_tools()
         error_tool = tools["error_recovery_guidance"]
 
-        result = error_tool.fn(task_description="test", error_details="error", ctx=mock_context)
+        result = error_tool.fn(
+            task_description="test", error_details="error", ctx=mock_context
+        )
 
         # Should contain all three recovery paths
         assert "construct_phase_guidance" in result
@@ -234,7 +245,10 @@ class TestManagementPrompts:
 
         # Test iterate -> analyze chain
         iterate_result = tools["iterate_next_item_guidance"].fn(ctx=mock_context)
-        assert "analyze_phase_guidance" in iterate_result or "finalize_workflow_guidance" in iterate_result
+        assert (
+            "analyze_phase_guidance" in iterate_result
+            or "finalize_workflow_guidance" in iterate_result
+        )
 
     @pytest.mark.asyncio
     async def test_error_handling_chains(self, mock_context):
@@ -276,11 +290,17 @@ class TestManagementPrompts:
             ):
                 result = tool.fn(ctx=mock_context)
             elif tool_name == "error_recovery_guidance":
-                result = tool.fn(task_description=task, error_details="error", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, error_details="error", ctx=mock_context
+                )
             elif tool_name == "fix_validation_issues_guidance":
-                result = tool.fn(task_description=task, issues="issues", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, issues="issues", ctx=mock_context
+                )
             elif tool_name == "escalate_to_user_guidance":
-                result = tool.fn(task_description=task, error_details="error", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, error_details="error", ctx=mock_context
+                )
             elif tool_name == "changelog_update_guidance":
                 result = tool.fn(task_description=task, ctx=mock_context)
             else:
@@ -386,11 +406,17 @@ class TestManagementPrompts:
             ):
                 result = tool.fn(ctx=mock_context)
             elif tool_name == "error_recovery_guidance":
-                result = tool.fn(task_description=task, error_details="error", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, error_details="error", ctx=mock_context
+                )
             elif tool_name == "fix_validation_issues_guidance":
-                result = tool.fn(task_description=task, issues="issues", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, issues="issues", ctx=mock_context
+                )
             elif tool_name == "escalate_to_user_guidance":
-                result = tool.fn(task_description=task, error_details="error", ctx=mock_context)
+                result = tool.fn(
+                    task_description=task, error_details="error", ctx=mock_context
+                )
             elif tool_name == "changelog_update_guidance":
                 result = tool.fn(task_description=task, ctx=mock_context)
             else:
