@@ -52,6 +52,8 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- Updated bootstrap-execute-tasks.sh to embed execute-tasks content directly instead of reading from external files, with Cursor receiving YAML frontmatter format while Copilot and Claude get clean content without YAML frontmatter
+- Created bootstrap-execute-tasks.sh script that deploys execute-tasks guidelines to multiple AI assistants (Cursor, GitHub Copilot, Claude) with argument parsing, content checking, directory creation, and intelligent deployment logic
 - Removed all utility tools (hello_workflow, get_session_statistics, health_check_sessions, export_client_session, cleanup_old_sessions) from MCP server to eliminate noise and provide a clean, focused tool interface for agents
 - Fixed all 27 failing unit tests by adding Context parameters to test methods and updating test expectations for session-based state management
 - Improved tool naming from `_prompt` to `_guidance` suffix to clearly indicate mandatory execution guidance that agents must follow exactly
