@@ -25,12 +25,11 @@ from .session_manager import (
     update_session_state,
 )
 from .state_manager import StateManager
-from .validators import validate_project_config, validate_workflow_state
+from .validators import validate_project_config
 
 __all__ = [
     # Legacy compatibility
     "StateManager",
-    "validate_workflow_state", 
     "validate_project_config",
     
     # Session management
