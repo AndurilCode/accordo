@@ -53,7 +53,7 @@ class WorkflowState(BaseModel):
     archive_log: str = ""
 
     # Template for markdown generation
-    MARKDOWN_TEMPLATE: ClassVar[str] = """# workflow_state.md
+    MARKDOWN_TEMPLATE: ClassVar[str] = """# Workflow State
 _Last updated: {timestamp}_
 
 ## State

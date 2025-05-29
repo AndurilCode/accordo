@@ -155,7 +155,7 @@ The server provides the following workflow guidance tools that provide **mandato
 
 The workflow system uses **centralized session management** that automatically handles all state tracking:
 
-- **No Manual File Editing**: All workflow state is managed automatically
+- **No Manual File Editing**: All workflow state is managed automatically in-memory via MCP server sessions
 - **Real-time State Updates**: Each guidance tool updates and returns the current state
 - **Complete Visibility**: You always see the updated workflow state after each action
 - **Automatic Logging**: All actions and transitions are logged with timestamps
@@ -171,7 +171,7 @@ Contains project configuration including:
 - Test commands and build processes
 - Project changelog
 
-*Note: workflow_state.md is now managed automatically through the centralized session system*
+*Note: Workflow state is now managed purely through the MCP server session system - no workflow files are created*
 
 ## Example Usage
 
@@ -204,7 +204,7 @@ Each guidance tool provides real-time state updates and clear next steps:
 
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
-# workflow_state.md
+# Workflow State
 _Last updated: 2024-12-19_
 
 ## State

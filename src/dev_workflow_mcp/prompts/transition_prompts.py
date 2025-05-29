@@ -6,6 +6,7 @@ from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from ..utils.session_manager import (
     add_log_to_session,
     export_session_to_markdown,
+    get_or_create_session,
     update_session_state,
 )
 
@@ -33,6 +34,9 @@ def register_transition_prompts(mcp: FastMCP):
             # Fallback for invalid enum values
             phase_enum = WorkflowPhase.INIT
             status_enum = WorkflowStatus.READY
+        
+        # Ensure session exists
+        get_or_create_session(client_id, "Default workflow task")
         
         # Update session state
         update_session_state(

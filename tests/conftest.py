@@ -22,13 +22,6 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def temp_workflow_file(temp_dir: Path) -> Path:
-    """Create a temporary workflow state file."""
-    workflow_file = temp_dir / "workflow_state.md"
-    return workflow_file
-
-
-@pytest.fixture
 def temp_project_config_file(temp_dir: Path) -> Path:
     """Create a temporary project config file."""
     config_file = temp_dir / "project_config.md"
@@ -63,9 +56,9 @@ def sample_workflow_items() -> list[WorkflowItem]:
 
 
 @pytest.fixture
-def valid_workflow_state_content() -> str:
-    """Create valid workflow state file content for testing."""
-    return """# workflow_state.md
+def sample_workflow_state_content() -> str:
+    """Create sample workflow state content for testing (session-based)."""
+    return """# Workflow State
 _Last updated: 2024-12-19_
 
 ## State
