@@ -12,6 +12,7 @@ from ..utils.session_manager import (
     get_or_create_session,
     update_session_state,
 )
+from ..utils.state_manager import get_file_operation_instructions
 
 
 def register_phase_prompts(mcp: FastMCP):
@@ -39,6 +40,9 @@ def register_phase_prompts(mcp: FastMCP):
         
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
+        
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
 
         return f"""🚀 WORKFLOW INITIALIZED
 
@@ -54,7 +58,7 @@ def register_phase_prompts(mcp: FastMCP):
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **📋 SETUP REQUIREMENTS:**
 - Ensure project_config.md exists and is readable
@@ -90,6 +94,9 @@ Parameters: task_description="{task_description}"
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""📊 ANALYZE PHASE - REQUIREMENTS UNDERSTANDING ONLY
 
 **Task:** {task_description}
@@ -102,7 +109,7 @@ Parameters: task_description="{task_description}"
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🎯 PHASE OBJECTIVE:** Thoroughly understand requirements and existing codebase WITHOUT any coding or planning.
 
@@ -216,6 +223,9 @@ Parameters: task_description="{task_description}", requirements_summary="<your d
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         # Check for auto-approval
         workflow_config = get_workflow_config()
         if workflow_config.auto_approve_plans:
@@ -233,6 +243,9 @@ Parameters: task_description="{task_description}", requirements_summary="<your d
             # Get updated state after phase transition
             updated_state = export_session_to_markdown(client_id)
             
+            # Get file operation instructions again for the updated state
+            file_operations = get_file_operation_instructions(client_id)
+            
             return f"""🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
 
 **Task:** {task_description}
@@ -247,7 +260,7 @@ Parameters: task_description="{task_description}", requirements_summary="<your d
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **📋 BLUEPRINT PLAN REQUIREMENTS:**
 Before implementing, ensure your plan includes:
@@ -288,7 +301,7 @@ Continue with implementation - no user approval needed!
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🎯 PHASE OBJECTIVE:** Create a detailed, step-by-step implementation plan that can be executed without further planning decisions.
 
@@ -452,6 +465,9 @@ Parameters: task_description="{task_description}", feedback="<user feedback>"
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🔨 CONSTRUCT PHASE - SYSTEMATIC IMPLEMENTATION
 
 **Task:** {task_description}
@@ -464,7 +480,7 @@ Parameters: task_description="{task_description}", feedback="<user feedback>"
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🎯 PHASE OBJECTIVE:** Execute the approved plan exactly with mandatory verification after each atomic change.
 
@@ -615,6 +631,9 @@ Parameters: task_description="{task_description}", error_details="<detailed erro
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""✅ VALIDATE PHASE - COMPREHENSIVE QUALITY VERIFICATION
 
 **Task:** {task_description}
@@ -627,7 +646,7 @@ Parameters: task_description="{task_description}", error_details="<detailed erro
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🎯 PHASE OBJECTIVE:** Comprehensively verify implementation quality, functionality, and compliance with all requirements.
 
@@ -836,6 +855,9 @@ Parameters: task_description="{task_description}", issues="<comprehensive failur
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🔄 REVISING BLUEPRINT
 
 **Task:** {task_description}
@@ -849,7 +871,7 @@ Parameters: task_description="{task_description}", issues="<comprehensive failur
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔄 REQUIRED ACTIONS:**
 1. Review user feedback carefully
