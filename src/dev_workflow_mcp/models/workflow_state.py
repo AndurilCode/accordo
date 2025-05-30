@@ -41,8 +41,10 @@ class WorkflowState(BaseModel):
 
     # Session identification
     client_id: str = Field(default="default", description="Client session identifier")
-    created_at: datetime = Field(default_factory=datetime.now, description="Session creation time")
-    
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Session creation time"
+    )
+
     # Workflow state
     last_updated: datetime = Field(default_factory=datetime.now)
     phase: WorkflowPhase
@@ -125,14 +127,14 @@ Action ▶
 {archive_log}
 """
 
-    @field_validator('client_id')
+    @field_validator("client_id")
     @classmethod
     def validate_client_id(cls, v):
         """Validate client_id format."""
         if not v or not isinstance(v, str):
             return "default"
         # Basic validation - alphanumeric plus hyphens and underscores
-        if not all(c.isalnum() or c in '-_' for c in v):
+        if not all(c.isalnum() or c in "-_" for c in v):
             return "default"
         return v
 
@@ -172,28 +174,45 @@ Action ▶
         """Generate markdown representation of workflow state."""
         # Format timestamp
         timestamp = self.last_updated.strftime("%Y-%m-%d")
-        
+
         # Format current item
         current_item = self.current_item or "null"
-        
+
         # Format items table
         if self.items:
-            items_lines = ["| id | description | status |", "|----|-------------|--------|"]
+            items_lines = [
+                "| id | description | status |",
+                "|----|-------------|--------|",
+            ]
             for item in self.items:
-                items_lines.append(f"| {item.id} | {item.description} | {item.status} |")
+                items_lines.append(
+                    f"| {item.id} | {item.description} | {item.status} |"
+                )
             items_table = "\n".join(items_lines)
         else:
             items_table = "| id | description | status |\n|----|-------------|--------|\n<!-- No items yet -->"
-        
+
         # Format plan
-        plan = self.plan if self.plan.strip() else "<!-- The AI fills this in during the BLUEPRINT phase -->"
-        
+        plan = (
+            self.plan
+            if self.plan.strip()
+            else "<!-- The AI fills this in during the BLUEPRINT phase -->"
+        )
+
         # Format log
-        log = self.log if self.log.strip() else "<!-- AI appends detailed reasoning, tool output, and errors here -->"
-        
+        log = (
+            self.log
+            if self.log.strip()
+            else "<!-- AI appends detailed reasoning, tool output, and errors here -->"
+        )
+
         # Format archive log
-        archive_log = self.archive_log if self.archive_log.strip() else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
-        
+        archive_log = (
+            self.archive_log
+            if self.archive_log.strip()
+            else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
+        )
+
         return self.MARKDOWN_TEMPLATE.format(
             timestamp=timestamp,
             phase=self.phase.value,
@@ -202,7 +221,7 @@ Action ▶
             plan=plan,
             items_table=items_table,
             log=log,
-            archive_log=archive_log
+            archive_log=archive_log,
         )
 
     def to_json(self) -> str:
@@ -212,34 +231,30 @@ Action ▶
             "metadata": {
                 "last_updated": self.last_updated.isoformat(),
                 "client_id": self.client_id,
-                "created_at": self.created_at.isoformat()
+                "created_at": self.created_at.isoformat(),
             },
             "state": {
                 "phase": self.phase.value,
                 "status": self.status.value,
-                "current_item": self.current_item
+                "current_item": self.current_item,
             },
             "plan": self.plan if self.plan.strip() else None,
             "items": [
-                {
-                    "id": item.id,
-                    "description": item.description,
-                    "status": item.status
-                }
+                {"id": item.id, "description": item.description, "status": item.status}
                 for item in self.items
             ],
             "log": self.log if self.log.strip() else None,
-            "archive_log": self.archive_log if self.archive_log.strip() else None
+            "archive_log": self.archive_log if self.archive_log.strip() else None,
         }
-        
+
         return json.dumps(state_dict, indent=2)
 
     @classmethod
     def from_markdown(cls, content: str, client_id: str) -> "WorkflowState":
         """Create WorkflowState from markdown content."""
         # This is a simplified parser - in production you'd want more robust parsing
-        lines = content.split('\n')
-        
+        lines = content.split("\n")
+
         # Default values
         phase = WorkflowPhase.INIT
         status = WorkflowStatus.READY
@@ -248,55 +263,57 @@ Action ▶
         log = ""
         archive_log = ""
         items = []
-        
+
         # Parse the markdown (basic implementation)
         current_section = None
         section_content = []
-        
+
         for line in lines:
-            if line.startswith('## '):
+            if line.startswith("## "):
                 # Process previous section
                 if current_section and section_content:
-                    content_text = '\n'.join(section_content).strip()
-                    
-                    if current_section == 'Plan':
+                    content_text = "\n".join(section_content).strip()
+
+                    if current_section == "Plan":
                         plan = content_text
-                    elif current_section == 'Log':
+                    elif current_section == "Log":
                         log = content_text
-                    elif current_section == 'ArchiveLog':
+                    elif current_section == "ArchiveLog":
                         archive_log = content_text
-                    elif current_section == 'Items':
+                    elif current_section == "Items":
                         # Parse items table (simplified)
                         items = cls._parse_items_table(section_content)
-                
+
                 # Start new section
                 current_section = line[3:].strip()
                 section_content = []
-                
-            elif line.startswith('Phase: '):
+
+            elif line.startswith("Phase: "):
                 phase = WorkflowPhase(line[7:].strip())
-            elif line.startswith('Status: '):
+            elif line.startswith("Status: "):
                 status = WorkflowStatus(line[8:].strip())
-            elif line.startswith('CurrentItem: '):
+            elif line.startswith("CurrentItem: "):
                 current_item_text = line[13:].strip()
-                current_item = current_item_text if current_item_text != "null" else None
+                current_item = (
+                    current_item_text if current_item_text != "null" else None
+                )
             else:
                 if current_section:
                     section_content.append(line)
-        
+
         # Process final section
         if current_section and section_content:
-            content_text = '\n'.join(section_content).strip()
-            
-            if current_section == 'Plan':
+            content_text = "\n".join(section_content).strip()
+
+            if current_section == "Plan":
                 plan = content_text
-            elif current_section == 'Log':
+            elif current_section == "Log":
                 log = content_text
-            elif current_section == 'ArchiveLog':
+            elif current_section == "ArchiveLog":
                 archive_log = content_text
-            elif current_section == 'Items':
+            elif current_section == "Items":
                 items = cls._parse_items_table(section_content)
-        
+
         return cls(
             client_id=client_id,
             phase=phase,
@@ -305,24 +322,30 @@ Action ▶
             plan=plan,
             items=items,
             log=log,
-            archive_log=archive_log
+            archive_log=archive_log,
         )
 
     @classmethod
     def _parse_items_table(cls, lines: list[str]) -> list[WorkflowItem]:
         """Parse items table from markdown lines."""
         items = []
-        
+
         for line in lines:
-            if line.startswith('| ') and not line.startswith('|-'):
-                parts = [part.strip() for part in line.split('|')[1:-1]]  # Remove empty first/last
-                if len(parts) >= 3 and parts[0] != 'id':  # Skip header
+            if line.startswith("| ") and not line.startswith("|-"):
+                parts = [
+                    part.strip() for part in line.split("|")[1:-1]
+                ]  # Remove empty first/last
+                if len(parts) >= 3 and parts[0] != "id":  # Skip header
                     try:
                         item_id = int(parts[0])
                         description = parts[1]
                         status = parts[2]
-                        items.append(WorkflowItem(id=item_id, description=description, status=status))
+                        items.append(
+                            WorkflowItem(
+                                id=item_id, description=description, status=status
+                            )
+                        )
                     except (ValueError, IndexError):
                         continue  # Skip malformed lines
-        
+
         return items

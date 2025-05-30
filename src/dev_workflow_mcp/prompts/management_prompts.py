@@ -23,23 +23,23 @@ def register_management_prompts(mcp: FastMCP):
         # Update session to completed status
         client_id = ctx.client_id if ctx else "default"
         session = get_session(client_id)
-        
+
         if session:
             update_session_state(client_id, status=WorkflowStatus.COMPLETED)
             add_log_to_session(client_id, f"✅ COMPLETED: {task_description}")
-            
+
             # Mark current item as completed if it matches task description
             for item in session.items:
                 if item.description == task_description and item.status == "pending":
                     mark_item_completed_in_session(client_id, item.id)
                     break
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🎉 WORKFLOW TASK COMPLETED
 
 **Task:** {task_description}
@@ -74,7 +74,7 @@ Call: `changelog_update_guidance` if project changelog needs updating
         # Find next pending item and update session
         client_id = ctx.client_id if ctx else "default"
         session = get_session(client_id)
-        
+
         next_item = None
         if session:
             next_item = session.get_next_pending_item()
@@ -83,16 +83,18 @@ Call: `changelog_update_guidance` if project changelog needs updating
                     client_id=client_id,
                     phase=WorkflowPhase.ANALYZE,
                     status=WorkflowStatus.READY,
-                    current_item=next_item.description
+                    current_item=next_item.description,
                 )
-                add_log_to_session(client_id, f"🔄 STARTING NEXT ITEM: {next_item.description}")
-        
+                add_log_to_session(
+                    client_id, f"🔄 STARTING NEXT ITEM: {next_item.description}"
+                )
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         if next_item:
             return f"""🔄 PROCESSING NEXT WORKFLOW ITEM
 
@@ -134,29 +136,31 @@ Call: `finalize_workflow_guidance`
         """Guide the agent to finalize the entire workflow with mandatory execution steps."""
         # Reset session to initial state
         client_id = ctx.client_id if ctx else "default"
-        
+
         # Add final summary to log before archiving
         session = get_session(client_id)
         if session:
-            completed_items = [item for item in session.items if item.status == "completed"]
+            completed_items = [
+                item for item in session.items if item.status == "completed"
+            ]
             add_log_to_session(
-                client_id, 
-                f"🏁 WORKFLOW FINALIZED - {len(completed_items)} items completed successfully"
+                client_id,
+                f"🏁 WORKFLOW FINALIZED - {len(completed_items)} items completed successfully",
             )
-        
+
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.INIT,
             status=WorkflowStatus.READY,
-            current_item=None
+            current_item=None,
         )
-        
+
         # Get final state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🏁 WORKFLOW FINALIZED
 
 **✅ STATE UPDATED AUTOMATICALLY:**
@@ -184,20 +188,20 @@ Call: `finalize_workflow_guidance`
         ctx: Context,
         error_details: str = Field(
             description="Description of the error that occurred"
-        ),  
+        ),
     ) -> str:
         """Guide the agent through error recovery with mandatory execution steps."""
         # Log error in session and update status
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"🚨 ERROR: {error_details}")
         update_session_state(client_id, status=WorkflowStatus.ERROR)
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🚨 ERROR RECOVERY MODE
 
 **Task:** {task_description}
@@ -240,13 +244,13 @@ Parameters: task_description="{task_description}", error_details="{error_details
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         add_log_to_session(client_id, f"🔧 VALIDATION ISSUES: {issues}")
         update_session_state(client_id, status=WorkflowStatus.ERROR)
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🔧 FIXING VALIDATION ISSUES
 
 **Task:** {task_description}
@@ -290,13 +294,13 @@ Parameters: task_description="{task_description}", error_details="Persistent val
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(client_id, status=WorkflowStatus.ERROR)
         add_log_to_session(client_id, f"⚠️ CRITICAL ERROR - ESCALATED: {error_details}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""⚠️ ESCALATING TO USER
 
 **Task:** {task_description}  
@@ -334,19 +338,21 @@ Parameters: task_description="{task_description}"
         project_config_path: str = Field(
             default=".workflow-commander/project_config.md",
             description="Path to project configuration file",
-        ),        
+        ),
     ) -> str:
         """Guide the agent to update the project changelog with mandatory execution steps."""
         # Log changelog update in session
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
-        add_log_to_session(client_id, f"📝 Updating project changelog for: {task_description}")
-        
+        add_log_to_session(
+            client_id, f"📝 Updating project changelog for: {task_description}"
+        )
+
         # Get current state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""📝 UPDATING PROJECT CHANGELOG
 
 **Task:** {task_description}

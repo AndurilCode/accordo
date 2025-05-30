@@ -51,6 +51,7 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- [2025-05-30] Implemented standardized task_description parameter format validation with "Action: Brief description" pattern across all 6 phase prompt tools, including comprehensive Field documentation and helpful error messages for non-conforming formats
 - Added WORKFLOW_AUTO_APPROVE_PLANS environment variable to enable automatic blueprint approval, allowing workflows to bypass manual user approval and transition directly from blueprint to construction phase when set to "true"
 - Enhanced all four core phase prompts (analyze, blueprint, construct, validate) with mandatory validation checklists, explicit anti-patterns, detailed examples, escalation triggers, and comprehensive verification procedures to provide clearer agent guidance and reduce workflow divergence
 - Updated bootstrap-execute-tasks.sh to embed execute-tasks content directly instead of reading from external files, with Cursor receiving YAML frontmatter format while Copilot and Claude get clean content without YAML frontmatter
