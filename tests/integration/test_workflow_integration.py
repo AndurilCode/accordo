@@ -1,6 +1,7 @@
 """Integration tests for workflow state session operations and end-to-end state transitions."""
 
 import tempfile
+import pytest
 
 from src.dev_workflow_mcp.models.workflow_state import (
     WorkflowItem,
@@ -214,6 +215,43 @@ class TestEndToEndWorkflowTransitions:
         for item in items:
             assert item in final_content
         assert "Status: COMPLETED" in final_content
+
+    @pytest.mark.asyncio
+    async def test_auto_approval_workflow(self):
+        """Test auto-approval workflow that skips NEEDS_PLAN_APPROVAL state."""
+        import os
+        from unittest.mock import patch, Mock
+        from fastmcp import Context
+        from src.dev_workflow_mcp.prompts.phase_prompts import register_phase_prompts
+        from fastmcp import FastMCP
+
+        # Test with auto-approval enabled
+        with patch.dict(os.environ, {"WORKFLOW_AUTO_APPROVE_PLANS": "true"}):
+            # Create MCP server and register tools
+            mcp = FastMCP("test-server")
+            register_phase_prompts(mcp)
+            
+            # Create mock context
+            context = Mock(spec=Context)
+            context.client_id = "test-auto-approval-client"
+            
+            # Get tools using the async method
+            tools = await mcp.get_tools()
+            blueprint_tool = tools["blueprint_phase_guidance"]
+            
+            # Call blueprint phase guidance
+            result = blueprint_tool.fn(
+                task_description="Test auto-approval feature",
+                requirements_summary="Test requirements for auto-approval",
+                ctx=context
+            )
+            
+            # Verify auto-approval behavior
+            assert "AUTO-APPROVAL ACTIVATED" in result
+            assert "WORKFLOW_AUTO_APPROVE_PLANS=true" in result
+            assert "Phase → CONSTRUCT" in result
+            assert "auto-transitioned" in result
+            assert "no user approval needed" in result.lower()
 
 
 class TestProjectConfigIntegration:

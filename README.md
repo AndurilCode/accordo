@@ -193,6 +193,48 @@ The server provides the following workflow guidance tools that provide **mandato
 5. **Validate**: Agent tests and validates the implementation
 6. **Complete**: Agent finalizes and moves to next item (if any)
 
+### Configuration
+
+The workflow server supports several environment variables for customization:
+
+#### Auto-Approval Configuration
+
+**WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
+
+Controls whether blueprint plans are automatically approved without user interaction:
+
+- **`false`** (default): Blueprint plans require manual user approval before proceeding to implementation
+- **`true`**: Blueprint plans are automatically approved and the workflow proceeds directly to the construction phase
+
+**Usage:**
+```bash
+# Enable auto-approval for automated workflows
+export WORKFLOW_AUTO_APPROVE_PLANS=true
+
+# Or set when starting your MCP client
+WORKFLOW_AUTO_APPROVE_PLANS=true cursor
+```
+
+**When to use auto-approval:**
+- ✅ Automated CI/CD workflows
+- ✅ Batch processing multiple items
+- ✅ Development environments with trusted input
+- ❌ Production deployments requiring human oversight
+- ❌ Complex or critical changes needing review
+
+**Example with auto-approval enabled:**
+```
+🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
+
+✅ AUTO-APPROVAL ACTIVATED:
+- Environment Variable: WORKFLOW_AUTO_APPROVE_PLANS=true
+- Phase → CONSTRUCT (auto-transitioned)
+- Plan automatically approved without user interaction
+
+🔨 CONSTRUCT PHASE ACTIVE:
+Continue with implementation - no user approval needed!
+```
+
 ### How It Works
 
 The workflow system uses **centralized session management** that automatically handles all state tracking:
