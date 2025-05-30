@@ -332,7 +332,7 @@ Parameters: task_description="{task_description}"
         task_description: str,
         ctx: Context,
         project_config_path: str = Field(
-            default="project_config.md",
+            default=".workflow-commander/project_config.md",
             description="Path to project configuration file",
         ),        
     ) -> str:

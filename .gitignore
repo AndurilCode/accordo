@@ -184,5 +184,7 @@ logs/
 local.conf
 
 # Development files
-dev_*
+dev_*.py
+dev_*.txt
+dev_*.log
 debug_*
