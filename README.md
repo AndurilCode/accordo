@@ -214,6 +214,54 @@ WORKFLOW_AUTO_APPROVE_PLANS=true cursor
 Continue with implementation - no user approval needed!
 ```
 
+#### Local State File Configuration
+
+**WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
+
+Controls whether workflow state is synchronized to a local `workflow_state.md` file alongside the in-memory state:
+
+- **`false`** (default): Workflow state is maintained only in MCP server memory
+- **`true`**: Workflow state is maintained in BOTH MCP server memory AND a local `workflow_state.md` file
+
+**Usage:**
+```bash
+# Enable local state file synchronization
+export WORKFLOW_LOCAL_STATE_FILE=true
+
+# Or set when starting your MCP client
+WORKFLOW_LOCAL_STATE_FILE=true cursor
+```
+
+**MCP Config:**
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx", 
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {
+        "WORKFLOW_LOCAL_STATE_FILE": "true"
+      }
+    }
+  }
+}
+```
+
+**When to use local state files:**
+- ✅ Offline state persistence and backup
+- ✅ Manual state inspection and debugging
+- ✅ Integration with file-based tools
+- ✅ Collaboration workflows requiring shared state files
+- ❌ Environments with restricted file system access
+- ❌ High-frequency workflows where file I/O overhead matters
+
+**How dual storage works:**
+- MCP server maintains authoritative state in memory
+- Agent receives mandatory file write instructions when state changes
+- Both memory and file state are kept synchronized
+- File operations are enforced through guidance prompts (MCP server cannot directly write files)
+```
+
 ## Installation Options
 
 ### Option 1: MCP Client Configuration (Recommended)
