@@ -44,12 +44,6 @@ __all__ = [
     # Configuration
     "get_workflow_config",
     
-    # Path utilities
-    "get_workflow_dir",
-    "get_project_config_path",
-    "get_workflow_state_path",
-    "migrate_config_file",
-    
     # Session management
     "get_session",
     "create_session", 
@@ -65,6 +59,13 @@ __all__ = [
     "get_session_stats",
     "cleanup_completed_sessions",
     "migrate_session_from_markdown",
+    
+    # Path utilities
+    "get_workflow_dir",
+    "get_project_config_path",
+    "get_workflow_state_path",
+    "migrate_config_file",
+    "migrate_workflow_state_files",
     
     # Markdown generation
     "generate_workflow_markdown",
