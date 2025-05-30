@@ -12,7 +12,7 @@ def register_project_prompts(mcp: FastMCP):
         return """🔍 CHECKING & VALIDATING PROJECT CONFIGURATION
 
 **📋 REQUIRED ACTIONS:**
-1. Check if project_config.md exists in the current directory
+1. Check if .workflow-commander/project_config.md exists in the current directory
 
 2. If it exists, verify it contains these sections:
    - ## Project Info
@@ -46,7 +46,7 @@ Call appropriate prompts to fix missing sections
         return """📄 CREATING PROJECT CONFIG FILE
 
 **📋 REQUIRED ACTIONS:**
-1. Create project_config.md with this basic structure:
+1. Create .workflow-commander/project_config.md with this basic structure:
 
 ```markdown
 # Project Configuration
@@ -75,7 +75,7 @@ Call appropriate prompts to fix missing sections
 
 2. Fill in the sections based on the current project structure
 
-3. Save the file
+3. Save the file in the .workflow-commander directory
 
 **✅ WHEN PROJECT_CONFIG.MD IS CREATED:**
 Return to your previous workflow step

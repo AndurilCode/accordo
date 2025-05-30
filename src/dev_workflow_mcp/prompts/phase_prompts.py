@@ -61,7 +61,7 @@ def register_phase_prompts(mcp: FastMCP):
 ```{file_operations}
 
 **📋 SETUP REQUIREMENTS:**
-- Ensure project_config.md exists and is readable
+- Ensure .workflow-commander/project_config.md exists and is readable
 - Verify project structure is accessible
 
 **🔄 NEXT STEP:**
@@ -76,7 +76,7 @@ Parameters: task_description="{task_description}"
         task_description: str,
         ctx: Context,
         project_config_path: str = Field(
-            default="project_config.md",
+            default=".workflow-commander/project_config.md",
             description="Path to project configuration file",
         ),
     ) -> str:
@@ -149,7 +149,7 @@ Before proceeding, you MUST verify ALL of the following:
 - [ ] Can identify potential risks or edge cases
 
 ✅ **Documentation Criteria:**
-- [ ] Have read project_config.md and understand test commands
+- [ ] Have read .workflow-commander/project_config.md and understand test commands
 - [ ] Have examined relevant source code files
 - [ ] Have reviewed any existing documentation
 - [ ] Have identified coding standards and conventions

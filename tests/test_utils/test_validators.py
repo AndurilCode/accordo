@@ -82,13 +82,15 @@ class TestValidateProjectFiles:
 
     def test_validate_project_config_missing(self, temp_dir):
         """Test validation when project config file is missing."""
-        config_path = temp_dir / "missing_config.md"
+        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir.mkdir(exist_ok=True)
+        config_path = workflow_dir / "missing_config.md"
 
         is_valid, issues = validate_project_files(str(config_path))
 
         assert is_valid is False
         assert len(issues) == 1
-        assert "project_config.md: project_config.md file does not exist" in issues[0]
+        assert "project_config.md file does not exist" in issues[0]
 
     def test_validate_project_config_invalid(self, temp_project_config_file):
         """Test validation when project config is invalid."""
