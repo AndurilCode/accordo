@@ -4,7 +4,7 @@ from ..models.config import WorkflowConfig
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from .session_manager import (
     add_log_to_session,
-    export_session_to_markdown,
+    export_session,
     get_or_create_session,
     update_session_state,
 )
@@ -23,10 +23,18 @@ def get_file_operation_instructions(client_id: str = "default") -> str:
     if not config.local_state_file:
         return ""
     
-    # Get current state markdown from session
-    state_markdown = export_session_to_markdown(client_id)
-    if not state_markdown:
+    # Get current state content from session using the configured format
+    state_content = export_session(client_id, config.local_state_file_format)
+    if not state_content:
         return ""
+    
+    # Determine filename and content type based on format
+    if config.local_state_file_format == "JSON":
+        filename = "workflow_state.json"
+        content_type = "JSON"
+    else:
+        filename = "workflow_state.md"
+        content_type = "markdown"
     
     return f"""
 
@@ -36,15 +44,15 @@ Since `WORKFLOW_LOCAL_STATE_FILE=true`, you MUST update the local workflow state
 
 **⚠️ REQUIRED ACTION:**
 ```
-Edit or create the file: workflow_state.md
+Edit or create the file: {filename}
 
 Content to write:
-{state_markdown}
+{state_content}
 ```
 
 **📋 FILE OPERATION CHECKLIST:**
-- [ ] Create or update `workflow_state.md` in your working directory
-- [ ] Write the complete markdown content exactly as shown above
+- [ ] Create or update `{filename}` in your working directory
+- [ ] Write the complete {content_type} content exactly as shown above
 - [ ] Verify the file was written successfully
 - [ ] Continue with the guided workflow
 
@@ -73,7 +81,7 @@ class StateManager:
         """Read the current workflow state as markdown."""
         # Ensure session exists before exporting
         get_or_create_session(self.client_id, "Default task")
-        return export_session_to_markdown(self.client_id)
+        return export_session(self.client_id, "MD")
 
     def update_state_section(
         self, phase: str, status: str, current_item: str | None = None

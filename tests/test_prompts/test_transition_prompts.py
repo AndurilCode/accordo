@@ -134,8 +134,11 @@ class TestTransitionPrompts:
         assert "status" in update_tool.parameters["properties"]
         assert "current_item" in update_tool.parameters["properties"]
         assert "log_entry" in update_tool.parameters["properties"]
+        assert "plan" in update_tool.parameters["properties"]
         assert "phase" in update_tool.parameters["required"]
         assert "status" in update_tool.parameters["required"]
+        # Verify plan is optional (not in required list)
+        assert "plan" not in update_tool.parameters["required"]
 
         # Test get_workflow_state_markdown parameters
         get_state_tool = tools["get_workflow_state_markdown"]
@@ -207,6 +210,56 @@ class TestTransitionPrompts:
         assert "Status → COMPLETED" in result
         assert "CurrentItem → Final validation task" in result
         assert "All tests passed successfully" in result
+        assert "STATE UPDATED AUTOMATICALLY" in result
+
+    @pytest.mark.asyncio
+    async def test_update_workflow_state_with_plan_parameter(self, mock_context):
+        """Test update_workflow_state_guidance with plan parameter."""
+        mcp = FastMCP("test-server")
+        register_transition_prompts(mcp)
+        tools = await mcp.get_tools()
+
+        # Test with plan parameter
+        result = tools["update_workflow_state_guidance"].fn(
+            phase="BLUEPRINT",
+            status="NEEDS_PLAN_APPROVAL",
+            ctx=mock_context,
+            current_item="Create implementation plan",
+            plan="Step 1: Setup\nStep 2: Implementation\nStep 3: Testing",
+        )
+
+        assert "Phase → BLUEPRINT" in result
+        assert "Status → NEEDS_PLAN_APPROVAL" in result
+        assert "CurrentItem → Create implementation plan" in result
+        assert "Plan → Updated" in result
+        assert "STATE UPDATED AUTOMATICALLY" in result
+
+        # Verify plan is stored in session by getting state
+        get_result = tools["get_workflow_state_markdown"].fn(ctx=mock_context)
+        assert "Step 1: Setup" in get_result
+        assert "Step 2: Implementation" in get_result
+        assert "Step 3: Testing" in get_result
+
+    @pytest.mark.asyncio
+    async def test_update_workflow_state_without_plan_parameter(self, mock_context):
+        """Test update_workflow_state_guidance without plan parameter."""
+        mcp = FastMCP("test-server")
+        register_transition_prompts(mcp)
+        tools = await mcp.get_tools()
+
+        # Test without plan parameter
+        result = tools["update_workflow_state_guidance"].fn(
+            phase="CONSTRUCT",
+            status="RUNNING",
+            ctx=mock_context,
+            current_item="Implement features",
+        )
+
+        assert "Phase → CONSTRUCT" in result
+        assert "Status → RUNNING" in result
+        assert "CurrentItem → Implement features" in result
+        # Should not mention plan update when not provided
+        assert "Plan → Updated" not in result
         assert "STATE UPDATED AUTOMATICALLY" in result
 
     @pytest.mark.asyncio

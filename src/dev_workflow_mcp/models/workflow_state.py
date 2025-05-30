@@ -1,5 +1,6 @@
 """Workflow state models and enums."""
 
+import json
 from datetime import datetime
 from enum import Enum
 from typing import ClassVar
@@ -203,6 +204,35 @@ Action ▶
             log=log,
             archive_log=archive_log
         )
+
+    def to_json(self) -> str:
+        """Generate JSON representation of workflow state."""
+        # Create a dictionary with all the state information
+        state_dict = {
+            "metadata": {
+                "last_updated": self.last_updated.isoformat(),
+                "client_id": self.client_id,
+                "created_at": self.created_at.isoformat()
+            },
+            "state": {
+                "phase": self.phase.value,
+                "status": self.status.value,
+                "current_item": self.current_item
+            },
+            "plan": self.plan if self.plan.strip() else None,
+            "items": [
+                {
+                    "id": item.id,
+                    "description": item.description,
+                    "status": item.status
+                }
+                for item in self.items
+            ],
+            "log": self.log if self.log.strip() else None,
+            "archive_log": self.archive_log if self.archive_log.strip() else None
+        }
+        
+        return json.dumps(state_dict, indent=2)
 
     @classmethod
     def from_markdown(cls, content: str, client_id: str) -> "WorkflowState":
