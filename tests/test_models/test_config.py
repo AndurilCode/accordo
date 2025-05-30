@@ -3,6 +3,9 @@
 import os
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 from src.dev_workflow_mcp.models.config import WorkflowConfig
 
 
@@ -106,3 +109,114 @@ class TestWorkflowConfig:
         """Test that unrelated environment variables don't affect config."""
         config = WorkflowConfig()
         assert config.auto_approve_plans is False
+
+
+class TestWorkflowConfigLocalStateFileFormat:
+    """Test WorkflowConfig local_state_file_format field."""
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_default_local_state_file_format(self):
+        """Test local_state_file_format defaults to MD when no env var set."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "MD"})
+    def test_env_var_md_format(self):
+        """Test local_state_file_format reads MD from environment variable."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON"})
+    def test_env_var_json_format(self):
+        """Test local_state_file_format reads JSON from environment variable."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "JSON"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "md"})
+    def test_env_var_lowercase_md(self):
+        """Test local_state_file_format is case-insensitive for MD."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "json"})
+    def test_env_var_lowercase_json(self):
+        """Test local_state_file_format is case-insensitive for JSON."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "JSON"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "Json"})
+    def test_env_var_mixed_case_json(self):
+        """Test local_state_file_format handles mixed case JSON."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "JSON"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "INVALID"})
+    def test_env_var_invalid_format_defaults_to_md(self):
+        """Test local_state_file_format defaults to MD for invalid environment values."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "xml"})
+    def test_env_var_unsupported_format_defaults_to_md(self):
+        """Test local_state_file_format defaults to MD for unsupported environment values."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": ""})
+    def test_env_var_empty_string_defaults_to_md(self):
+        """Test local_state_file_format defaults to MD for empty environment string."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"
+
+    def test_serialization_includes_local_state_file_format(self):
+        """Test that serialization includes local_state_file_format field."""
+        config = WorkflowConfig()
+        data = config.model_dump()
+        assert "local_state_file_format" in data
+        assert data["local_state_file_format"] == "MD"
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON"})
+    def test_serialization_with_json_format(self):
+        """Test serialization when local_state_file_format is JSON."""
+        config = WorkflowConfig()
+        data = config.model_dump()
+        assert data["local_state_file_format"] == "JSON"
+
+    def test_explicit_value_creation(self):
+        """Test creating WorkflowConfig with explicit local_state_file_format value."""
+        config = WorkflowConfig(local_state_file_format="JSON")
+        assert config.local_state_file_format == "JSON"
+
+        config = WorkflowConfig(local_state_file_format="MD")
+        assert config.local_state_file_format == "MD"
+
+    def test_explicit_invalid_value_raises_error(self):
+        """Test creating WorkflowConfig with explicit invalid value raises error."""
+        with pytest.raises(ValidationError) as exc_info:
+            WorkflowConfig(local_state_file_format="INVALID")
+
+        error = exc_info.value
+        assert "local_state_file_format must be 'MD' or 'JSON'" in str(error)
+
+    def test_field_description(self):
+        """Test that local_state_file_format field has proper description."""
+        field_info = WorkflowConfig.model_fields["local_state_file_format"]
+        assert "WORKFLOW_LOCAL_STATE_FILE_FORMAT" in field_info.description
+        assert "env var" in field_info.description.lower()
+        assert "MD" in field_info.description
+        assert "JSON" in field_info.description
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON"})
+    def test_multiple_instances_same_env_format(self):
+        """Test that multiple instances read the same format environment variable."""
+        config1 = WorkflowConfig()
+        config2 = WorkflowConfig()
+        assert config1.local_state_file_format == "JSON"
+        assert config2.local_state_file_format == "JSON"
+        assert config1.local_state_file_format == config2.local_state_file_format
+
+    @patch.dict(os.environ, {"OTHER_ENV_VAR": "JSON"})
+    def test_unrelated_env_var_ignored_format(self):
+        """Test that unrelated environment variables don't affect local_state_file_format."""
+        config = WorkflowConfig()
+        assert config.local_state_file_format == "MD"  # Should be default

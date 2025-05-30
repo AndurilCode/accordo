@@ -260,7 +260,56 @@ WORKFLOW_LOCAL_STATE_FILE=true cursor
 - Agent receives mandatory file write instructions when state changes
 - Both memory and file state are kept synchronized
 - File operations are enforced through guidance prompts (MCP server cannot directly write files)
+
+#### Local State File Format Configuration
+
+**WORKFLOW_LOCAL_STATE_FILE_FORMAT** (default: `MD`)
+
+Controls the output format for local state files when `WORKFLOW_LOCAL_STATE_FILE=true`:
+
+- **`MD`** (default): Export workflow state as markdown (`workflow_state.md`)
+- **`JSON`**: Export workflow state as structured JSON (`workflow_state.json`)
+
+**Usage:**
+```bash
+# Use markdown format (default)
+export WORKFLOW_LOCAL_STATE_FILE_FORMAT=MD
+
+# Use JSON format for structured data
+export WORKFLOW_LOCAL_STATE_FILE_FORMAT=JSON
+
+# Combined usage with local state file enabled
+export WORKFLOW_LOCAL_STATE_FILE=true
+export WORKFLOW_LOCAL_STATE_FILE_FORMAT=JSON
 ```
+
+**MCP Config:**
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx", 
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {
+        "WORKFLOW_LOCAL_STATE_FILE": "true",
+        "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON"
+      }
+    }
+  }
+}
+```
+
+**Format comparison:**
+- **Markdown (MD)**: Human-readable, includes workflow rules and templates, suitable for manual editing
+- **JSON**: Structured data, machine-readable, ideal for automation and integration with other tools
+
+**When to use JSON format:**
+- ✅ Automated workflow processing
+- ✅ Integration with monitoring systems
+- ✅ Data analysis and reporting
+- ✅ API-driven workflow management
+- ❌ Manual inspection and editing
+- ❌ Documentation purposes
 
 ## Installation Options
 
