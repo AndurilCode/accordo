@@ -9,15 +9,15 @@ def validate_project_config(
     file_path: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate project_config.md file structure.
-    
+
     Args:
         file_path: Optional path to project_config.md. If None, uses .workflow-commander/project_config.md
-    
+
     Returns:
         Tuple of (is_valid, list_of_issues)
     """
     issues = []
-    
+
     # Use path utilities to get default path if none provided
     config_path = get_project_config_path() if file_path is None else Path(file_path)
 

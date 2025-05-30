@@ -11,27 +11,29 @@ class S3Config(BaseModel):
 
     enabled: bool = Field(
         default_factory=lambda: bool(os.getenv("S3_BUCKET_NAME")),
-        description="Enable S3 synchronization (auto-enabled if S3_BUCKET_NAME is set)"
+        description="Enable S3 synchronization (auto-enabled if S3_BUCKET_NAME is set)",
     )
     bucket_name: str | None = Field(
         default_factory=lambda: os.getenv("S3_BUCKET_NAME"),
-        description="S3 bucket name (from S3_BUCKET_NAME env var)"
+        description="S3 bucket name (from S3_BUCKET_NAME env var)",
     )
     prefix: str = Field(
         default_factory=lambda: os.getenv("S3_PREFIX", "workflow-states/"),
-        description="S3 key prefix for workflow states (from S3_PREFIX env var)"
+        description="S3 key prefix for workflow states (from S3_PREFIX env var)",
     )
     region: str = Field(
         default_factory=lambda: os.getenv("AWS_REGION", "us-east-1"),
-        description="AWS region (from AWS_REGION env var)"
+        description="AWS region (from AWS_REGION env var)",
     )
     sync_on_finalize: bool = Field(
-        default_factory=lambda: os.getenv("S3_SYNC_ON_FINALIZE", "true").lower() == "true",
-        description="Sync state when workflow is finalized (from S3_SYNC_ON_FINALIZE env var)"
+        default_factory=lambda: os.getenv("S3_SYNC_ON_FINALIZE", "true").lower()
+        == "true",
+        description="Sync state when workflow is finalized (from S3_SYNC_ON_FINALIZE env var)",
     )
     archive_completed: bool = Field(
-        default_factory=lambda: os.getenv("S3_ARCHIVE_COMPLETED", "true").lower() == "true",
-        description="Archive completed workflows with timestamp (from S3_ARCHIVE_COMPLETED env var)"
+        default_factory=lambda: os.getenv("S3_ARCHIVE_COMPLETED", "true").lower()
+        == "true",
+        description="Archive completed workflows with timestamp (from S3_ARCHIVE_COMPLETED env var)",
     )
 
     @field_validator("prefix")
@@ -46,18 +48,20 @@ class S3Config(BaseModel):
     def validate_s3_config(self) -> Self:
         """Validate S3 configuration consistency."""
         if self.enabled and not self.bucket_name:
-            raise ValueError("S3 sync is enabled but bucket_name is not set. Set S3_BUCKET_NAME environment variable.")
-        
+            raise ValueError(
+                "S3 sync is enabled but bucket_name is not set. Set S3_BUCKET_NAME environment variable."
+            )
+
         # Auto-disable if bucket name is missing
         if not self.bucket_name:
-            object.__setattr__(self, 'enabled', False)
-        
+            object.__setattr__(self, "enabled", False)
+
         return self
 
 
 class WorkflowConfig(BaseModel):
     """Workflow behavior configuration.
-    
+
     This configuration controls core workflow behavior including:
     - Automatic plan approval to bypass user confirmation
     - Local state file enforcement for dual storage mode
@@ -65,16 +69,22 @@ class WorkflowConfig(BaseModel):
     """
 
     auto_approve_plans: bool = Field(
-        default_factory=lambda: os.getenv("WORKFLOW_AUTO_APPROVE_PLANS", "false").lower() == "true",
-        description="Automatically approve blueprint plans without user interaction (from WORKFLOW_AUTO_APPROVE_PLANS env var)"
+        default_factory=lambda: os.getenv(
+            "WORKFLOW_AUTO_APPROVE_PLANS", "false"
+        ).lower()
+        == "true",
+        description="Automatically approve blueprint plans without user interaction (from WORKFLOW_AUTO_APPROVE_PLANS env var)",
     )
     local_state_file: bool = Field(
-        default_factory=lambda: os.getenv("WORKFLOW_LOCAL_STATE_FILE", "false").lower() == "true",
-        description="Enforce local storage of workflow_state.md file through mandatory agent prompts. When enabled, maintains both MCP server memory state AND local file state for dual storage mode. (from WORKFLOW_LOCAL_STATE_FILE env var)"
+        default_factory=lambda: os.getenv("WORKFLOW_LOCAL_STATE_FILE", "false").lower()
+        == "true",
+        description="Enforce local storage of workflow_state.md file through mandatory agent prompts. When enabled, maintains both MCP server memory state AND local file state for dual storage mode. (from WORKFLOW_LOCAL_STATE_FILE env var)",
     )
     local_state_file_format: str = Field(
-        default_factory=lambda: _get_validated_format(os.getenv("WORKFLOW_LOCAL_STATE_FILE_FORMAT", "MD")),
-        description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format. (from WORKFLOW_LOCAL_STATE_FILE_FORMAT env var)"
+        default_factory=lambda: _get_validated_format(
+            os.getenv("WORKFLOW_LOCAL_STATE_FILE_FORMAT", "MD")
+        ),
+        description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format. (from WORKFLOW_LOCAL_STATE_FILE_FORMAT env var)",
     )
 
     @field_validator("local_state_file_format")
@@ -83,7 +93,9 @@ class WorkflowConfig(BaseModel):
         """Validate format is MD or JSON."""
         v_upper = v.upper()
         if v_upper not in ("MD", "JSON"):
-            raise ValueError(f"local_state_file_format must be 'MD' or 'JSON', got '{v}'")
+            raise ValueError(
+                f"local_state_file_format must be 'MD' or 'JSON', got '{v}'"
+            )
         return v_upper
 
 
@@ -91,10 +103,10 @@ def _get_validated_format(env_value: str | None) -> str:
     """Get validated format from environment variable, defaulting to MD for invalid values."""
     if not env_value:
         return "MD"
-    
+
     env_upper = env_value.upper()
     if env_upper in ("MD", "JSON"):
         return env_upper
-    
+
     # Invalid environment value defaults to MD (graceful degradation)
     return "MD"

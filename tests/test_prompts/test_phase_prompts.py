@@ -65,7 +65,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         init_tool = tools["init_workflow_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         result = init_tool.fn(task_description=task, ctx=mock_context)
 
         assert "WORKFLOW INITIALIZED" in result
@@ -81,7 +81,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         analyze_tool = tools["analyze_phase_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         result = analyze_tool.fn(task_description=task, ctx=mock_context)
 
         assert "ANALYZE PHASE" in result
@@ -101,7 +101,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         blueprint_tool = tools["blueprint_phase_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         summary = "Test requirements summary"
         result = blueprint_tool.fn(
             task_description=task, requirements_summary=summary, ctx=mock_context
@@ -122,7 +122,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         construct_tool = tools["construct_phase_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         result = construct_tool.fn(task_description=task, ctx=mock_context)
 
         assert "CONSTRUCT PHASE" in result
@@ -139,7 +139,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         validate_tool = tools["validate_phase_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         result = validate_tool.fn(task_description=task, ctx=mock_context)
 
         assert "VALIDATE PHASE" in result
@@ -158,7 +158,7 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
         revise_tool = tools["revise_blueprint_guidance"]
 
-        task = "Test task description"
+        task = "Test: task description"
         feedback = "Test feedback"
         result = revise_tool.fn(
             task_description=task, feedback=feedback, ctx=mock_context
@@ -204,25 +204,27 @@ class TestPhasePrompts:
 
         # Test init -> analyze chain
         init_result = tools["init_workflow_guidance"].fn(
-            task_description="test", ctx=mock_context
+            task_description="Test: workflow", ctx=mock_context
         )
         assert "analyze_phase_guidance" in init_result
 
         # Test analyze -> blueprint chain
         analyze_result = tools["analyze_phase_guidance"].fn(
-            task_description="test", ctx=mock_context
+            task_description="Test: workflow", ctx=mock_context
         )
         assert "blueprint_phase_guidance" in analyze_result
 
         # Test blueprint -> construct chain
         blueprint_result = tools["blueprint_phase_guidance"].fn(
-            task_description="test", requirements_summary="summary", ctx=mock_context
+            task_description="Test: workflow",
+            requirements_summary="summary",
+            ctx=mock_context,
         )
         assert "construct_phase_guidance" in blueprint_result
 
         # Test construct -> validate chain
         construct_result = tools["construct_phase_guidance"].fn(
-            task_description="test", ctx=mock_context
+            task_description="Test: workflow", ctx=mock_context
         )
         assert "validate_phase_guidance" in construct_result
 
@@ -234,12 +236,12 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
 
         construct_result = tools["construct_phase_guidance"].fn(
-            task_description="test", ctx=mock_context
+            task_description="Test: workflow", ctx=mock_context
         )
         assert "error_recovery_guidance" in construct_result
 
         validate_result = tools["validate_phase_guidance"].fn(
-            task_description="test", ctx=mock_context
+            task_description="Test: workflow", ctx=mock_context
         )
         assert "fix_validation_issues_guidance" in validate_result
 
@@ -250,7 +252,7 @@ class TestPhasePrompts:
         register_phase_prompts(mcp)
         tools = await mcp.get_tools()
 
-        task = "test task"
+        task = "Test: task"
 
         for tool_name, tool in tools.items():
             if (
@@ -302,7 +304,7 @@ class TestPhasePrompts:
             )
 
         # Check that tool responses contain required actions
-        task = "test task"
+        task = "Test: task"
         for tool_name, tool in tools.items():
             if (
                 tool_name == "init_workflow_guidance"

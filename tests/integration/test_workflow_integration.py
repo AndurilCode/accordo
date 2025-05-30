@@ -239,7 +239,7 @@ class TestWorkflowLifecycle:
 
             # Call blueprint phase guidance
             result = blueprint_tool.fn(
-                task_description="Test auto-approval feature",
+                task_description="Test: auto-approval feature",
                 requirements_summary="Test requirements for auto-approval",
                 ctx=context,
             )

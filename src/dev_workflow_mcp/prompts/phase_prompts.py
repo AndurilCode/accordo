@@ -1,5 +1,7 @@
 """Phase-specific workflow prompts with explicit next-prompt guidance."""
 
+import re
+
 from fastmcp import Context, FastMCP
 from pydantic import Field
 
@@ -15,32 +17,74 @@ from ..utils.session_manager import (
 from ..utils.state_manager import get_file_operation_instructions
 
 
+def validate_task_description(value: str) -> str:
+    """
+    Validate task_description parameter format.
+
+    Expected format: "Action: Brief description"
+    Where Action is a verb (Add, Fix, Implement, Refactor, Update, Create, Remove, etc.)
+
+    Args:
+        value: The task description to validate
+
+    Returns:
+        The validated task description
+
+    Raises:
+        ValueError: If the format is invalid
+    """
+    if not value or not isinstance(value, str):
+        raise ValueError("task_description must be a non-empty string")
+
+    # Check for the "Action: Description" pattern
+    pattern = r"^[A-Z][a-zA-Z]+:\s+.+"
+    if not re.match(pattern, value.strip()):
+        raise ValueError(
+            "task_description must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'. "
+            f"Received: '{value}'"
+        )
+
+    return value.strip()
+
+
 def register_phase_prompts(mcp: FastMCP):
     """Register all phase-related prompts."""
 
     @mcp.tool()
-    def init_workflow_guidance(task_description: str, ctx: Context) -> str:
+    def init_workflow_guidance(
+        ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
+    ) -> str:
         """Initialize a new development workflow with mandatory execution guidance."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Get or create client session
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         session = get_or_create_session(client_id, task_description)
-        
+
         # Add task to items if not already present
         if not any(item.description == task_description for item in session.items):
             add_item_to_session(client_id, task_description)
-        
+
         # Update session to INIT state
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.INIT,
             status=WorkflowStatus.READY,
-            current_item=task_description
+            current_item=task_description,
         )
         add_log_to_session(client_id, f"🚀 WORKFLOW INITIALIZED: {task_description}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
 
@@ -73,30 +117,37 @@ Parameters: task_description="{task_description}"
 
     @mcp.tool()
     def analyze_phase_guidance(
-        task_description: str,
         ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
         project_config_path: str = Field(
             default=".workflow-commander/project_config.md",
             description="Path to project configuration file",
         ),
     ) -> str:
         """Guide the agent through the ANALYZE phase with mandatory execution steps."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Update session state
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.ANALYZE,
             status=WorkflowStatus.RUNNING,
-            current_item=task_description
+            current_item=task_description,
         )
         add_log_to_session(client_id, f"📊 ANALYZE PHASE STARTED: {task_description}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""📊 ANALYZE PHASE - REQUIREMENTS UNDERSTANDING ONLY
 
 **Task:** {task_description}
@@ -203,49 +254,62 @@ Parameters: task_description="{task_description}", requirements_summary="<your d
 
     @mcp.tool()
     def blueprint_phase_guidance(
-        task_description: str,
         ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
         requirements_summary: str = Field(
             description="Summary from the analysis phase"
         ),
     ) -> str:
         """Guide the agent through the BLUEPRINT phase with mandatory execution steps."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Update session state
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.BLUEPRINT,
-            status=WorkflowStatus.RUNNING
+            status=WorkflowStatus.RUNNING,
         )
         add_log_to_session(client_id, f"📋 BLUEPRINT PHASE STARTED: {task_description}")
         add_log_to_session(client_id, f"Analysis Summary: {requirements_summary}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         # Check for auto-approval
         workflow_config = get_workflow_config()
         if workflow_config.auto_approve_plans:
             # Auto-approve enabled - immediately transition to construct phase
-            add_log_to_session(client_id, "🤖 AUTO-APPROVAL: Plan automatically approved via WORKFLOW_AUTO_APPROVE_PLANS=true")
-            
+            add_log_to_session(
+                client_id,
+                "🤖 AUTO-APPROVAL: Plan automatically approved via WORKFLOW_AUTO_APPROVE_PLANS=true",
+            )
+
             # Update to construct phase automatically
             update_session_state(
                 client_id=client_id,
                 phase=WorkflowPhase.CONSTRUCT,
-                status=WorkflowStatus.RUNNING
+                status=WorkflowStatus.RUNNING,
             )
-            add_log_to_session(client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description} (auto-approved)")
-            
+            add_log_to_session(
+                client_id,
+                f"🔨 CONSTRUCT PHASE STARTED: {task_description} (auto-approved)",
+            )
+
             # Get updated state after phase transition
             updated_state = export_session_to_markdown(client_id)
-            
+
             # Get file operation instructions again for the updated state
             file_operations = get_file_operation_instructions(client_id)
-            
+
             return f"""🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
 
 **Task:** {task_description}
@@ -451,23 +515,33 @@ Parameters: task_description="{task_description}", feedback="<user feedback>"
 """
 
     @mcp.tool()
-    def construct_phase_guidance(task_description: str, ctx: Context) -> str:
+    def construct_phase_guidance(
+        ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
+    ) -> str:
         """Guide the agent through the CONSTRUCT phase with mandatory execution steps."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Update session state
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.CONSTRUCT,
-            status=WorkflowStatus.RUNNING
+            status=WorkflowStatus.RUNNING,
         )
         add_log_to_session(client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🔨 CONSTRUCT PHASE - SYSTEMATIC IMPLEMENTATION
 
 **Task:** {task_description}
@@ -617,23 +691,33 @@ Parameters: task_description="{task_description}", error_details="<detailed erro
 """
 
     @mcp.tool()
-    def validate_phase_guidance(task_description: str, ctx: Context) -> str:
+    def validate_phase_guidance(
+        ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
+    ) -> str:
         """Guide the agent through the VALIDATE phase with mandatory execution steps."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Update session state
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.VALIDATE,
-            status=WorkflowStatus.RUNNING
+            status=WorkflowStatus.RUNNING,
         )
         add_log_to_session(client_id, f"✅ VALIDATE PHASE STARTED: {task_description}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""✅ VALIDATE PHASE - COMPREHENSIVE QUALITY VERIFICATION
 
 **Task:** {task_description}
@@ -838,26 +922,33 @@ Parameters: task_description="{task_description}", issues="<comprehensive failur
 
     @mcp.tool()
     def revise_blueprint_guidance(
-        task_description: str,
         ctx: Context,
+        task_description: str = Field(
+            description="Task description in format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', "
+            "'Implement: OAuth login', 'Refactor: database queries'",
+        ),
         feedback: str = Field(description="User feedback on the rejected plan"),
     ) -> str:
         """Guide the agent to revise the blueprint with mandatory execution steps."""
+        # Validate task description format
+        task_description = validate_task_description(task_description)
+
         # Update session state and add feedback to log
         client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
         update_session_state(
             client_id=client_id,
             phase=WorkflowPhase.BLUEPRINT,
-            status=WorkflowStatus.RUNNING
+            status=WorkflowStatus.RUNNING,
         )
         add_log_to_session(client_id, f"🔄 PLAN REVISION REQUESTED: {feedback}")
-        
+
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
-        
+
         # Get file operation instructions if enabled
         file_operations = get_file_operation_instructions(client_id)
-        
+
         return f"""🔄 REVISING BLUEPRINT
 
 **Task:** {task_description}
