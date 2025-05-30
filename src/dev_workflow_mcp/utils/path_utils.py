@@ -1,24 +1,23 @@
 """Path utilities for workflow commander configuration and state files."""
 
 from pathlib import Path
-from typing import Union
 
 
 def get_workflow_dir(base_path: str | Path = ".") -> Path:
     """Get the .workflow-commander directory, creating it if it doesn't exist.
-    
+
     Args:
         base_path: Base path where .workflow-commander should be located
-        
+
     Returns:
         Path to .workflow-commander directory
-        
+
     Raises:
         OSError: If directory cannot be created
     """
     base = Path(base_path)
     workflow_dir = base / ".workflow-commander"
-    
+
     try:
         workflow_dir.mkdir(exist_ok=True)
         return workflow_dir
@@ -31,10 +30,10 @@ def get_workflow_dir(base_path: str | Path = ".") -> Path:
 
 def get_project_config_path(base_path: str | Path = ".") -> Path:
     """Get the path to project_config.md in .workflow-commander directory.
-    
+
     Args:
         base_path: Base path where .workflow-commander should be located
-        
+
     Returns:
         Path to .workflow-commander/project_config.md
     """
@@ -42,13 +41,15 @@ def get_project_config_path(base_path: str | Path = ".") -> Path:
     return workflow_dir / "project_config.md"
 
 
-def get_workflow_state_path(format_type: str = "md", base_path: str | Path = ".") -> Path:
+def get_workflow_state_path(
+    format_type: str = "md", base_path: str | Path = "."
+) -> Path:
     """Get the path to workflow state file in .workflow-commander directory.
-    
+
     Args:
         format_type: File format ('md' or 'json')
         base_path: Base path where .workflow-commander should be located
-        
+
     Returns:
         Path to .workflow-commander/workflow_state.md or .workflow-commander/workflow_state.json
     """
@@ -57,21 +58,22 @@ def get_workflow_state_path(format_type: str = "md", base_path: str | Path = "."
     return workflow_dir / f"workflow_state.{extension}"
 
 
-def migrate_config_file(old_path: str | Path = "project_config.md", 
-                       base_path: str | Path = ".") -> bool:
+def migrate_config_file(
+    old_path: str | Path = "project_config.md", base_path: str | Path = "."
+) -> bool:
     """Migrate existing project_config.md to .workflow-commander directory.
-    
+
     Args:
         old_path: Path to existing project_config.md file
         base_path: Base path where .workflow-commander should be located
-        
+
     Returns:
         True if migration succeeded or file didn't exist, False if migration failed
     """
     old_file = Path(old_path)
     if not old_file.exists():
         return True  # Nothing to migrate
-    
+
     try:
         new_path = get_project_config_path(base_path)
         if new_path.exists():
@@ -79,28 +81,28 @@ def migrate_config_file(old_path: str | Path = "project_config.md",
             backup_path = new_path.with_suffix(".md.backup")
             new_path.rename(backup_path)
             print(f"Backed up existing {new_path} to {backup_path}")
-        
+
         # Move the old file to new location
         old_file.rename(new_path)
         print(f"Migrated {old_file} to {new_path}")
         return True
     except OSError as e:
         print(f"Warning: Could not migrate {old_file}: {e}")
-        return False 
+        return False
 
 
-def migrate_workflow_state_files(base_path: Union[str, Path] = ".") -> bool:
+def migrate_workflow_state_files(base_path: str | Path = ".") -> bool:
     """Migrate existing workflow state files to .workflow-commander directory.
-    
+
     Args:
         base_path: Base path where .workflow-commander should be located
-        
+
     Returns:
         True if migration succeeded or no files to migrate, False if migration failed
     """
     base = Path(base_path)
     success = True
-    
+
     # Check for workflow_state.md
     old_md = base / "workflow_state.md"
     if old_md.exists():
@@ -115,7 +117,7 @@ def migrate_workflow_state_files(base_path: Union[str, Path] = ".") -> bool:
         except OSError as e:
             print(f"Warning: Could not migrate {old_md}: {e}")
             success = False
-    
+
     # Check for workflow_state.json
     old_json = base / "workflow_state.json"
     if old_json.exists():
@@ -130,5 +132,5 @@ def migrate_workflow_state_files(base_path: Union[str, Path] = ".") -> bool:
         except OSError as e:
             print(f"Warning: Could not migrate {old_json}: {e}")
             success = False
-    
-    return success 
+
+    return success
