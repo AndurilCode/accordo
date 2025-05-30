@@ -21,8 +21,7 @@
 ## Test Commands
 ```bash
 # Run tests (when implemented)
-python -m pytest
-
+source .venv/bin/activate && python -m pytest tests/ --tb=short
 # Run linter
 ruff check .
 
@@ -39,7 +38,7 @@ ruff check . && ruff format --check . && mypy src/
 ## Build Commands
 ```bash
 # Install dependencies
-uv sync
+source .venv/bin/activate && uv sync --extra dev
 
 # Install in development mode
 uv pip install -e .
