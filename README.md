@@ -163,7 +163,7 @@ The workflow will guide you through each phase automatically!
 
 #### Auto-Approval Configuration
 
-** For true Vibe Coders: WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
+**For true Vibe Coders: WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
 
 Controls whether blueprint plans are automatically approved without user interaction:
 
