@@ -39,6 +39,7 @@ __all__ = [
     # Legacy compatibility
     "StateManager",
     "validate_project_config",
+    "validate_project_files",
     
     # Configuration
     "get_workflow_config",
