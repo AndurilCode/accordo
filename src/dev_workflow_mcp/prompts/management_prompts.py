@@ -11,6 +11,7 @@ from ..utils.session_manager import (
     mark_item_completed_in_session,
     update_session_state,
 )
+from ..utils.state_manager import get_file_operation_instructions
 
 
 def register_management_prompts(mcp: FastMCP):
@@ -36,6 +37,9 @@ def register_management_prompts(mcp: FastMCP):
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🎉 WORKFLOW TASK COMPLETED
 
 **Task:** {task_description}
@@ -48,7 +52,7 @@ def register_management_prompts(mcp: FastMCP):
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔄 NEXT STEPS:**
 
@@ -86,6 +90,9 @@ Call: `changelog_update_guidance` if project changelog needs updating
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         if next_item:
             return f"""🔄 PROCESSING NEXT WORKFLOW ITEM
 
@@ -100,7 +107,7 @@ Call: `changelog_update_guidance` if project changelog needs updating
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔄 NEXT STEP:**
 Call: `analyze_phase_guidance`
@@ -114,7 +121,7 @@ Parameters: task_description="{next_item.description}"
 **✅ STATE CURRENT:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔄 NEXT STEP:**
 Call: `finalize_workflow_guidance`
@@ -147,6 +154,9 @@ Call: `finalize_workflow_guidance`
         # Get final state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🏁 WORKFLOW FINALIZED
 
 **✅ STATE UPDATED AUTOMATICALLY:**
@@ -158,7 +168,7 @@ Call: `finalize_workflow_guidance`
 **📋 FINAL WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🎉 WORKFLOW COMPLETE!**
 - All items processed
@@ -185,6 +195,9 @@ Call: `finalize_workflow_guidance`
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🚨 ERROR RECOVERY MODE
 
 **Task:** {task_description}
@@ -197,7 +210,7 @@ Call: `finalize_workflow_guidance`
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔧 RECOVERY OPTIONS:**
 
@@ -231,6 +244,9 @@ Parameters: task_description="{task_description}", error_details="{error_details
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""🔧 FIXING VALIDATION ISSUES
 
 **Task:** {task_description}
@@ -243,7 +259,7 @@ Parameters: task_description="{task_description}", error_details="{error_details
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔧 REQUIRED ACTIONS:**
 1. Fix each validation issue systematically
@@ -278,6 +294,9 @@ Parameters: task_description="{task_description}", error_details="Persistent val
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""⚠️ ESCALATING TO USER
 
 **Task:** {task_description}  
@@ -290,7 +309,7 @@ Parameters: task_description="{task_description}", error_details="Persistent val
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **📋 USER SUMMARY:**
 - **What was attempted:** {task_description}
@@ -325,6 +344,9 @@ Parameters: task_description="{task_description}"
         # Get current state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""📝 UPDATING PROJECT CHANGELOG
 
 **Task:** {task_description}
@@ -336,7 +358,7 @@ Parameters: task_description="{task_description}"
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **📝 REQUIRED ACTIONS:**
 1. Read {project_config_path} to locate ## Changelog section

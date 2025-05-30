@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from src.dev_workflow_mcp.models.config import WorkflowConfig
 
 
@@ -107,4 +105,4 @@ class TestWorkflowConfig:
     def test_unrelated_env_var_ignored(self):
         """Test that unrelated environment variables don't affect config."""
         config = WorkflowConfig()
-        assert config.auto_approve_plans is False 
+        assert config.auto_approve_plans is False

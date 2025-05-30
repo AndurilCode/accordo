@@ -56,9 +56,18 @@ class S3Config(BaseModel):
 
 
 class WorkflowConfig(BaseModel):
-    """Workflow behavior configuration."""
+    """Workflow behavior configuration.
+    
+    This configuration controls core workflow behavior including:
+    - Automatic plan approval to bypass user confirmation
+    - Local state file enforcement for dual storage mode
+    """
 
     auto_approve_plans: bool = Field(
         default_factory=lambda: os.getenv("WORKFLOW_AUTO_APPROVE_PLANS", "false").lower() == "true",
         description="Automatically approve blueprint plans without user interaction (from WORKFLOW_AUTO_APPROVE_PLANS env var)"
+    )
+    local_state_file: bool = Field(
+        default_factory=lambda: os.getenv("WORKFLOW_LOCAL_STATE_FILE", "false").lower() == "true",
+        description="Enforce local storage of workflow_state.md file through mandatory agent prompts. When enabled, maintains both MCP server memory state AND local file state for dual storage mode. (from WORKFLOW_LOCAL_STATE_FILE env var)"
     )

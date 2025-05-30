@@ -1,5 +1,6 @@
 """State manager for workflow state operations - now purely session-based."""
 
+from ..models.config import WorkflowConfig
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from .session_manager import (
     add_log_to_session,
@@ -7,6 +8,48 @@ from .session_manager import (
     get_or_create_session,
     update_session_state,
 )
+
+
+def get_file_operation_instructions(client_id: str = "default") -> str:
+    """Generate mandatory file operation instructions when local state file is enabled.
+    
+    Args:
+        client_id: Client ID for session management.
+        
+    Returns:
+        Formatted file operation instructions or empty string if disabled.
+    """
+    config = WorkflowConfig()
+    if not config.local_state_file:
+        return ""
+    
+    # Get current state markdown from session
+    state_markdown = export_session_to_markdown(client_id)
+    if not state_markdown:
+        return ""
+    
+    return f"""
+
+**🚨 MANDATORY FILE OPERATION - CANNOT BE SKIPPED:**
+
+Since `WORKFLOW_LOCAL_STATE_FILE=true`, you MUST update the local workflow state file:
+
+**⚠️ REQUIRED ACTION:**
+```
+Edit or create the file: workflow_state.md
+
+Content to write:
+{state_markdown}
+```
+
+**📋 FILE OPERATION CHECKLIST:**
+- [ ] Create or update `workflow_state.md` in your working directory
+- [ ] Write the complete markdown content exactly as shown above
+- [ ] Verify the file was written successfully
+- [ ] Continue with the guided workflow
+
+**🚨 CRITICAL:** This file operation is MANDATORY when local state is enabled. The MCP server maintains the authoritative state in memory, but you must also maintain the local file as instructed.
+"""
 
 
 class StateManager:
