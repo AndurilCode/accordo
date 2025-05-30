@@ -11,6 +11,7 @@ from ..utils.session_manager import (
     get_or_create_session,
     update_session_state,
 )
+from ..utils.config_utils import get_workflow_config
 
 
 def register_phase_prompts(mcp: FastMCP):
@@ -215,7 +216,66 @@ Parameters: task_description="{task_description}", requirements_summary="<your d
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
-        return f"""📋 BLUEPRINT PHASE - DETAILED IMPLEMENTATION PLANNING
+        # Check for auto-approval
+        workflow_config = get_workflow_config()
+        if workflow_config.auto_approve_plans:
+            # Auto-approve enabled - immediately transition to construct phase
+            add_log_to_session(client_id, "🤖 AUTO-APPROVAL: Plan automatically approved via WORKFLOW_AUTO_APPROVE_PLANS=true")
+            
+            # Update to construct phase automatically
+            update_session_state(
+                client_id=client_id,
+                phase=WorkflowPhase.CONSTRUCT,
+                status=WorkflowStatus.RUNNING
+            )
+            add_log_to_session(client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description} (auto-approved)")
+            
+            # Get updated state after phase transition
+            updated_state = export_session_to_markdown(client_id)
+            
+            return f"""🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
+
+**Task:** {task_description}
+**Analysis:** {requirements_summary}
+
+**✅ AUTO-APPROVAL ACTIVATED:**
+- Environment Variable: WORKFLOW_AUTO_APPROVE_PLANS=true
+- Phase → CONSTRUCT (auto-transitioned)
+- Status → RUNNING
+- Plan automatically approved without user interaction
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{updated_state}
+```
+
+**📋 BLUEPRINT PLAN REQUIREMENTS:**
+Before implementing, ensure your plan includes:
+
+1. **IMPLEMENTATION STEPS** - Atomic, ordered steps (max 10)
+2. **FILE-LEVEL CHANGES** - Every file to be created/modified/deleted  
+3. **TESTING STRATEGY** - Verification commands and acceptance criteria
+4. **RISK MITIGATION** - Backup procedures and error recovery
+5. **QUALITY GATES** - Code quality and validation requirements
+
+**🔨 CONSTRUCT PHASE ACTIVE:**
+Now proceed directly to systematic implementation following your plan exactly:
+
+**FOR EACH STEP IN YOUR PLAN:**
+1. **Pre-step verification** - Confirm prerequisites
+2. **Atomic implementation** - Make changes exactly as planned  
+3. **Mandatory verification** - Run verification commands
+4. **Quality validation** - Check standards compliance
+5. **Progress logging** - Document completion
+
+**✅ AUTO-APPROVAL WORKFLOW COMPLETE:**
+Continue with implementation - no user approval needed!
+
+🎯 **Auto-approval activated - proceed directly to construction phase!**
+"""
+        else:
+            # Standard approval flow - require user confirmation
+            return f"""📋 BLUEPRINT PHASE - DETAILED IMPLEMENTATION PLANNING
 
 **Task:** {task_description}
 **Analysis:** {requirements_summary}
