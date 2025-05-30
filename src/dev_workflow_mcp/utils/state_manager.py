@@ -13,26 +13,26 @@ from .session_manager import (
 
 def get_file_operation_instructions(client_id: str = "default") -> str:
     """Generate mandatory file operation instructions when local state file is enabled.
-    
+
     Args:
         client_id: Client ID for session management.
-        
+
     Returns:
         Formatted file operation instructions or empty string if disabled.
     """
     config = WorkflowConfig()
     if not config.local_state_file:
         return ""
-    
+
     # Get current state content from session using the configured format
     state_content = export_session(client_id, config.local_state_file_format)
     if not state_content:
         return ""
-    
+
     # Use path utilities to get the correct file path in .workflow-commander
     file_path = get_workflow_state_path(format_type=config.local_state_file_format)
     content_type = "JSON" if config.local_state_file_format == "JSON" else "markdown"
-    
+
     return f"""
 
 **🚨 MANDATORY FILE OPERATION - CANNOT BE SKIPPED:**
@@ -60,9 +60,11 @@ Content to write:
 class StateManager:
     """Manages workflow state with session-based backend."""
 
-    def __init__(self, state_file: str = "workflow_state.md", client_id: str = "default"):
+    def __init__(
+        self, state_file: str = "workflow_state.md", client_id: str = "default"
+    ):
         """Initialize state manager with client ID.
-        
+
         Args:
             state_file: Deprecated parameter kept for backward compatibility, ignored.
             client_id: Client ID for session management.
@@ -87,15 +89,15 @@ class StateManager:
         try:
             phase_enum = WorkflowPhase(phase)
             status_enum = WorkflowStatus(status)
-            
+
             # Ensure session exists before updating
             get_or_create_session(self.client_id, current_item or "Default task")
-            
+
             return update_session_state(
                 client_id=self.client_id,
                 phase=phase_enum,
                 status=status_enum,
-                current_item=current_item
+                current_item=current_item,
             )
         except ValueError:
             return False
@@ -116,9 +118,11 @@ class StateManager:
 
 
 # Legacy compatibility function - maintained for existing code
-def create_state_manager(state_file: str = "workflow_state.md", client_id: str = "default") -> StateManager:
+def create_state_manager(
+    state_file: str = "workflow_state.md", client_id: str = "default"
+) -> StateManager:
     """Create a state manager instance with session backend.
-    
+
     Args:
         state_file: Deprecated parameter kept for backward compatibility, ignored.
         client_id: Client ID for session management.
