@@ -7,6 +7,13 @@ from .markdown_generator import (
     generate_summary_markdown,
     generate_workflow_markdown,
 )
+from .path_utils import (
+    get_project_config_path,
+    get_workflow_dir,
+    get_workflow_state_path,
+    migrate_config_file,
+    migrate_workflow_state_files,
+)
 
 # New session-based utilities
 from .session_manager import (
@@ -26,7 +33,7 @@ from .session_manager import (
     update_session_state,
 )
 from .state_manager import StateManager
-from .validators import validate_project_config
+from .validators import validate_project_config, validate_project_files
 
 __all__ = [
     # Legacy compatibility
@@ -35,6 +42,12 @@ __all__ = [
     
     # Configuration
     "get_workflow_config",
+    
+    # Path utilities
+    "get_workflow_dir",
+    "get_project_config_path",
+    "get_workflow_state_path",
+    "migrate_config_file",
     
     # Session management
     "get_session",

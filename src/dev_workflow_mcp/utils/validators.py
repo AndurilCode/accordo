@@ -2,22 +2,30 @@
 
 from pathlib import Path
 
+from .path_utils import get_project_config_path
+
 
 def validate_project_config(
-    file_path: str = "project_config.md",
+    file_path: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate project_config.md file structure.
-
+    
+    Args:
+        file_path: Optional path to project_config.md. If None, uses .workflow-commander/project_config.md
+    
     Returns:
         Tuple of (is_valid, list_of_issues)
     """
     issues = []
+    
+    # Use path utilities to get default path if none provided
+    config_path = get_project_config_path() if file_path is None else Path(file_path)
 
-    if not Path(file_path).exists():
+    if not config_path.exists():
         return False, ["project_config.md file does not exist"]
 
     try:
-        with open(file_path) as f:
+        with open(config_path) as f:
             content = f.read()
     except Exception as e:
         return False, [f"Could not read file: {e}"]
@@ -38,12 +46,12 @@ def validate_project_config(
 
 
 def validate_project_files(
-    project_config_path: str = "project_config.md",
+    project_config_path: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate project configuration file.
 
     Args:
-        project_config_path: Path to project config file
+        project_config_path: Optional path to project config file. If None, uses .workflow-commander/project_config.md
 
     Returns:
         Tuple of (is_valid, list_of_issues)

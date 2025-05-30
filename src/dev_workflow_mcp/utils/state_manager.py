@@ -2,6 +2,7 @@
 
 from ..models.config import WorkflowConfig
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from .path_utils import get_workflow_state_path
 from .session_manager import (
     add_log_to_session,
     export_session,
@@ -28,13 +29,9 @@ def get_file_operation_instructions(client_id: str = "default") -> str:
     if not state_content:
         return ""
     
-    # Determine filename and content type based on format
-    if config.local_state_file_format == "JSON":
-        filename = "workflow_state.json"
-        content_type = "JSON"
-    else:
-        filename = "workflow_state.md"
-        content_type = "markdown"
+    # Use path utilities to get the correct file path in .workflow-commander
+    file_path = get_workflow_state_path(format_type=config.local_state_file_format)
+    content_type = "JSON" if config.local_state_file_format == "JSON" else "markdown"
     
     return f"""
 
@@ -44,14 +41,14 @@ Since `WORKFLOW_LOCAL_STATE_FILE=true`, you MUST update the local workflow state
 
 **⚠️ REQUIRED ACTION:**
 ```
-Edit or create the file: {filename}
+Edit or create the file: {file_path}
 
 Content to write:
 {state_content}
 ```
 
 **📋 FILE OPERATION CHECKLIST:**
-- [ ] Create or update `{filename}` in your working directory
+- [ ] Create or update `{file_path}` in your working directory
 - [ ] Write the complete {content_type} content exactly as shown above
 - [ ] Verify the file was written successfully
 - [ ] Continue with the guided workflow

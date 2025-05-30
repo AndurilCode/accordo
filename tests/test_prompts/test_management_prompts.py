@@ -190,7 +190,7 @@ class TestManagementPrompts:
 
         assert "UPDATING PROJECT CHANGELOG" in result
         assert task in result
-        assert "project_config.md" in result
+        assert ".workflow-commander/project_config.md" in result
         assert "## Changelog" in result
 
     @pytest.mark.asyncio

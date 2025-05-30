@@ -23,8 +23,10 @@ def temp_dir() -> Generator[Path, None, None]:
 
 @pytest.fixture
 def temp_project_config_file(temp_dir: Path) -> Path:
-    """Create a temporary project config file."""
-    config_file = temp_dir / "project_config.md"
+    """Create a temporary project config file in .workflow-commander directory."""
+    workflow_dir = temp_dir / ".workflow-commander"
+    workflow_dir.mkdir(exist_ok=True)
+    config_file = workflow_dir / "project_config.md"
     return config_file
 
 
