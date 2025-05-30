@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from src.dev_workflow_mcp.models.config import WorkflowConfig
 from src.dev_workflow_mcp.utils.config_utils import get_workflow_config
 
@@ -56,11 +54,11 @@ class TestConfigUtils:
         """Test that multiple calls to get_workflow_config work consistently."""
         config1 = get_workflow_config()
         config2 = get_workflow_config()
-        
+
         # Both should be WorkflowConfig instances
         assert isinstance(config1, WorkflowConfig)
         assert isinstance(config2, WorkflowConfig)
-        
+
         # Both should have the same auto_approve_plans value
         assert config1.auto_approve_plans == config2.auto_approve_plans
 
@@ -69,7 +67,7 @@ class TestConfigUtils:
         """Test multiple calls with environment variable set."""
         config1 = get_workflow_config()
         config2 = get_workflow_config()
-        
+
         assert config1.auto_approve_plans is True
         assert config2.auto_approve_plans is True
         assert config1.auto_approve_plans == config2.auto_approve_plans
@@ -77,17 +75,17 @@ class TestConfigUtils:
     def test_function_signature_and_docstring(self):
         """Test that the function has proper signature and documentation."""
         import inspect
-        
+
         # Test function exists and is callable
         assert callable(get_workflow_config)
-        
+
         # Test function signature
         sig = inspect.signature(get_workflow_config)
         assert len(sig.parameters) == 0  # Should have no parameters
-        
+
         # Test return type annotation
         assert sig.return_annotation == WorkflowConfig
-        
+
         # Test docstring exists
         assert get_workflow_config.__doc__ is not None
-        assert "WorkflowConfig" in get_workflow_config.__doc__ 
+        assert "WorkflowConfig" in get_workflow_config.__doc__

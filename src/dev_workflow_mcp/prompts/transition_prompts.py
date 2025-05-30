@@ -9,6 +9,7 @@ from ..utils.session_manager import (
     get_or_create_session,
     update_session_state,
 )
+from ..utils.state_manager import get_file_operation_instructions
 
 
 def register_transition_prompts(mcp: FastMCP):
@@ -53,6 +54,9 @@ def register_transition_prompts(mcp: FastMCP):
         # Get updated state to return
         updated_state = export_session_to_markdown(client_id)
         
+        # Get file operation instructions if enabled
+        file_operations = get_file_operation_instructions(client_id)
+        
         return f"""📝 WORKFLOW STATE UPDATED
 
 **✅ STATE UPDATED AUTOMATICALLY:**
@@ -64,7 +68,7 @@ def register_transition_prompts(mcp: FastMCP):
 **📋 CURRENT WORKFLOW STATE:**
 ```markdown
 {updated_state}
-```
+```{file_operations}
 
 **🔄 NEXT STEP:**
 Return to your previous workflow prompt as instructed.
@@ -79,13 +83,16 @@ Return to your previous workflow prompt as instructed.
         markdown = export_session_to_markdown(client_id)
         
         if markdown:
+            # Get file operation instructions if enabled
+            file_operations = get_file_operation_instructions(client_id)
+            
             return f"""📋 CURRENT WORKFLOW STATE
 
 **Client:** {client_id}
 
 ```markdown
 {markdown}
-```
+```{file_operations}
 
 💡 **This shows the complete current workflow state from the centralized session.**
 """
