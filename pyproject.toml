@@ -22,8 +22,8 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 line-length = 88
@@ -56,5 +56,13 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/dev_workflow_mcp"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[dependency-groups]
+dev = [
+    "build>=1.2.2.post1",
+]
