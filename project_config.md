@@ -52,6 +52,7 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- Added WORKFLOW_AUTO_APPROVE_PLANS environment variable to enable automatic blueprint approval, allowing workflows to bypass manual user approval and transition directly from blueprint to construction phase when set to "true"
 - Enhanced all four core phase prompts (analyze, blueprint, construct, validate) with mandatory validation checklists, explicit anti-patterns, detailed examples, escalation triggers, and comprehensive verification procedures to provide clearer agent guidance and reduce workflow divergence
 - Updated bootstrap-execute-tasks.sh to embed execute-tasks content directly instead of reading from external files, with Cursor receiving YAML frontmatter format while Copilot and Claude get clean content without YAML frontmatter
 - Created bootstrap-execute-tasks.sh script that deploys execute-tasks guidelines to multiple AI assistants (Cursor, GitHub Copilot, Claude) with argument parsing, content checking, directory creation, and intelligent deployment logic
