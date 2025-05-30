@@ -1,7 +1,13 @@
 """Tests for state manager utility functions."""
 
+import os
+from unittest.mock import patch
+
 from src.dev_workflow_mcp.utils import session_manager
-from src.dev_workflow_mcp.utils.state_manager import StateManager
+from src.dev_workflow_mcp.utils.state_manager import (
+    StateManager,
+    get_file_operation_instructions,
+)
 
 
 class TestStateManager:
@@ -186,3 +192,211 @@ class TestStateManagerCompatibility:
         # New way: StateManager(client_id=client_id)
         manager2 = StateManager(client_id="new-client")
         assert manager2.client_id == "new-client"
+
+
+class TestGetFileOperationInstructions:
+    """Test get_file_operation_instructions function with format support."""
+
+    def setup_method(self):
+        """Clear sessions before each test."""
+        session_manager.client_sessions.clear()
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE": "false"})
+    def test_get_file_operation_instructions_disabled(self):
+        """Test get_file_operation_instructions when local state file is disabled."""
+        result = get_file_operation_instructions()
+        assert result == ""
+
+    @patch.dict(
+        os.environ,
+        {"WORKFLOW_LOCAL_STATE_FILE": "true", "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "MD"},
+    )
+    def test_get_file_operation_instructions_md_format(self):
+        """Test get_file_operation_instructions generates MD filename and content."""
+        # Create a session to export
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.md" in result
+        assert "# Workflow State" in result
+        assert "Test task" in result
+
+    @patch.dict(
+        os.environ,
+        {
+            "WORKFLOW_LOCAL_STATE_FILE": "true",
+            "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON",
+        },
+    )
+    def test_get_file_operation_instructions_json_format(self):
+        """Test get_file_operation_instructions generates JSON filename and content."""
+        # Create a session to export
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.json" in result
+        assert (
+            '"metadata"' in result or '"state"' in result
+        )  # Should contain JSON structure
+
+    @patch.dict(
+        os.environ,
+        {"WORKFLOW_LOCAL_STATE_FILE": "true", "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "md"},
+    )
+    def test_get_file_operation_instructions_case_insensitive_md(self):
+        """Test get_file_operation_instructions handles case-insensitive MD format."""
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.md" in result
+        assert "# Workflow State" in result
+
+    @patch.dict(
+        os.environ,
+        {
+            "WORKFLOW_LOCAL_STATE_FILE": "true",
+            "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "json",
+        },
+    )
+    def test_get_file_operation_instructions_case_insensitive_json(self):
+        """Test get_file_operation_instructions handles case-insensitive JSON format."""
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.json" in result
+
+    @patch.dict(
+        os.environ,
+        {
+            "WORKFLOW_LOCAL_STATE_FILE": "true",
+            "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "INVALID",
+        },
+    )
+    def test_get_file_operation_instructions_invalid_format_defaults_to_md(self):
+        """Test get_file_operation_instructions defaults to MD for invalid format."""
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.md" in result
+        assert "# Workflow State" in result
+
+    @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE": "true"})
+    def test_get_file_operation_instructions_no_format_defaults_to_md(self):
+        """Test get_file_operation_instructions defaults to MD when no format specified."""
+        session_manager.create_session("default", "Test task")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.md" in result
+        assert "# Workflow State" in result
+
+    @patch.dict(
+        os.environ,
+        {"WORKFLOW_LOCAL_STATE_FILE": "true", "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "MD"},
+    )
+    def test_get_file_operation_instructions_no_session(self):
+        """Test get_file_operation_instructions when no session exists."""
+        # Don't create any session
+        result = get_file_operation_instructions()
+
+        # Should still return instructions but may be empty content or handle gracefully
+        # Exact behavior depends on implementation - should not crash
+        assert isinstance(result, str)
+
+    @patch.dict(
+        os.environ,
+        {
+            "WORKFLOW_LOCAL_STATE_FILE": "true",
+            "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON",
+        },
+    )
+    def test_get_file_operation_instructions_json_structure_validation(self):
+        """Test get_file_operation_instructions JSON contains valid structure."""
+        session_manager.create_session("default", "Test task")
+        session = session_manager.get_session("default")
+        session.plan = "Test plan"
+        session.add_log_entry("Test log entry")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.json" in result
+
+        # Should contain JSON content with expected structure
+        # Look for key JSON structure indicators
+        json_indicators = ['"metadata"', '"state"', '"plan"', '"items"', '"log"']
+        found_indicators = sum(
+            1 for indicator in json_indicators if indicator in result
+        )
+        assert (
+            found_indicators >= 3
+        )  # Should find at least 3 of the 5 main JSON structure elements
+
+    @patch.dict(
+        os.environ,
+        {"WORKFLOW_LOCAL_STATE_FILE": "true", "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "MD"},
+    )
+    def test_get_file_operation_instructions_md_structure_validation(self):
+        """Test get_file_operation_instructions MD contains expected markdown structure."""
+        session_manager.create_session("default", "Test task")
+        session = session_manager.get_session("default")
+        session.plan = "Test plan"
+        session.add_log_entry("Test log entry")
+
+        result = get_file_operation_instructions()
+
+        assert result != ""
+        assert "workflow_state.md" in result
+
+        # Should contain markdown content with expected structure
+        md_indicators = ["# Workflow State", "## State", "Phase:", "Status:"]
+        found_indicators = sum(1 for indicator in md_indicators if indicator in result)
+        assert (
+            found_indicators >= 3
+        )  # Should find at least 3 of the 4 main markdown structure elements
+
+    @patch.dict(
+        os.environ,
+        {
+            "WORKFLOW_LOCAL_STATE_FILE": "true",
+            "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON",
+        },
+    )
+    def test_get_file_operation_instructions_format_consistency(self):
+        """Test that file operation instructions are consistent for same session in JSON format."""
+        session_manager.create_session("default", "Consistent task")
+
+        result1 = get_file_operation_instructions()
+        result2 = get_file_operation_instructions()
+
+        # Results should be identical for same session state
+        assert result1 == result2
+        assert "workflow_state.json" in result1
+        assert "workflow_state.json" in result2
+
+    @patch.dict(
+        os.environ,
+        {"WORKFLOW_LOCAL_STATE_FILE": "true", "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "MD"},
+    )
+    def test_get_file_operation_instructions_format_consistency_md(self):
+        """Test that file operation instructions are consistent for same session in MD format."""
+        session_manager.create_session("default", "Consistent task")
+
+        result1 = get_file_operation_instructions()
+        result2 = get_file_operation_instructions()
+
+        # Results should be identical for same session state
+        assert result1 == result2
+        assert "workflow_state.md" in result1
+        assert "workflow_state.md" in result2

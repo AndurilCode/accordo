@@ -1,5 +1,6 @@
-"""Tests for workflow_state models."""
+"""Tests for workflow state models."""
 
+import json
 from datetime import datetime
 from unittest.mock import patch
 
@@ -309,3 +310,252 @@ class TestWorkflowState:
         assert data["log"] == "Test log"
         assert data["archive_log"] == "Archive log"
         assert "last_updated" in data
+
+
+class TestWorkflowStateJsonExport:
+    """Test WorkflowState JSON export functionality."""
+
+    def test_to_json_basic(self):
+        """Test basic to_json functionality."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            client_id="test-client",
+        )
+        json_str = state.to_json()
+
+        # Should be valid JSON
+        data = json.loads(json_str)
+        assert isinstance(data, dict)
+
+    def test_to_json_structure(self):
+        """Test to_json returns expected structure."""
+        state = WorkflowState(
+            phase=WorkflowPhase.ANALYZE,
+            status=WorkflowStatus.RUNNING,
+            client_id="test-client",
+            current_item="Test task",
+            plan="Test plan",
+            log="Test log",
+            archive_log="Test archive",
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        # Check top-level structure
+        assert "metadata" in data
+        assert "state" in data
+        assert "plan" in data
+        assert "items" in data
+        assert "log" in data
+        assert "archive_log" in data
+
+    def test_to_json_metadata_fields(self):
+        """Test to_json metadata section contains expected fields."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            client_id="test-client",
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        metadata = data["metadata"]
+        assert "last_updated" in metadata
+        assert "client_id" in metadata
+        assert "created_at" in metadata
+        assert metadata["client_id"] == "test-client"
+
+    def test_to_json_state_fields(self):
+        """Test to_json state section contains expected fields."""
+        state = WorkflowState(
+            phase=WorkflowPhase.BLUEPRINT,
+            status=WorkflowStatus.NEEDS_PLAN_APPROVAL,
+            client_id="test-client",
+            current_item="Current task",
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        state_data = data["state"]
+        assert "phase" in state_data
+        assert "status" in state_data
+        assert "current_item" in state_data
+        assert state_data["phase"] == "BLUEPRINT"
+        assert state_data["status"] == "NEEDS_PLAN_APPROVAL"
+        assert state_data["current_item"] == "Current task"
+
+    def test_to_json_with_items(self):
+        """Test to_json includes items array with complete item data."""
+        items = [
+            WorkflowItem(id=1, description="Task 1", status="pending"),
+            WorkflowItem(id=2, description="Task 2", status="completed"),
+        ]
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            items=items,
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        items_data = data["items"]
+        assert isinstance(items_data, list)
+        assert len(items_data) == 2
+
+        # Check first item
+        item1 = items_data[0]
+        assert item1["id"] == 1
+        assert item1["description"] == "Task 1"
+        assert item1["status"] == "pending"
+
+        # Check second item
+        item2 = items_data[1]
+        assert item2["id"] == 2
+        assert item2["description"] == "Task 2"
+        assert item2["status"] == "completed"
+
+    def test_to_json_with_plan_and_logs(self):
+        """Test to_json includes plan and log data."""
+        state = WorkflowState(
+            phase=WorkflowPhase.CONSTRUCT,
+            status=WorkflowStatus.RUNNING,
+            plan="Detailed implementation plan",
+            log="Implementation log entry",
+            archive_log="Previous log entries",
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        assert data["plan"] == "Detailed implementation plan"
+        assert data["log"] == "Implementation log entry"
+        assert data["archive_log"] == "Previous log entries"
+
+    def test_to_json_empty_values_as_null(self):
+        """Test to_json represents empty strings as null."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            plan="",
+            log="",
+            archive_log="",
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        assert data["plan"] is None
+        assert data["log"] is None
+        assert data["archive_log"] is None
+
+    def test_to_json_current_item_null(self):
+        """Test to_json handles None current_item correctly."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+            current_item=None,
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        assert data["state"]["current_item"] is None
+
+    def test_to_json_empty_items_array(self):
+        """Test to_json handles empty items array correctly."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        assert data["items"] == []
+
+    def test_to_json_datetime_serialization(self):
+        """Test to_json properly serializes datetime fields."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+        )
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        # Should be ISO format strings
+        last_updated = data["metadata"]["last_updated"]
+        created_at = data["metadata"]["created_at"]
+
+        # Should be parseable as ISO datetime
+        from datetime import datetime
+
+        datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+
+    def test_to_json_consistent_output(self):
+        """Test to_json produces consistent output for same state."""
+        state = WorkflowState(
+            phase=WorkflowPhase.ANALYZE,
+            status=WorkflowStatus.RUNNING,
+            client_id="consistent-test",
+            plan="Same plan",
+        )
+
+        # Export twice
+        json1 = state.to_json()
+        json2 = state.to_json()
+
+        # Parse both
+        data1 = json.loads(json1)
+        data2 = json.loads(json2)
+
+        # Non-timestamp fields should be identical
+        assert data1["state"] == data2["state"]
+        assert data1["plan"] == data2["plan"]
+        assert data1["items"] == data2["items"]
+        assert data1["metadata"]["client_id"] == data2["metadata"]["client_id"]
+
+    def test_to_json_formatting(self):
+        """Test to_json produces properly formatted JSON."""
+        state = WorkflowState(
+            phase=WorkflowPhase.INIT,
+            status=WorkflowStatus.READY,
+        )
+        json_str = state.to_json()
+
+        # Should have indentation (formatted JSON)
+        assert "  " in json_str or "\t" in json_str
+
+        # Should have newlines
+        assert "\n" in json_str
+
+    def test_to_json_complete_data_integrity(self):
+        """Test to_json maintains complete data integrity with complex state."""
+        items = [
+            WorkflowItem(id=1, description="Complex task 1", status="pending"),
+            WorkflowItem(id=2, description="Complex task 2", status="completed"),
+            WorkflowItem(id=3, description="Complex task 3", status="in-progress"),
+        ]
+
+        state = WorkflowState(
+            phase=WorkflowPhase.VALIDATE,
+            status=WorkflowStatus.COMPLETED,
+            client_id="complex-test-client",
+            current_item="Final validation task",
+            plan="Complex multi-step plan with detailed instructions",
+            items=items,
+            log="Detailed log with multiple entries and timestamps",
+            archive_log="Historical log data from previous phases",
+        )
+
+        json_str = state.to_json()
+        data = json.loads(json_str)
+
+        # Verify all data is present and correct
+        assert data["metadata"]["client_id"] == "complex-test-client"
+        assert data["state"]["phase"] == "VALIDATE"
+        assert data["state"]["status"] == "COMPLETED"
+        assert data["state"]["current_item"] == "Final validation task"
+        assert data["plan"] == "Complex multi-step plan with detailed instructions"
+        assert len(data["items"]) == 3
+        assert data["items"][2]["description"] == "Complex task 3"
+        assert data["items"][2]["status"] == "in-progress"
+        assert data["log"] == "Detailed log with multiple entries and timestamps"
+        assert data["archive_log"] == "Historical log data from previous phases"

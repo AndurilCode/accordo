@@ -82,6 +82,37 @@ def export_session_to_markdown(client_id: str) -> str | None:
         return session.to_markdown()
 
 
+def export_session_to_json(client_id: str) -> str | None:
+    """Export a session as JSON string."""
+    with session_lock:
+        session = client_sessions.get(client_id)
+        if not session:
+            return None
+        
+        return session.to_json()
+
+
+def export_session(client_id: str, format: str = "MD") -> str | None:
+    """Export a session in the specified format.
+    
+    Args:
+        client_id: Client ID for session lookup.
+        format: Export format - "MD" for markdown or "JSON" for JSON.
+        
+    Returns:
+        Formatted string representation of session state or None if session doesn't exist.
+    """
+    format_upper = format.upper()
+    
+    if format_upper == "MD":
+        return export_session_to_markdown(client_id)
+    elif format_upper == "JSON":
+        return export_session_to_json(client_id)
+    else:
+        # Default to markdown for unsupported formats
+        return export_session_to_markdown(client_id)
+
+
 def get_or_create_session(client_id: str, task_description: str | None = None) -> WorkflowState:
     """Get existing session or create new one if it doesn't exist."""
     session = get_session(client_id)
