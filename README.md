@@ -1,26 +1,72 @@
 # Development Workflow MCP Server
 
-An MCP (Model Context Protocol) server that provides structured workflow guidance to guide coding agents through a disciplined development process. This server helps prevent hallucinations and ensures consistent, methodical development by providing step-by-step **mandatory execution guidance** through defined phases.
+A fast, Rust-powered MCP (Model Context Protocol) server that provides structured workflow guidance for coding agents. This server helps prevent hallucinations and ensures consistent, methodical development by providing step-by-step **mandatory execution guidance** through defined phases.
 
-## Acknowledgments
+## What This Does
 
-This project was inspired by the workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've adapted and extended these ideas to create a more structured, MCP-based approach to development workflow guidance.
+This server guides AI coding agents through a disciplined development process:
+- **ANALYZE** → **BLUEPRINT** → **CONSTRUCT** → **VALIDATE** phases
+- **Mandatory guidance** with authoritative instructions agents must follow exactly
+- **Error recovery** and built-in quality gates
+- **Multi-item processing** for complex projects
 
-## Features
+## Prerequisites
 
-- **Structured Workflow**: Guides agents through ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
-- **Mandatory Guidance**: Each tool provides authoritative instructions that agents must execute exactly
-- **Prompt Chaining**: Each guidance tool explicitly specifies the next tool to call
-- **Error Recovery**: Built-in error handling and recovery guidance
-- **Multi-Item Processing**: Supports iterating through multiple workflow items
-- **Changelog Integration**: Automatically updates project changelog
+Before using this workflow server, ensure you have the following installed:
 
-## Installation
+### Required: uv (Python Package Manager)
 
-### Option 1: MCP Client Configuration (Recommended)
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management. Install uv first:
 
-For use with MCP clients like Cursor, add this configuration to your `mcp.json` file:
+**On macOS and Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
+**On Windows:**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**Alternative installation methods:**
+```bash
+# With pip
+pip install uv
+
+# With pipx  
+pipx install uv
+
+# With Homebrew (macOS)
+brew install uv
+
+# With Pacman (Arch Linux)
+pacman -S uv
+```
+
+After installation, restart your terminal or add uv to your PATH:
+```bash
+# Add to ~/.bashrc, ~/.zshrc, etc.
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Verify installation:
+```bash
+uv --version
+```
+
+### Optional: Node.js (for some MCP clients)
+
+Some MCP clients may require Node.js. Install from [nodejs.org](https://nodejs.org/) if needed.
+
+## Quick Start
+
+**Get productive in 3 steps:**
+
+### 1. Configure Your MCP Client
+
+Add this to your MCP client configuration file:
+
+**For Cursor** (`.cursor/mcp.json` or `%APPDATA%\Cursor\User\mcp.json`):
 ```json
 {
   "mcpServers": {
@@ -32,12 +78,66 @@ For use with MCP clients like Cursor, add this configuration to your `mcp.json` 
 }
 ```
 
-#### Cursor Configuration
+**For Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx", 
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {}
+    }
+  }
+}
+```
 
-**Location of mcp.json:**
+### 2. Configure AI Assistant Guidelines (Optional but Recommended)
+
+Run this one-liner in any project directory to set up execute-tasks guidelines:
+
+```bash
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash
+```
+
+This deploys configuration files that instruct AI assistants to:
+- Use workflow guidance tools for complex tasks
+- Follow mandatory execution instructions precisely  
+- Maintain proper workflow state synchronization
+
+### 3. Start Using
+
+Restart your MCP client and start a workflow:
+
+```
+# In your AI assistant
+init_workflow_guidance(task_description="Add user authentication to my API")
+```
+
+The workflow will guide you through each phase automatically!
+
+## Features
+
+- **🚀 Structured Workflow**: ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
+- **⚡ Mandatory Guidance**: Authoritative instructions that agents must execute exactly
+- **🔗 Prompt Chaining**: Each guidance tool explicitly specifies the next tool to call
+- **🛡️ Error Recovery**: Built-in error handling and recovery guidance
+- **📝 Multi-Item Processing**: Supports iterating through multiple workflow items
+- **📋 Changelog Integration**: Automatically updates project changelog
+- **⚙️ Auto-Approval**: Optional automatic blueprint approval for streamlined workflows
+
+## Advanced Configuration
+
+### MCP Client Setup Details
+
+#### Cursor Configuration Locations
+
 - **Windows**: `%APPDATA%\Cursor\User\mcp.json`
 - **macOS**: `~/Library/Application Support/Cursor/User/mcp.json` 
 - **Linux**: `~/.config/Cursor/User/mcp.json`
+
+**Alternative locations:**
+- **Project-specific**: `.cursor/mcp.json` in your project directory
+- **Global**: `~/.cursor/mcp.json` for access across all projects
 
 **Setup Steps:**
 1. Create the configuration file at the appropriate location for your OS
@@ -46,13 +146,8 @@ For use with MCP clients like Cursor, add this configuration to your `mcp.json` 
 4. Access MCP settings: `Cmd/Ctrl + Shift + J` → Navigate to "MCP" tab
 5. Verify the workflow-commander server appears and shows a green status
 
-**Alternative Configuration Methods:**
-- **Project-specific**: Create `.cursor/mcp.json` in your project directory
-- **Global**: Use `~/.cursor/mcp.json` for access across all projects
+#### Claude Desktop Configuration Locations
 
-#### Claude Desktop Configuration
-
-**Location of claude_desktop_config.json:**
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
@@ -60,28 +155,70 @@ For use with MCP clients like Cursor, add this configuration to your `mcp.json` 
 **Setup Steps:**
 1. Ensure you have [Claude Desktop](https://claude.ai/download) installed
 2. Create or edit the configuration file at the appropriate location
-3. Add the workflow-commander server configuration:
+3. Add the workflow-commander server configuration (see Quick Start section)
+4. Restart Claude Desktop
+5. Test the connection by asking Claude: "What workflow guidance tools are available?"
 
+### Environment Variables
+
+#### Auto-Approval Configuration
+
+** For true Vibe Coders: WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
+
+Controls whether blueprint plans are automatically approved without user interaction:
+
+- **`false`** (default): Blueprint plans require manual user approval before proceeding to implementation
+- **`true`**: Blueprint plans are automatically approved and the workflow proceeds directly to the construction phase
+
+**Usage:**
+```bash
+# Enable auto-approval for automated workflows
+export WORKFLOW_AUTO_APPROVE_PLANS=true
+
+# Or set when starting your MCP client
+WORKFLOW_AUTO_APPROVE_PLANS=true cursor
+```
+
+**MCP Config:**
 ```json
 {
   "mcpServers": {
     "workflow-commander": {
-      "command": "uvx",
+      "command": "uvx", 
       "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
-      "env": {}
+      "env": {
+        "WORKFLOW_AUTO_APPROVE_PLANS": "true"
+      }
     }
   }
 }
 ```
 
-4. Restart Claude Desktop
-5. Test the connection by asking Claude: "What workflow guidance tools are available?"
+**When to use auto-approval:**
+- ✅ Automated CI/CD workflows
+- ✅ Batch processing multiple items
+- ✅ Development environments with trusted input
+- ❌ Production deployments requiring human oversight
+- ❌ Complex or critical changes needing review
 
-**Prerequisites for both clients:**
-- Node.js installed for running MCP servers
-- `uvx` available in your PATH (install with `pip install uvx` if needed)
+**Example with auto-approval enabled:**
+```
+🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
 
-After adding the configuration, restart your MCP client to load the server.
+✅ AUTO-APPROVAL ACTIVATED:
+- Environment Variable: WORKFLOW_AUTO_APPROVE_PLANS=true
+- Phase → CONSTRUCT (auto-transitioned)
+- Plan automatically approved without user interaction
+
+🔨 CONSTRUCT PHASE ACTIVE:
+Continue with implementation - no user approval needed!
+```
+
+## Installation Options
+
+### Option 1: MCP Client Configuration (Recommended)
+
+Use the uvx-based configuration shown in the Quick Start section above. This method automatically handles dependencies and updates.
 
 ### Option 2: Local Development Installation
 
@@ -104,56 +241,7 @@ pip install -e .
 uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp
 ```
 
-## Bootstrap Configuration
-
-### Quick Setup for AI Assistants
-
-To quickly configure execute-tasks guidelines for AI assistants (Cursor, GitHub Copilot, Claude) in any project, run this one-liner in your project directory:
-
-```bash
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash
-```
-
-This command will:
-- Download and execute the bootstrap script
-- Deploy execute-tasks configuration files for:
-  - **Cursor**: `.cursor/rules/execute-tasks.mdc` (with YAML frontmatter)
-  - **GitHub Copilot**: `.github/copilot-instructions.md`
-  - **Claude**: `./CLAUDE.md`
-- Skip files that already contain execute-tasks content
-- Create necessary directories automatically
-
-**Manual Options:**
-
-```bash
-# Deploy to specific assistants only
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s copilot
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s claude
-
-# Deploy to multiple specific assistants
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor copilot
-```
-
-**What Gets Configured:**
-
-The bootstrap script deploys task execution guidelines that instruct AI assistants to:
-- Use workflow guidance tools for complex, multi-step tasks
-- Follow mandatory execution instructions precisely
-- Maintain workflow state synchronization
-- Utilize proper error recovery and escalation patterns
-
-## Usage
-
-### Running the Server (Local Development)
-
-```bash
-# Run the MCP server
-python -m src.dev_workflow_mcp.server
-
-# Or using the main function
-python src/dev_workflow_mcp/server.py
-```
+## Usage Guide
 
 ### Available Guidance Tools
 
@@ -193,47 +281,51 @@ The server provides the following workflow guidance tools that provide **mandato
 5. **Validate**: Agent tests and validates the implementation
 6. **Complete**: Agent finalizes and moves to next item (if any)
 
-### Configuration
+### Example Workflow
 
-The workflow server supports several environment variables for customization:
+```python
+# In your MCP client (e.g., Cursor or Claude Desktop)
 
-#### Auto-Approval Configuration
+# 1. Start a new workflow
+# Call: init_workflow_guidance
+# Parameters: task_description="Add user authentication to the API"
 
-**WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
+# 2. The agent will be guided through each phase:
+# - analyze_phase_guidance: Understand requirements
+# - blueprint_phase_guidance: Create implementation plan  
+# - construct_phase_guidance: Implement the changes
+# - validate_phase_guidance: Test and validate
+# - complete_workflow_guidance: Finalize and update changelog
 
-Controls whether blueprint plans are automatically approved without user interaction:
+# 3. Each step automatically updates and shows the current workflow state
+# 4. If there are more items, the workflow continues automatically
+```
 
-- **`false`** (default): Blueprint plans require manual user approval before proceeding to implementation
-- **`true`**: Blueprint plans are automatically approved and the workflow proceeds directly to the construction phase
+### Bootstrap Configuration Details
 
-**Usage:**
+The bootstrap script deploys execute-tasks configuration files for:
+- **Cursor**: `.cursor/rules/execute-tasks.mdc` (with YAML frontmatter)
+- **GitHub Copilot**: `.github/copilot-instructions.md`
+- **Claude**: `./CLAUDE.md`
+
+**Manual Options:**
+
 ```bash
-# Enable auto-approval for automated workflows
-export WORKFLOW_AUTO_APPROVE_PLANS=true
+# Deploy to specific assistants only
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s copilot
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s claude
 
-# Or set when starting your MCP client
-WORKFLOW_AUTO_APPROVE_PLANS=true cursor
+# Deploy to multiple specific assistants
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor copilot
 ```
 
-**When to use auto-approval:**
-- ✅ Automated CI/CD workflows
-- ✅ Batch processing multiple items
-- ✅ Development environments with trusted input
-- ❌ Production deployments requiring human oversight
-- ❌ Complex or critical changes needing review
+The script will:
+- Skip files that already contain execute-tasks content
+- Create necessary directories automatically
+- Deploy content with appropriate formatting for each assistant
 
-**Example with auto-approval enabled:**
-```
-🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
-
-✅ AUTO-APPROVAL ACTIVATED:
-- Environment Variable: WORKFLOW_AUTO_APPROVE_PLANS=true
-- Phase → CONSTRUCT (auto-transitioned)
-- Plan automatically approved without user interaction
-
-🔨 CONSTRUCT PHASE ACTIVE:
-Continue with implementation - no user approval needed!
-```
+## Technical Details
 
 ### How It Works
 
@@ -257,27 +349,7 @@ Contains project configuration including:
 
 *Note: Workflow state is now managed purely through the MCP server session system - no workflow files are created*
 
-## Example Usage
-
-```python
-# In your MCP client (e.g., Cursor or Claude Desktop)
-
-# 1. Start a new workflow
-# Call: init_workflow_guidance
-# Parameters: task_description="Add user authentication to the API"
-
-# 2. The agent will be guided through each phase:
-# - analyze_phase_guidance: Understand requirements
-# - blueprint_phase_guidance: Create implementation plan  
-# - construct_phase_guidance: Implement the changes
-# - validate_phase_guidance: Test and validate
-# - complete_workflow_guidance: Finalize and update changelog
-
-# 3. Each step automatically updates and shows the current workflow state
-# 4. If there are more items, the workflow continues automatically
-```
-
-## Centralized State Management
+### Centralized State Management
 
 Each guidance tool provides real-time state updates and clear next steps:
 
@@ -312,3 +384,17 @@ CurrentItem: Add user authentication to the API
 **🔄 NEXT STEP:**
 Call: `blueprint_phase_guidance`
 Parameters: task_description="Add user authentication to the API", requirements_summary="..."
+
+### Running the Server (Local Development)
+
+```bash
+# Run the MCP server
+python -m src.dev_workflow_mcp.server
+
+# Or using the main function
+python src/dev_workflow_mcp/server.py
+```
+
+## Acknowledgments
+
+This project was inspired by the workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've adapted and extended these ideas to create a more structured, MCP-based approach to development workflow guidance.
