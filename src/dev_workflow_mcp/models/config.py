@@ -61,6 +61,7 @@ class WorkflowConfig(BaseModel):
     This configuration controls core workflow behavior including:
     - Automatic plan approval to bypass user confirmation
     - Local state file enforcement for dual storage mode
+    - Local state file format selection (MD or JSON)
     """
 
     auto_approve_plans: bool = Field(
@@ -71,3 +72,29 @@ class WorkflowConfig(BaseModel):
         default_factory=lambda: os.getenv("WORKFLOW_LOCAL_STATE_FILE", "false").lower() == "true",
         description="Enforce local storage of workflow_state.md file through mandatory agent prompts. When enabled, maintains both MCP server memory state AND local file state for dual storage mode. (from WORKFLOW_LOCAL_STATE_FILE env var)"
     )
+    local_state_file_format: str = Field(
+        default_factory=lambda: _get_validated_format(os.getenv("WORKFLOW_LOCAL_STATE_FILE_FORMAT", "MD")),
+        description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format. (from WORKFLOW_LOCAL_STATE_FILE_FORMAT env var)"
+    )
+
+    @field_validator("local_state_file_format")
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        """Validate format is MD or JSON."""
+        v_upper = v.upper()
+        if v_upper not in ("MD", "JSON"):
+            raise ValueError(f"local_state_file_format must be 'MD' or 'JSON', got '{v}'")
+        return v_upper
+
+
+def _get_validated_format(env_value: str | None) -> str:
+    """Get validated format from environment variable, defaulting to MD for invalid values."""
+    if not env_value:
+        return "MD"
+    
+    env_upper = env_value.upper()
+    if env_upper in ("MD", "JSON"):
+        return env_upper
+    
+    # Invalid environment value defaults to MD (graceful degradation)
+    return "MD"
