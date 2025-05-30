@@ -1,5 +1,6 @@
 """Utilities package for workflow management."""
 
+from .config_utils import get_workflow_config
 from .markdown_generator import (
     export_session_report,
     format_workflow_state_for_display,
@@ -31,6 +32,9 @@ __all__ = [
     # Legacy compatibility
     "StateManager",
     "validate_project_config",
+    
+    # Configuration
+    "get_workflow_config",
     
     # Session management
     "get_session",
