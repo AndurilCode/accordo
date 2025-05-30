@@ -4,6 +4,7 @@ from fastmcp import Context, FastMCP
 from pydantic import Field
 
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from ..utils.config_utils import get_workflow_config
 from ..utils.session_manager import (
     add_item_to_session,
     add_log_to_session,
@@ -11,7 +12,6 @@ from ..utils.session_manager import (
     get_or_create_session,
     update_session_state,
 )
-from ..utils.config_utils import get_workflow_config
 
 
 def register_phase_prompts(mcp: FastMCP):
