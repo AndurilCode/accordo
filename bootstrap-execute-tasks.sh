@@ -165,9 +165,21 @@ deploy_cursor() {
         return 0
     fi
     
-    # Write the Cursor content (with YAML frontmatter) to target file
-    echo "$CURSOR_CONTENT" > "$CURSOR_TARGET"
-    log_success "Execute-tasks content deployed to $CURSOR_TARGET"
+    # Check if file exists to determine whether to append or create
+    if [[ -f "$CURSOR_TARGET" ]]; then
+        # File exists, append the content with separator
+        {
+            echo ""
+            echo "# Execute-Tasks Guidelines"
+            echo ""
+            echo "$CURSOR_CONTENT"
+        } >> "$CURSOR_TARGET"
+        log_success "Execute-tasks content appended to existing $CURSOR_TARGET"
+    else
+        # File doesn't exist, create it with the content
+        echo "$CURSOR_CONTENT" > "$CURSOR_TARGET"
+        log_success "Execute-tasks content deployed to new $CURSOR_TARGET"
+    fi
 }
 
 # Deploy content to GitHub Copilot
@@ -183,13 +195,25 @@ deploy_copilot() {
         return 0
     fi
     
-    # Create file with header and core content (no YAML frontmatter)
-    {
-        echo "# GitHub Copilot Instructions"
-        echo ""
-        echo "$CORE_CONTENT"
-    } > "$COPILOT_TARGET"
-    log_success "Execute-tasks content deployed to $COPILOT_TARGET"
+    # Check if file exists to determine whether to append or create
+    if [[ -f "$COPILOT_TARGET" ]]; then
+        # File exists, append the content with separator
+        {
+            echo ""
+            echo "# Execute-Tasks Guidelines"
+            echo ""
+            echo "$CORE_CONTENT"
+        } >> "$COPILOT_TARGET"
+        log_success "Execute-tasks content appended to existing $COPILOT_TARGET"
+    else
+        # File doesn't exist, create it with header and core content
+        {
+            echo "# GitHub Copilot Instructions"
+            echo ""
+            echo "$CORE_CONTENT"
+        } > "$COPILOT_TARGET"
+        log_success "Execute-tasks content deployed to new $COPILOT_TARGET"
+    fi
 }
 
 # Deploy content to Claude
@@ -205,13 +229,25 @@ deploy_claude() {
         return 0
     fi
     
-    # Create file with header and core content (no YAML frontmatter)
-    {
-        echo "# Claude AI Instructions"
-        echo ""
-        echo "$CORE_CONTENT"
-    } > "$CLAUDE_TARGET"
-    log_success "Execute-tasks content deployed to $CLAUDE_TARGET"
+    # Check if file exists to determine whether to append or create
+    if [[ -f "$CLAUDE_TARGET" ]]; then
+        # File exists, append the content with separator
+        {
+            echo ""
+            echo "# Execute-Tasks Guidelines"
+            echo ""
+            echo "$CORE_CONTENT"
+        } >> "$CLAUDE_TARGET"
+        log_success "Execute-tasks content appended to existing $CLAUDE_TARGET"
+    else
+        # File doesn't exist, create it with header and core content
+        {
+            echo "# Claude AI Instructions"
+            echo ""
+            echo "$CORE_CONTENT"
+        } > "$CLAUDE_TARGET"
+        log_success "Execute-tasks content deployed to new $CLAUDE_TARGET"
+    fi
 }
 
 # Main execution logic
