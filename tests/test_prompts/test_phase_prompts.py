@@ -31,7 +31,7 @@ class TestPhasePrompts:
         register_phase_prompts(mock_mcp)
 
         # Verify that mcp.tool() was called for each prompt function
-        assert mock_mcp.tool.call_count == 8  # 6 original + 2 consolidated tools
+        assert mock_mcp.tool.call_count == 2  # 2 consolidated tools
 
         # Verify the decorator was called (tool registration)
         mock_mcp.tool.assert_called()
@@ -45,129 +45,89 @@ class TestPhasePrompts:
         tools = await mcp.get_tools()
 
         expected_tools = [
-            "init_workflow_guidance",
-            "analyze_phase_guidance",
-            "blueprint_phase_guidance",
-            "construct_phase_guidance",
-            "validate_phase_guidance",
-            "revise_blueprint_guidance",
+            "workflow_guidance",
+            "workflow_state",
         ]
 
         for tool_name in expected_tools:
             assert tool_name in tools, f"Tool {tool_name} not registered"
 
     @pytest.mark.asyncio
-    async def test_init_workflow_guidance_output(self, mock_context):
-        """Test init_workflow_guidance output format."""
+    async def test_workflow_guidance_output(self, mock_context):
+        """Test workflow_guidance output format for different actions."""
         mcp = FastMCP("test-server")
         register_phase_prompts(mcp)
 
         tools = await mcp.get_tools()
-        init_tool = tools["init_workflow_guidance"]
+        workflow_tool = tools["workflow_guidance"]
 
         task = "Test: task description"
-        result = init_tool.fn(task_description=task, ctx=mock_context)
 
-        assert "WORKFLOW INITIALIZED" in result
-        assert task in result
-        assert "analyze_phase_guidance" in result
-
-    @pytest.mark.asyncio
-    async def test_analyze_phase_guidance_output(self, mock_context):
-        """Test analyze_phase_guidance output format."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-
-        tools = await mcp.get_tools()
-        analyze_tool = tools["analyze_phase_guidance"]
-
-        task = "Test: task description"
-        result = analyze_tool.fn(task_description=task, ctx=mock_context)
-
-        assert "ANALYZE PHASE" in result
-        assert task in result
-        assert "REQUIREMENTS UNDERSTANDING ONLY" in result
-        assert "blueprint_phase_guidance" in result
-        assert "MANDATORY ACTIONS" in result
-        assert "COMPLETION VALIDATION CHECKLIST" in result
-        assert "STRICTLY FORBIDDEN" in result
-
-    @pytest.mark.asyncio
-    async def test_blueprint_phase_guidance_output(self, mock_context):
-        """Test blueprint_phase_guidance output format."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-
-        tools = await mcp.get_tools()
-        blueprint_tool = tools["blueprint_phase_guidance"]
-
-        task = "Test: task description"
-        summary = "Test requirements summary"
-        result = blueprint_tool.fn(
-            task_description=task, requirements_summary=summary, ctx=mock_context
+        # Test 'start' action
+        result = workflow_tool.fn(
+            action="start", task_description=task, ctx=mock_context
         )
+        assert "WORKFLOW STARTED" in result
+        assert task in result
+        assert "ANALYZE PHASE" in result
 
+        # Test 'plan' action
+        result = workflow_tool.fn(
+            action="plan",
+            task_description=task,
+            context="test requirements",
+            ctx=mock_context,
+        )
         assert "BLUEPRINT PHASE" in result
         assert task in result
-        assert summary in result
-        assert "construct_phase_guidance" in result
-        assert "revise_blueprint_guidance" in result
 
-    @pytest.mark.asyncio
-    async def test_construct_phase_guidance_output(self, mock_context):
-        """Test construct_phase_guidance output format."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-
-        tools = await mcp.get_tools()
-        construct_tool = tools["construct_phase_guidance"]
-
-        task = "Test: task description"
-        result = construct_tool.fn(task_description=task, ctx=mock_context)
-
+        # Test 'build' action
+        result = workflow_tool.fn(
+            action="build", task_description=task, ctx=mock_context
+        )
         assert "CONSTRUCT PHASE" in result
         assert task in result
-        assert "IMPLEMENTATION" in result
-        assert "validate_phase_guidance" in result
 
-    @pytest.mark.asyncio
-    async def test_validate_phase_guidance_output(self, mock_context):
-        """Test validate_phase_guidance output format."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-
-        tools = await mcp.get_tools()
-        validate_tool = tools["validate_phase_guidance"]
-
-        task = "Test: task description"
-        result = validate_tool.fn(task_description=task, ctx=mock_context)
-
-        assert "VALIDATE PHASE" in result
-        assert task in result
-        assert "COMPREHENSIVE QUALITY VERIFICATION" in result
-        assert "complete_workflow_guidance" in result
-        assert "MANDATORY VALIDATION SEQUENCE" in result
-        assert "VALIDATION CHECKLIST" in result
-
-    @pytest.mark.asyncio
-    async def test_revise_blueprint_guidance_output(self, mock_context):
-        """Test revise_blueprint_guidance output format."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-
-        tools = await mcp.get_tools()
-        revise_tool = tools["revise_blueprint_guidance"]
-
-        task = "Test: task description"
-        feedback = "Test feedback"
-        result = revise_tool.fn(
-            task_description=task, feedback=feedback, ctx=mock_context
+        # Test 'revise' action
+        result = workflow_tool.fn(
+            action="revise",
+            task_description=task,
+            context="test feedback",
+            ctx=mock_context,
         )
-
         assert "REVISING BLUEPRINT" in result
         assert task in result
-        assert feedback in result
-        assert "construct_phase_guidance" in result
+
+        # Test 'next' action
+        result = workflow_tool.fn(
+            action="next", task_description=task, ctx=mock_context
+        )
+        assert task in result
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_output(self, mock_context):
+        """Test workflow_state output format for different operations."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp)
+
+        tools = await mcp.get_tools()
+        state_tool = tools["workflow_state"]
+
+        # Test 'get' operation
+        result = state_tool.fn(operation="get", ctx=mock_context)
+        assert "WORKFLOW STATE" in result
+
+        # Test 'update' operation
+        result = state_tool.fn(
+            operation="update",
+            updates='{"phase": "CONSTRUCT", "status": "RUNNING"}',
+            ctx=mock_context,
+        )
+        assert "STATE UPDATED" in result
+
+        # Test 'reset' operation
+        result = state_tool.fn(operation="reset", ctx=mock_context)
+        assert "WORKFLOW RESET" in result
 
     @pytest.mark.asyncio
     async def test_tool_parameters(self):
@@ -177,174 +137,142 @@ class TestPhasePrompts:
 
         tools = await mcp.get_tools()
 
-        # Test init_workflow_guidance parameters
-        init_tool = tools["init_workflow_guidance"]
-        assert "task_description" in init_tool.parameters["properties"]
-        assert "task_description" in init_tool.parameters["required"]
+        # Test workflow_guidance parameters
+        workflow_tool = tools["workflow_guidance"]
+        assert "action" in workflow_tool.parameters["properties"]
+        assert "task_description" in workflow_tool.parameters["properties"]
+        assert "context" in workflow_tool.parameters["properties"]
+        assert "options" in workflow_tool.parameters["properties"]
+        assert "action" in workflow_tool.parameters["required"]
+        assert "task_description" in workflow_tool.parameters["required"]
 
-        # Test analyze_phase_guidance parameters
-        analyze_tool = tools["analyze_phase_guidance"]
-        assert "task_description" in analyze_tool.parameters["properties"]
-        assert "project_config_path" in analyze_tool.parameters["properties"]
-        assert "task_description" in analyze_tool.parameters["required"]
-
-        # Test blueprint_phase_guidance parameters
-        blueprint_tool = tools["blueprint_phase_guidance"]
-        assert "task_description" in blueprint_tool.parameters["properties"]
-        assert "requirements_summary" in blueprint_tool.parameters["properties"]
-        assert "task_description" in blueprint_tool.parameters["required"]
-        assert "requirements_summary" in blueprint_tool.parameters["required"]
+        # Test workflow_state parameters
+        state_tool = tools["workflow_state"]
+        assert "operation" in state_tool.parameters["properties"]
+        assert "updates" in state_tool.parameters["properties"]
+        assert "operation" in state_tool.parameters["required"]
 
     @pytest.mark.asyncio
-    async def test_workflow_chaining(self, mock_context):
-        """Test that prompts reference the correct next prompts."""
+    async def test_workflow_guidance_actions(self, mock_context):
+        """Test that workflow_guidance supports all expected actions."""
         mcp = FastMCP("test-server")
         register_phase_prompts(mcp)
+
         tools = await mcp.get_tools()
+        workflow_tool = tools["workflow_guidance"]
 
-        # Test init -> analyze chain
-        init_result = tools["init_workflow_guidance"].fn(
-            task_description="Test: workflow", ctx=mock_context
+        task = "Test: task description"
+
+        # Test all valid actions
+        valid_actions = ["start", "plan", "build", "revise", "next"]
+
+        for action in valid_actions:
+            result = workflow_tool.fn(
+                action=action, task_description=task, ctx=mock_context
+            )
+            assert isinstance(result, str)
+            assert len(result) > 0
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_operations(self, mock_context):
+        """Test that workflow_state supports all expected operations."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp)
+
+        tools = await mcp.get_tools()
+        state_tool = tools["workflow_state"]
+
+        # Test all valid operations
+        valid_operations = ["get", "update", "reset"]
+
+        for operation in valid_operations:
+            if operation == "update":
+                result = state_tool.fn(
+                    operation=operation, updates='{"phase": "INIT"}', ctx=mock_context
+                )
+            else:
+                result = state_tool.fn(operation=operation, ctx=mock_context)
+            assert isinstance(result, str)
+            assert len(result) > 0
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_action(self, mock_context):
+        """Test error handling for invalid workflow_guidance action."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp)
+
+        tools = await mcp.get_tools()
+        workflow_tool = tools["workflow_guidance"]
+
+        task = "Test: task description"
+
+        with pytest.raises(ValueError, match="Unknown action"):
+            workflow_tool.fn(
+                action="invalid_action", task_description=task, ctx=mock_context
+            )
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_operation(self, mock_context):
+        """Test error handling for invalid workflow_state operation."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp)
+
+        tools = await mcp.get_tools()
+        state_tool = tools["workflow_state"]
+
+        with pytest.raises(ValueError, match="Unknown operation"):
+            state_tool.fn(operation="invalid_operation", ctx=mock_context)
+
+    @pytest.mark.asyncio
+    async def test_consolidated_tools_contain_required_elements(self, mock_context):
+        """Test that consolidated tools contain required workflow elements."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp)
+
+        tools = await mcp.get_tools()
+        workflow_tool = tools["workflow_guidance"]
+
+        task = "Test: task description"
+
+        # Test that start action contains required elements
+        result = workflow_tool.fn(
+            action="start", task_description=task, ctx=mock_context
         )
-        assert "analyze_phase_guidance" in init_result
+        assert "MANDATORY" in result
+        assert "REQUIRED" in result
+        assert "CHECKLIST" in result
 
-        # Test analyze -> blueprint chain
-        analyze_result = tools["analyze_phase_guidance"].fn(
-            task_description="Test: workflow", ctx=mock_context
-        )
-        assert "blueprint_phase_guidance" in analyze_result
-
-        # Test blueprint -> construct chain
-        blueprint_result = tools["blueprint_phase_guidance"].fn(
-            task_description="Test: workflow",
-            requirements_summary="summary",
+        # Test that plan action contains required elements
+        result = workflow_tool.fn(
+            action="plan",
+            task_description=task,
+            context="test requirements",
             ctx=mock_context,
         )
-        assert "construct_phase_guidance" in blueprint_result
-
-        # Test construct -> validate chain
-        construct_result = tools["construct_phase_guidance"].fn(
-            task_description="Test: workflow", ctx=mock_context
-        )
-        assert "validate_phase_guidance" in construct_result
-
-    @pytest.mark.asyncio
-    async def test_error_handling_references(self, mock_context):
-        """Test that prompts reference error handling correctly."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-        tools = await mcp.get_tools()
-
-        construct_result = tools["construct_phase_guidance"].fn(
-            task_description="Test: workflow", ctx=mock_context
-        )
-        assert "error_recovery_guidance" in construct_result
-
-        validate_result = tools["validate_phase_guidance"].fn(
-            task_description="Test: workflow", ctx=mock_context
-        )
-        assert "fix_validation_issues_guidance" in validate_result
-
-    @pytest.mark.asyncio
-    async def test_all_prompts_contain_required_elements(self, mock_context):
-        """Test that all prompts contain required workflow elements."""
-        mcp = FastMCP("test-server")
-        register_phase_prompts(mcp)
-        tools = await mcp.get_tools()
-
-        task = "Test: task"
-
-        for tool_name, tool in tools.items():
-            if (
-                tool_name == "init_workflow_guidance"
-                or tool_name == "analyze_phase_guidance"
-            ):
-                result = tool.fn(task_description=task, ctx=mock_context)
-            elif tool_name == "blueprint_phase_guidance":
-                result = tool.fn(
-                    task_description=task,
-                    requirements_summary="summary",
-                    ctx=mock_context,
-                )
-            elif (
-                tool_name == "construct_phase_guidance"
-                or tool_name == "validate_phase_guidance"
-            ):
-                result = tool.fn(task_description=task, ctx=mock_context)
-            elif tool_name == "revise_blueprint_guidance":
-                result = tool.fn(
-                    task_description=task, feedback="feedback", ctx=mock_context
-                )
-            elif tool_name == "workflow_guidance":
-                result = tool.fn(
-                    action="start", task_description=task, ctx=mock_context
-                )
-            elif tool_name == "workflow_state":
-                result = tool.fn(operation="get", ctx=mock_context)
-            else:
-                continue
-
-            # All prompts should contain task description
-            assert task in result
-            # All prompts should have clear action guidance
-            assert (
-                "REQUIRED ACTIONS" in result
-                or "ACTIONS TO TAKE" in result
-                or "NEXT STEP" in result
-                or "Call:" in result
-                or "call:" in result
-            )
+        assert "MANDATORY" in result
+        assert "REQUIRED" in result
 
     @pytest.mark.asyncio
     async def test_mandatory_execution_emphasis(self, mock_context):
-        """Test that all guidance tools emphasize mandatory execution."""
+        """Test that consolidated tools emphasize mandatory execution."""
         mcp = FastMCP("test-server")
         register_phase_prompts(mcp)
-        tools = await mcp.get_tools()
 
-        # Check that tool descriptions emphasize mandatory execution
-        for _tool_name, tool in tools.items():
-            assert (
-                "mandatory" in tool.description.lower()
-                or "guide" in tool.description.lower()
+        tools = await mcp.get_tools()
+        workflow_tool = tools["workflow_guidance"]
+
+        task = "Test: task description"
+
+        # Test different actions for mandatory execution emphasis
+        actions_to_test = ["start", "plan", "build"]
+
+        for action in actions_to_test:
+            result = workflow_tool.fn(
+                action=action, task_description=task, ctx=mock_context
             )
 
-        # Check that tool responses contain required actions
-        task = "Test: task"
-        for tool_name, tool in tools.items():
-            if (
-                tool_name == "init_workflow_guidance"
-                or tool_name == "analyze_phase_guidance"
-            ):
-                result = tool.fn(task_description=task, ctx=mock_context)
-            elif tool_name == "blueprint_phase_guidance":
-                result = tool.fn(
-                    task_description=task,
-                    requirements_summary="summary",
-                    ctx=mock_context,
-                )
-            elif (
-                tool_name == "construct_phase_guidance"
-                or tool_name == "validate_phase_guidance"
-            ):
-                result = tool.fn(task_description=task, ctx=mock_context)
-            elif tool_name == "revise_blueprint_guidance":
-                result = tool.fn(
-                    task_description=task, feedback="feedback", ctx=mock_context
-                )
-            elif tool_name == "workflow_guidance":
-                result = tool.fn(
-                    action="start", task_description=task, ctx=mock_context
-                )
-            elif tool_name == "workflow_state":
-                result = tool.fn(operation="get", ctx=mock_context)
-            else:
-                continue
-
-            assert (
-                "REQUIRED ACTIONS" in result
-                or "ACTIONS TO TAKE" in result
-                or "NEXT STEP" in result
-                or "Call:" in result
-                or "call:" in result
+            # Check for mandatory execution indicators
+            mandatory_indicators = ["MANDATORY", "REQUIRED", "MUST", "⚠️"]
+            assert any(indicator in result for indicator in mandatory_indicators), (
+                f"Action '{action}' result should contain mandatory execution emphasis"
             )

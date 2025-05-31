@@ -345,12 +345,8 @@ uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workfl
 The server provides the following workflow guidance tools that provide **mandatory execution instructions**:
 
 #### Phase Guidance
-- `init_workflow_guidance` - Initialize a new workflow with mandatory steps
-- `analyze_phase_guidance` - Guide through requirements analysis with mandatory steps
-- `blueprint_phase_guidance` - Guide through planning and design with mandatory steps
-- `construct_phase_guidance` - Guide through implementation with mandatory steps
-- `validate_phase_guidance` - Guide through testing and validation with mandatory steps
-- `revise_blueprint_guidance` - Revise plans based on feedback with mandatory steps
+- `workflow_guidance` - Consolidated smart workflow guidance with action-based approach (start, plan, build, revise, next)
+- `workflow_state` - Smart workflow state management (get, update, reset operations)
 
 #### Management Guidance
 - `complete_workflow_guidance` - Complete current workflow item with mandatory steps
@@ -371,7 +367,7 @@ The server provides the following workflow guidance tools that provide **mandato
 
 ### Workflow Process
 
-1. **Initialize**: Start with `init_workflow_guidance(task_description="Your task")`
+1. **Initialize**: Start with `workflow_guidance(action="start", task_description="Your task")`
 2. **Analyze**: Agent analyzes requirements without coding
 3. **Blueprint**: Agent creates detailed implementation plan
 4. **Construct**: Agent implements following the approved plan
@@ -384,14 +380,13 @@ The server provides the following workflow guidance tools that provide **mandato
 # In your MCP client (e.g., Cursor or Claude Desktop)
 
 # 1. Start a new workflow
-# Call: init_workflow_guidance
-# Parameters: task_description="Add user authentication to the API"
+# Call: workflow_guidance
+# Parameters: action="start", task_description="Add user authentication to the API"
 
 # 2. The agent will be guided through each phase:
-# - analyze_phase_guidance: Understand requirements
-# - blueprint_phase_guidance: Create implementation plan  
-# - construct_phase_guidance: Implement the changes
-# - validate_phase_guidance: Test and validate
+# - workflow_guidance(action="start"): Initialize and analyze requirements
+# - workflow_guidance(action="plan"): Create implementation plan  
+# - workflow_guidance(action="build"): Implement and validate the changes
 # - complete_workflow_guidance: Finalize and update changelog
 
 # 3. Each step automatically updates and shows the current workflow state
@@ -479,8 +474,8 @@ CurrentItem: Add user authentication to the API
 ```
 
 **🔄 NEXT STEP:**
-Call: `blueprint_phase_guidance`
-Parameters: task_description="Add user authentication to the API", requirements_summary="..."
+Call: `workflow_guidance`
+Parameters: action="plan", task_description="Add user authentication to the API", context="..."
 
 ### Running the Server (Local Development)
 

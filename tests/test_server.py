@@ -20,13 +20,10 @@ class TestServerInitialization:
         tools = await mcp.get_tools()
         tool_names = list(tools.keys())
 
-        # Check that some key guidance tools are registered
+        # Check that key consolidated guidance tools are registered
         expected_tools = [
-            "init_workflow_guidance",
-            "analyze_phase_guidance",
-            "blueprint_phase_guidance",
-            "construct_phase_guidance",
-            "validate_phase_guidance",
+            "workflow_guidance",
+            "workflow_state",
             "update_workflow_state_guidance",
         ]
 
@@ -39,9 +36,9 @@ class TestServerInitialization:
     async def test_tool_count(self):
         """Test that expected number of tools are registered."""
         tools = await mcp.get_tools()
-        # Should have guidance tools only
-        # Based on the guidance files, we expect around 14 tools
-        assert len(tools) >= 14
+        # Should have 2 consolidated phase tools + management tools
+        # Based on the guidance files, we expect around 8 tools total
+        assert len(tools) >= 8
 
 
 class TestMainFunction:
@@ -59,22 +56,43 @@ class TestToolExecution:
     """Test tool registration and structure."""
 
     @pytest.mark.asyncio
-    async def test_init_workflow_guidance_tool_structure(self):
-        """Test init_workflow_guidance tool is properly registered with correct structure."""
+    async def test_workflow_guidance_tool_structure(self):
+        """Test workflow_guidance tool is properly registered with correct structure."""
         # Get the tool
         tools = await mcp.get_tools()
-        assert "init_workflow_guidance" in tools
-        init_tool = tools["init_workflow_guidance"]
+        assert "workflow_guidance" in tools
+        workflow_tool = tools["workflow_guidance"]
 
         # Verify tool structure
-        assert init_tool.name == "init_workflow_guidance"
-        assert "Initialize a new development workflow" in init_tool.description
-        assert init_tool.parameters["type"] == "object"
-        assert "task_description" in init_tool.parameters["properties"]
-        assert "task_description" in init_tool.parameters["required"]
+        assert workflow_tool.name == "workflow_guidance"
+        assert "Consolidated smart workflow guidance" in workflow_tool.description
+        assert workflow_tool.parameters["type"] == "object"
+        assert "action" in workflow_tool.parameters["properties"]
+        assert "task_description" in workflow_tool.parameters["properties"]
+        assert "action" in workflow_tool.parameters["required"]
+        assert "task_description" in workflow_tool.parameters["required"]
 
         # Test that the function exists and is callable
-        assert callable(init_tool.fn)
+        assert callable(workflow_tool.fn)
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_tool_structure(self):
+        """Test workflow_state tool is properly registered with correct structure."""
+        # Get the tool
+        tools = await mcp.get_tools()
+        assert "workflow_state" in tools
+        state_tool = tools["workflow_state"]
+
+        # Verify tool structure
+        assert state_tool.name == "workflow_state"
+        assert "Smart workflow state management" in state_tool.description
+        assert state_tool.parameters["type"] == "object"
+        assert "operation" in state_tool.parameters["properties"]
+        assert "updates" in state_tool.parameters["properties"]
+        assert "operation" in state_tool.parameters["required"]
+
+        # Test that the function exists and is callable
+        assert callable(state_tool.fn)
 
     @pytest.mark.asyncio
     async def test_update_workflow_state_guidance_tool_structure(self):
@@ -110,15 +128,28 @@ class TestToolParameters:
     """Test tool parameter validation."""
 
     @pytest.mark.asyncio
-    async def test_init_workflow_guidance_requires_task_description(self):
-        """Test that init_workflow_guidance requires task_description parameter."""
+    async def test_workflow_guidance_requires_action_and_task(self):
+        """Test that workflow_guidance requires action and task_description parameters."""
         tools = await mcp.get_tools()
-        assert "init_workflow_guidance" in tools
-        init_tool = tools["init_workflow_guidance"]
+        assert "workflow_guidance" in tools
+        workflow_tool = tools["workflow_guidance"]
 
-        # Check that task_description is a required parameter
-        assert "task_description" in init_tool.parameters["properties"]
-        assert "task_description" in init_tool.parameters["required"]
+        # Check that required parameters are present
+        assert "action" in workflow_tool.parameters["properties"]
+        assert "task_description" in workflow_tool.parameters["properties"]
+        assert "action" in workflow_tool.parameters["required"]
+        assert "task_description" in workflow_tool.parameters["required"]
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_requires_operation(self):
+        """Test that workflow_state requires operation parameter."""
+        tools = await mcp.get_tools()
+        assert "workflow_state" in tools
+        state_tool = tools["workflow_state"]
+
+        # Check that operation is a required parameter
+        assert "operation" in state_tool.parameters["properties"]
+        assert "operation" in state_tool.parameters["required"]
 
     @pytest.mark.asyncio
     async def test_update_workflow_state_guidance_parameters(self):

@@ -112,8 +112,8 @@ Call: `changelog_update_guidance` if project changelog needs updating
 ```{file_operations}
 
 **🔄 NEXT STEP:**
-Call: `analyze_phase_guidance`
-Parameters: task_description="{next_item.description}"
+Call: `workflow_guidance`
+Parameters: action="start", task_description="{next_item.description}"
 
 🎯 **Ready to analyze next item - state updated automatically!**
 """
@@ -219,12 +219,12 @@ Call: `finalize_workflow_guidance`
 **🔧 RECOVERY OPTIONS:**
 
 **✅ FOR SIMPLE FIXES:**
-Fix the issue, then call: `construct_phase_guidance`
-Parameters: task_description="{task_description}"
+Fix the issue, then call: `workflow_guidance`
+Parameters: action="build", task_description="{task_description}"
 
 **🔄 FOR COMPLEX ISSUES:**
-Return to planning: `blueprint_phase_guidance`  
-Parameters: task_description="{task_description}", requirements_summary="Error occurred: {error_details}"
+Return to planning: `workflow_guidance`  
+Parameters: action="plan", task_description="{task_description}", context="Error occurred: {error_details}"
 
 **⚠️ FOR CRITICAL ERRORS:**
 Escalate: `escalate_to_user_guidance`
@@ -271,8 +271,8 @@ Parameters: task_description="{task_description}", error_details="{error_details
 3. Log progress as you work
 
 **🔄 AFTER FIXES COMPLETE:**
-Call: `validate_phase_guidance`
-Parameters: task_description="{task_description}"
+Call: `workflow_guidance`
+Parameters: action="build", task_description="{task_description}"
 
 **🚨 IF ISSUES PERSIST:**
 Call: `error_recovery_guidance`
@@ -325,8 +325,8 @@ Parameters: task_description="{task_description}", error_details="Persistent val
 Follow user instructions and call appropriate workflow prompt based on their guidance.
 
 **✅ TO RETRY AFTER USER FIX:**
-Call: `construct_phase_guidance`
-Parameters: task_description="{task_description}"
+Call: `workflow_guidance`
+Parameters: action="build", task_description="{task_description}"
 
 ⚠️ **Critical error escalated automatically - waiting for user guidance!**
 """
