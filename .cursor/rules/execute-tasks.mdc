@@ -7,10 +7,10 @@ alwaysApply: true
 
 ### When to Use Workflow Tools
 - **Simple tasks**: Handle directly without tools (e.g., basic calculations, straightforward code edits, simple explanations)
-- **Complex tasks**: Always use `init_workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+- **Complex tasks**: Always use `workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
 
 ### Workflow Execution Process
-1. **Initialize**: When using `init_workflow_guidance`, carefully read the returned instructions and follow them precisely
+1. **Initialize**: When using `workflow_guidance`, carefully read the returned instructions and follow them precisely
 2. **Follow guidance**: Execute all instructions from tools ending with "_guidance" exactly as specified
 4. **Stay synchronized**: The workflow state file is your source of truth - keep it current throughout the process
 

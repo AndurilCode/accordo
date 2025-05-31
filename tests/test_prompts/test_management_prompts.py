@@ -94,9 +94,7 @@ class TestManagementPrompts:
             "PROCESSING NEXT WORKFLOW ITEM" in result
             or "NO MORE ITEMS TO PROCESS" in result
         )
-        assert (
-            "analyze_phase_guidance" in result or "finalize_workflow_guidance" in result
-        )
+        assert "workflow_guidance" in result or "finalize_workflow_guidance" in result
 
     @pytest.mark.asyncio
     async def test_finalize_workflow_guidance_output(self, mock_context):
@@ -132,8 +130,8 @@ class TestManagementPrompts:
         assert "ERROR RECOVERY MODE" in result
         assert task in result
         assert error_details in result
-        assert "construct_phase_guidance" in result
-        assert "blueprint_phase_guidance" in result
+        assert "workflow_guidance" in result
+        assert 'action="build"' in result
         assert "escalate_to_user_guidance" in result
 
     @pytest.mark.asyncio
@@ -152,7 +150,7 @@ class TestManagementPrompts:
         assert "FIXING VALIDATION ISSUES" in result
         assert task in result
         assert issues in result
-        assert "validate_phase_guidance" in result
+        assert "workflow_guidance" in result
         assert "error_recovery_guidance" in result
 
     @pytest.mark.asyncio
@@ -174,7 +172,7 @@ class TestManagementPrompts:
         assert task in result
         assert error_details in result
         assert "ERROR" in result
-        assert "construct_phase_guidance" in result
+        assert "workflow_guidance" in result
 
     @pytest.mark.asyncio
     async def test_changelog_update_guidance_output(self, mock_context):
@@ -225,8 +223,8 @@ class TestManagementPrompts:
         )
 
         # Should contain all three recovery paths
-        assert "construct_phase_guidance" in result
-        assert "blueprint_phase_guidance" in result
+        assert "workflow_guidance" in result
+        assert 'action="build"' in result
         assert "escalate_to_user_guidance" in result
 
     @pytest.mark.asyncio
@@ -246,7 +244,7 @@ class TestManagementPrompts:
         # Test iterate -> analyze chain
         iterate_result = tools["iterate_next_item_guidance"].fn(ctx=mock_context)
         assert (
-            "analyze_phase_guidance" in iterate_result
+            "workflow_guidance" in iterate_result
             or "finalize_workflow_guidance" in iterate_result
         )
 
@@ -261,15 +259,15 @@ class TestManagementPrompts:
         error_result = tools["error_recovery_guidance"].fn(
             task_description="test", error_details="error", ctx=mock_context
         )
-        assert "construct_phase_guidance" in error_result
-        assert "blueprint_phase_guidance" in error_result
+        assert "workflow_guidance" in error_result
+        assert 'action="build"' in error_result
         assert "escalate_to_user_guidance" in error_result
 
         # Test validation fix chains
         fix_result = tools["fix_validation_issues_guidance"].fn(
             task_description="test", issues="issues", ctx=mock_context
         )
-        assert "validate_phase_guidance" in fix_result
+        assert "workflow_guidance" in fix_result
         assert "error_recovery_guidance" in fix_result
 
     @pytest.mark.asyncio
@@ -355,7 +353,7 @@ class TestManagementPrompts:
         assert "ESCALATING TO USER" in escalate_result
         assert "ERROR" in escalate_result
         assert "critical error" in escalate_result
-        assert "construct_phase_guidance" in escalate_result
+        assert "workflow_guidance" in escalate_result
 
     @pytest.mark.asyncio
     async def test_tool_parameters(self):
