@@ -31,7 +31,7 @@ class TestPhasePrompts:
         register_phase_prompts(mock_mcp)
 
         # Verify that mcp.tool() was called for each prompt function
-        assert mock_mcp.tool.call_count == 6  # 6 prompt functions
+        assert mock_mcp.tool.call_count == 8  # 6 original + 2 consolidated tools
 
         # Verify the decorator was called (tool registration)
         mock_mcp.tool.assert_called()
@@ -275,6 +275,12 @@ class TestPhasePrompts:
                 result = tool.fn(
                     task_description=task, feedback="feedback", ctx=mock_context
                 )
+            elif tool_name == "workflow_guidance":
+                result = tool.fn(
+                    action="start", task_description=task, ctx=mock_context
+                )
+            elif tool_name == "workflow_state":
+                result = tool.fn(operation="get", ctx=mock_context)
             else:
                 continue
 
@@ -326,6 +332,12 @@ class TestPhasePrompts:
                 result = tool.fn(
                     task_description=task, feedback="feedback", ctx=mock_context
                 )
+            elif tool_name == "workflow_guidance":
+                result = tool.fn(
+                    action="start", task_description=task, ctx=mock_context
+                )
+            elif tool_name == "workflow_state":
+                result = tool.fn(operation="get", ctx=mock_context)
             else:
                 continue
 
