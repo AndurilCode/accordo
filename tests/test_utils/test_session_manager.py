@@ -105,7 +105,7 @@ class TestSessionExportFunctions:
             status=WorkflowStatus.RUNNING,
             current_item="Analysis task",
             plan="Test plan",
-            log="Test log",
+            log=["Test log"],
         )
 
         json_str = session_manager.export_session_to_json("test-client")
@@ -241,7 +241,7 @@ class TestSessionExportFunctions:
         ]
         session.add_log_entry("Complex log entry 1")
         session.add_log_entry("Complex log entry 2")
-        session.archive_log = "Historical data"
+        session.archive_log = ["Historical data"]
 
         json_str = session_manager.export_session_to_json("complex-client")
         data = json.loads(json_str)
@@ -254,9 +254,9 @@ class TestSessionExportFunctions:
         assert data["plan"] == "Complex plan with multiple steps"
         assert len(data["items"]) == 2
         assert data["items"][0]["description"] == "Complex task 1"
-        assert "Complex log entry 1" in data["log"]
-        assert "Complex log entry 2" in data["log"]
-        assert data["archive_log"] == "Historical data"
+        assert any("Complex log entry 1" in entry for entry in data["log"])
+        assert any("Complex log entry 2" in entry for entry in data["log"])
+        assert data["archive_log"] == ["Historical data"]
 
     def test_export_session_format_consistency(self):
         """Test that both export formats contain equivalent information."""

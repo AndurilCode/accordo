@@ -52,8 +52,8 @@ class WorkflowState(BaseModel):
     current_item: str | None = None
     plan: str = ""
     items: list[WorkflowItem] = Field(default_factory=list)
-    log: str = ""
-    archive_log: str = ""
+    log: list[str] = Field(default_factory=list)
+    archive_log: list[str] = Field(default_factory=list)
 
     # Template for markdown generation
     MARKDOWN_TEMPLATE: ClassVar[str] = """# Workflow State
@@ -141,19 +141,21 @@ Action ▶
     def add_log_entry(self, entry: str) -> None:
         """Add entry to log with timestamp."""
         timestamp = datetime.now().strftime("%H:%M:%S")  # noqa: DTZ005
-        self.log += f"\n[{timestamp}] {entry}"
+        formatted_entry = f"[{timestamp}] {entry}"
+        self.log.append(formatted_entry)
 
-        # Check if log rotation is needed (>5000 chars)
-        if len(self.log) > 5000:
+        # Check if log rotation is needed (>5000 chars total)
+        total_chars = sum(len(log_entry) for log_entry in self.log)
+        if total_chars > 5000:
             self.rotate_log()
 
     def rotate_log(self) -> None:
         """Rotate log to archive when it gets too long."""
         # Move current log to archive
         if self.archive_log:
-            self.archive_log += "\n\n--- LOG ROTATION ---\n\n"
-        self.archive_log += self.log
-        self.log = ""
+            self.archive_log.append("--- LOG ROTATION ---")
+        self.archive_log.extend(self.log)
+        self.log.clear()
 
     def get_next_pending_item(self) -> WorkflowItem | None:
         """Get the next pending item."""
@@ -201,15 +203,15 @@ Action ▶
 
         # Format log
         log = (
-            self.log
-            if self.log.strip()
+            "\n".join(self.log)
+            if self.log
             else "<!-- AI appends detailed reasoning, tool output, and errors here -->"
         )
 
         # Format archive log
         archive_log = (
-            self.archive_log
-            if self.archive_log.strip()
+            "\n".join(self.archive_log)
+            if self.archive_log
             else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
         )
 
@@ -243,8 +245,8 @@ Action ▶
                 {"id": item.id, "description": item.description, "status": item.status}
                 for item in self.items
             ],
-            "log": self.log if self.log.strip() else None,
-            "archive_log": self.archive_log if self.archive_log.strip() else None,
+            "log": self.log if self.log else None,
+            "archive_log": self.archive_log if self.archive_log else None,
         }
 
         return json.dumps(state_dict, indent=2)
@@ -260,8 +262,8 @@ Action ▶
         status = WorkflowStatus.READY
         current_item = None
         plan = ""
-        log = ""
-        archive_log = ""
+        log = []
+        archive_log = []
         items = []
 
         # Parse the markdown (basic implementation)
@@ -277,9 +279,17 @@ Action ▶
                     if current_section == "Plan":
                         plan = content_text
                     elif current_section == "Log":
-                        log = content_text
+                        log = [
+                            line.strip()
+                            for line in content_text.split("\n")
+                            if line.strip()
+                        ]
                     elif current_section == "ArchiveLog":
-                        archive_log = content_text
+                        archive_log = [
+                            line.strip()
+                            for line in content_text.split("\n")
+                            if line.strip()
+                        ]
                     elif current_section == "Items":
                         # Parse items table (simplified)
                         items = cls._parse_items_table(section_content)
@@ -308,9 +318,13 @@ Action ▶
             if current_section == "Plan":
                 plan = content_text
             elif current_section == "Log":
-                log = content_text
+                log = [
+                    line.strip() for line in content_text.split("\n") if line.strip()
+                ]
             elif current_section == "ArchiveLog":
-                archive_log = content_text
+                archive_log = [
+                    line.strip() for line in content_text.split("\n") if line.strip()
+                ]
             elif current_section == "Items":
                 items = cls._parse_items_table(section_content)
 

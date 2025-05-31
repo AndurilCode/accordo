@@ -321,8 +321,8 @@ class TestWorkflowStateModelIntegration:
                 WorkflowItem(id=1, description="First task", status="completed"),
                 WorkflowItem(id=2, description="Second task", status="pending"),
             ],
-            log="Test log entry",
-            archive_log="Test archive log",
+            log=["Test log entry"],
+            archive_log=["Test archive log"],
         )
 
         # Generate markdown
