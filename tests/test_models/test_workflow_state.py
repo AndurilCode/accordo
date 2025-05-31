@@ -100,8 +100,8 @@ class TestWorkflowState:
         assert state.current_item is None
         assert state.plan == ""
         assert state.items == []
-        assert state.log == ""
-        assert state.archive_log == ""
+        assert state.log == []
+        assert state.archive_log == []
         assert isinstance(state.last_updated, datetime)
 
     def test_creation_with_all_fields(self):
@@ -113,16 +113,16 @@ class TestWorkflowState:
             current_item="Current task",
             plan="Test plan",
             items=items,
-            log="Test log",
-            archive_log="Archive log",
+            log=["Test log"],
+            archive_log=["Archive log"],
         )
         assert state.phase == WorkflowPhase.BLUEPRINT
         assert state.status == WorkflowStatus.RUNNING
         assert state.current_item == "Current task"
         assert state.plan == "Test plan"
         assert len(state.items) == 1
-        assert state.log == "Test log"
-        assert state.archive_log == "Archive log"
+        assert state.log == ["Test log"]
+        assert state.archive_log == ["Archive log"]
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry(self, mock_datetime):
@@ -134,7 +134,7 @@ class TestWorkflowState:
 
         state.add_log_entry("Test entry")
 
-        assert state.log == "\n[12:34:56] Test entry"
+        assert state.log == ["[12:34:56] Test entry"]
         mock_datetime.now.assert_called_once()
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
@@ -147,7 +147,7 @@ class TestWorkflowState:
         state.add_log_entry("First entry")
         state.add_log_entry("Second entry")
 
-        expected_log = "\n[12:34:56] First entry\n[12:35:00] Second entry"
+        expected_log = ["[12:34:56] First entry", "[12:35:00] Second entry"]
         assert state.log == expected_log
 
     def test_rotate_log_when_over_5000_chars(self):
@@ -156,25 +156,25 @@ class TestWorkflowState:
 
         # Create a log entry that's over 5000 characters
         long_entry = "x" * 5001
-        state.log = long_entry
+        state.log = [long_entry]
 
         state.rotate_log()
 
-        assert state.archive_log == long_entry
-        assert state.log == ""
+        assert state.archive_log == [long_entry]
+        assert state.log == []
 
     def test_rotate_log_with_existing_archive(self):
         """Test log rotation when archive already has content."""
         state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
 
-        state.archive_log = "Existing archive"
-        state.log = "Current log"
+        state.archive_log = ["Existing archive"]
+        state.log = ["Current log"]
 
         state.rotate_log()
 
-        expected_archive = "Existing archive\n\n--- LOG ROTATION ---\n\nCurrent log"
+        expected_archive = ["Existing archive", "--- LOG ROTATION ---", "Current log"]
         assert state.archive_log == expected_archive
-        assert state.log == ""
+        assert state.log == []
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry_triggers_rotation(self, mock_datetime):
@@ -184,15 +184,15 @@ class TestWorkflowState:
         state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
 
         # Set log to be just under 5000 chars
-        state.log = "x" * 4990
+        state.log = ["x" * 4990]
 
         # Add entry that pushes it over 5000
         state.add_log_entry("This will trigger rotation")
 
         # Log should be rotated (moved to archive) and log should be cleared
         assert "x" * 4990 in state.archive_log
-        assert "\n[12:34:56] This will trigger rotation" in state.archive_log
-        assert state.log == ""
+        assert "[12:34:56] This will trigger rotation" in state.archive_log
+        assert state.log == []
 
     def test_get_next_pending_item_with_pending_items(self):
         """Test getting next pending item when pending items exist."""
@@ -295,8 +295,8 @@ class TestWorkflowState:
             current_item="Current task",
             plan="Test plan",
             items=items,
-            log="Test log",
-            archive_log="Archive log",
+            log=["Test log"],
+            archive_log=["Archive log"],
         )
 
         data = state.model_dump()
@@ -307,8 +307,8 @@ class TestWorkflowState:
         assert data["plan"] == "Test plan"
         assert len(data["items"]) == 1
         assert data["items"][0]["id"] == 1
-        assert data["log"] == "Test log"
-        assert data["archive_log"] == "Archive log"
+        assert data["log"] == ["Test log"]
+        assert data["archive_log"] == ["Archive log"]
         assert "last_updated" in data
 
 
@@ -336,8 +336,8 @@ class TestWorkflowStateJsonExport:
             client_id="test-client",
             current_item="Test task",
             plan="Test plan",
-            log="Test log",
-            archive_log="Test archive",
+            log=["Test log"],
+            archive_log=["Test archive"],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -421,15 +421,15 @@ class TestWorkflowStateJsonExport:
             phase=WorkflowPhase.CONSTRUCT,
             status=WorkflowStatus.RUNNING,
             plan="Detailed implementation plan",
-            log="Implementation log entry",
-            archive_log="Previous log entries",
+            log=["Implementation log entry"],
+            archive_log=["Previous log entries"],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
 
         assert data["plan"] == "Detailed implementation plan"
-        assert data["log"] == "Implementation log entry"
-        assert data["archive_log"] == "Previous log entries"
+        assert data["log"] == ["Implementation log entry"]
+        assert data["archive_log"] == ["Previous log entries"]
 
     def test_to_json_empty_values_as_null(self):
         """Test to_json represents empty strings as null."""
@@ -437,8 +437,8 @@ class TestWorkflowStateJsonExport:
             phase=WorkflowPhase.INIT,
             status=WorkflowStatus.READY,
             plan="",
-            log="",
-            archive_log="",
+            log=[],
+            archive_log=[],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -541,8 +541,8 @@ class TestWorkflowStateJsonExport:
             current_item="Final validation task",
             plan="Complex multi-step plan with detailed instructions",
             items=items,
-            log="Detailed log with multiple entries and timestamps",
-            archive_log="Historical log data from previous phases",
+            log=["Detailed log with multiple entries and timestamps"],
+            archive_log=["Historical log data from previous phases"],
         )
 
         json_str = state.to_json()
@@ -557,5 +557,5 @@ class TestWorkflowStateJsonExport:
         assert len(data["items"]) == 3
         assert data["items"][2]["description"] == "Complex task 3"
         assert data["items"][2]["status"] == "in-progress"
-        assert data["log"] == "Detailed log with multiple entries and timestamps"
-        assert data["archive_log"] == "Historical log data from previous phases"
+        assert data["log"] == ["Detailed log with multiple entries and timestamps"]
+        assert data["archive_log"] == ["Historical log data from previous phases"]
