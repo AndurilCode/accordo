@@ -6,35 +6,372 @@ No hardcoded logic - all behavior determined by workflow definitions.
 
 import json
 
+import yaml
 from fastmcp import FastMCP
 from pydantic import Field
 
-from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from ..models.yaml_workflow import WorkflowDefinition, WorkflowNode
 from ..utils.schema_analyzer import (
     analyze_node_from_schema,
     extract_choice_from_context,
-    extract_workflow_from_context,
     format_node_status,
     get_available_transitions,
     get_workflow_summary,
     validate_transition,
 )
 from ..utils.session_manager import (
-    add_item_to_session,
     add_log_to_session,
+    create_dynamic_session,
     export_session_to_markdown,
     get_dynamic_session_workflow_def,
     get_or_create_dynamic_session,
-    get_or_create_session,
     get_session_type,
+    store_workflow_definition_in_cache,
     update_dynamic_session_node,
     update_dynamic_session_status,
-    update_session_state,
 )
-from ..utils.state_manager import get_file_operation_instructions
 from ..utils.workflow_engine import WorkflowEngine
 from ..utils.yaml_loader import WorkflowLoader
+
+
+def validate_task_description(description: str | None) -> str:
+    """Validate task description format.
+
+    Args:
+        description: Task description to validate
+
+    Returns:
+        str: Trimmed and validated description
+
+    Raises:
+        ValueError: If description doesn't follow required format
+    """
+    if description is None:
+        raise ValueError(
+            "Task description must be a non-empty string. Task descriptions must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    if not isinstance(description, str):
+        raise ValueError(
+            "Task description must be a string. Task descriptions must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Trim whitespace
+    description = description.strip()
+
+    if not description:
+        raise ValueError(
+            "Task description must be a non-empty string. Task descriptions must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Check for colon
+    if ":" not in description:
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Split on first colon
+    parts = description.split(":", 1)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    action_verb = parts[0].strip()
+    task_details = parts[1]
+
+    # Check if action verb is empty
+    if not action_verb:
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Check if action verb starts with uppercase letter
+    if not action_verb[0].isupper():
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Check if action verb is all alphabetic (no numbers or special chars)
+    if not action_verb.isalpha():
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Check if there's a space after colon
+    if not task_details.startswith(" "):
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    # Check if description part is not empty after trimming
+    task_details_trimmed = task_details.strip()
+    if not task_details_trimmed:
+        raise ValueError(
+            f"Task description '{description}' must follow the format 'Action: Brief description'. "
+            "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
+        )
+
+    return description
+
+
+def parse_and_validate_yaml_context(
+    context: str,
+) -> tuple[str | None, str | None, str | None]:
+    """Parse and validate YAML context from agent input.
+
+    Args:
+        context: Context string containing workflow name and YAML content
+
+    Returns:
+        tuple: (workflow_name, yaml_content, error_message)
+
+    Expected formats:
+    1. Standard format: "workflow: Name\\nyaml: <yaml_content>"
+    2. Multiline format with proper YAML indentation
+    3. Raw YAML with workflow name extracted from content
+    """
+    if not context or not isinstance(context, str):
+        return None, None, "Context must be a non-empty string"
+
+    context = context.strip()
+    workflow_name = None
+    yaml_content = None
+
+    try:
+        # Method 1: Parse standard format with "workflow:" and "yaml:" markers
+        if "workflow:" in context and "yaml:" in context:
+            result = _parse_standard_format(context)
+            if result and len(result) == 2:
+                workflow_name, yaml_content = result
+                if workflow_name and yaml_content:
+                    # Validate and reformat YAML
+                    formatted_yaml = _validate_and_reformat_yaml(yaml_content)
+                    if formatted_yaml:
+                        return workflow_name, formatted_yaml, None
+                    else:
+                        return None, None, "Invalid YAML content - failed validation"
+
+            # Handle case where YAML content is empty after "yaml:"
+            if "yaml:" in context:
+                workflow_name = _extract_workflow_name_only(context)
+                yaml_part = context.split("yaml:", 1)[1].strip()
+                if not yaml_part:  # Empty YAML content
+                    return (
+                        workflow_name,
+                        None,
+                        "Workflow name provided but YAML content is missing",
+                    )
+
+        # Method 2: Try parsing as pure YAML (extract name from content)
+        elif _looks_like_yaml(context):
+            result = _parse_pure_yaml(context)
+            if result and len(result) == 2:
+                workflow_name, yaml_content = result
+                if workflow_name and yaml_content:
+                    return workflow_name, yaml_content, None
+            return None, None, "Could not extract workflow name from YAML content"
+
+        # Method 3: Check if it's just a workflow name (no YAML content)
+        elif "workflow:" in context and "yaml:" not in context:
+            workflow_name = _extract_workflow_name_only(context)
+            return (
+                workflow_name,
+                None,
+                "Workflow name provided but YAML content is missing",
+            )
+
+        else:
+            return (
+                None,
+                None,
+                "Unrecognized context format - expected 'workflow: Name\\nyaml: <content>' or pure YAML",
+            )
+
+    except Exception as e:
+        return None, None, f"Error parsing context: {str(e)}"
+
+
+def _parse_standard_format(context: str) -> tuple[str | None, str | None]:
+    """Parse standard format: workflow: Name\\nyaml: <content>"""
+    lines = context.split("\n")
+    workflow_name = None
+    yaml_content = []
+    yaml_started = False
+
+    for line in lines:
+        line_stripped = line.strip()
+
+        # Extract workflow name
+        if line_stripped.startswith("workflow:") and not workflow_name:
+            workflow_name = line_stripped.split("workflow:", 1)[1].strip()
+
+        # Start collecting YAML content
+        elif line_stripped.startswith("yaml:"):
+            yaml_started = True
+            # Check if there's content on the same line after "yaml:"
+            yaml_part = line_stripped.split("yaml:", 1)[1].strip()
+            if yaml_part:
+                yaml_content.append(yaml_part)
+
+        # Continue collecting YAML lines
+        elif yaml_started:
+            yaml_content.append(line)  # Keep original indentation for YAML
+
+    if workflow_name and yaml_content:
+        return workflow_name, "\n".join(yaml_content)
+
+    return None, None
+
+
+def _parse_pure_yaml(context: str) -> tuple[str | None, str | None]:
+    """Parse pure YAML content and extract workflow name."""
+    try:
+        # Try to parse as YAML to validate structure
+        yaml_data = yaml.safe_load(context)
+
+        if isinstance(yaml_data, dict) and "name" in yaml_data:
+            workflow_name = yaml_data["name"]
+            return workflow_name, context
+        else:
+            return None, None
+
+    except yaml.YAMLError:
+        return None, None
+
+
+def _extract_workflow_name_only(context: str) -> str | None:
+    """Extract workflow name when only name is provided (no YAML)."""
+    for line in context.split("\n"):
+        if line.strip().startswith("workflow:"):
+            return line.split("workflow:", 1)[1].strip()
+    return None
+
+
+def _looks_like_yaml(content: str) -> bool:
+    """Check if content looks like YAML format."""
+    # Look for common YAML indicators
+    yaml_indicators = [
+        "name:",
+        "description:",
+        "workflow:",
+        "inputs:",
+        "tree:",
+        "goal:",
+        "acceptance_criteria:",
+    ]
+
+    return any(indicator in content for indicator in yaml_indicators)
+
+
+def _validate_and_reformat_yaml(yaml_content: str) -> str | None:
+    """Validate and reformat YAML content.
+
+    Args:
+        yaml_content: Raw YAML content string
+
+    Returns:
+        Formatted YAML string or None if invalid
+    """
+    try:
+        # Parse YAML to validate structure
+        yaml_data = yaml.safe_load(yaml_content)
+
+        if not isinstance(yaml_data, dict):
+            return None
+
+        # Check for required top-level fields
+        required_fields = ["name", "workflow"]
+        missing_fields = [field for field in required_fields if field not in yaml_data]
+
+        if missing_fields:
+            return None
+
+        # Validate workflow structure
+        if not isinstance(yaml_data.get("workflow"), dict):
+            return None
+
+        workflow_section = yaml_data["workflow"]
+        if "tree" not in workflow_section:
+            return None
+
+        # Reformat with proper indentation and structure
+        reformatted = yaml.dump(
+            yaml_data,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
+            width=120,
+            allow_unicode=True,
+        )
+
+        return reformatted
+
+    except yaml.YAMLError:
+        return None
+    except Exception:
+        return None
+
+
+def _format_yaml_error_guidance(
+    error_msg: str, workflow_name: str | None = None
+) -> str:
+    """Format helpful error message with YAML format guidance."""
+    base_msg = f"❌ **YAML Format Error:** {error_msg}\n\n"
+
+    guidance = """**🔧 EXPECTED FORMAT:**
+
+**Option 1 - Standard Format:**
+```
+workflow_guidance(
+    action="start",
+    context="workflow: Workflow Name\\nyaml: name: Workflow Name\\ndescription: Description\\nworkflow:\\n  goal: Goal\\n  root: start\\n  tree:\\n    start:\\n      goal: Goal text\\n      next_allowed_nodes: [next]"
+)
+```
+
+**Option 2 - Multiline YAML:**
+```
+workflow_guidance(
+    action="start", 
+    context="workflow: Workflow Name
+yaml: name: Workflow Name
+description: Description
+workflow:
+  goal: Goal
+  root: start
+  tree:
+    start:
+      goal: Goal text
+      next_allowed_nodes: [next]"
+)
+```
+
+**🚨 AGENT INSTRUCTIONS:**
+1. Use `read_file` to get the YAML content from `.workflow-commander/workflows/`
+2. Copy the ENTIRE YAML content exactly as it appears in the file
+3. Use the format above with proper workflow name and YAML content
+
+**Required YAML Structure:**
+- `name`: Workflow display name
+- `description`: Brief description
+- `workflow.goal`: Main objective
+- `workflow.root`: Starting node name
+- `workflow.tree`: Node definitions with goals and transitions"""
+
+    if workflow_name:
+        guidance += f"\n\n**Detected Workflow Name:** {workflow_name}"
+        guidance += "\n**Action Required:** Please provide the complete YAML content for this workflow."
+
+    return base_msg + guidance
 
 
 def register_phase_prompts(app: FastMCP):
@@ -62,7 +399,7 @@ def register_phase_prompts(app: FastMCP):
 
         Provides guidance based entirely on workflow schema structure.
         No hardcoded behavior - everything driven by YAML definitions.
-        
+
         CRITICAL DISCOVERY-FIRST LOGIC:
         - If no session exists, FORCE discovery first regardless of action
         - Dynamic sessions continue with schema-driven workflow
@@ -84,157 +421,137 @@ def register_phase_prompts(app: FastMCP):
                 workflow_def = get_dynamic_session_workflow_def(client_id)
 
                 if not workflow_def:
-                    # Fallback if workflow missing
-                    return _handle_legacy_fallback(
-                        client_id, task_description, action, context, options
-                    )
+                    # No workflow definition available - force discovery
+                    return f"""❌ **Missing Workflow Definition**
+
+Dynamic session exists but workflow definition is missing.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
 
                 return _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
                 )
 
             elif session_type == "legacy":
-                # Continue with existing legacy workflow
-                return _handle_legacy_fallback(
-                    client_id, task_description, action, context, options
-                )
+                # Legacy sessions are no longer supported - force migration to YAML workflows
+                return f"""❌ **Legacy Workflow Session Detected**
+
+Legacy workflows have been removed. Please start a new YAML workflow:
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content
+
+🚨 **Note:** All legacy workflow functionality has been permanently removed."""
 
             else:
                 # session_type is None - NO SESSION EXISTS
                 # MANDATORY DISCOVERY-FIRST ENFORCEMENT
-                
-                if action.lower() == "start" and context:
-                    # User specified workflow - attempt to start it
-                    workflow_name = extract_workflow_from_context(context)
 
-                    if workflow_name:
+                if action.lower() == "start" and context and isinstance(context, str):
+                    # Parse and validate YAML context with enhanced handling
+                    workflow_name, yaml_content, error_msg = (
+                        parse_and_validate_yaml_context(context)
+                    )
+
+                    if error_msg:
+                        # Return formatted error with guidance
+                        return _format_yaml_error_guidance(error_msg, workflow_name)
+
+                    if workflow_name and yaml_content:
+                        # Load workflow from validated YAML string
                         try:
-                            # Try to start the specified workflow
-                            available_workflows = loader.discover_workflows()
-
-                            # Find matching workflow (case-insensitive)
-                            selected_workflow = None
-                            for name, wf in available_workflows.items():
-                                if name.lower() == workflow_name.lower():
-                                    selected_workflow = wf
-                                    break
+                            selected_workflow = loader.load_workflow_from_string(
+                                yaml_content, workflow_name
+                            )
 
                             if selected_workflow:
-                                # Initialize dynamic session with selected workflow
-                                session = get_or_create_dynamic_session(
-                                    client_id, task_description
+                                # Create dynamic session directly with selected workflow
+                                session = create_dynamic_session(
+                                    client_id, task_description, selected_workflow
                                 )
-                                engine.initialize_workflow(session, selected_workflow)
+
+                                # Store workflow definition in cache for later retrieval
+                                store_workflow_definition_in_cache(
+                                    client_id, selected_workflow
+                                )
 
                                 # Get current node info
                                 current_node = selected_workflow.workflow.tree[
                                     session.current_node
                                 ]
-                                status = format_node_status(current_node, selected_workflow)
+                                status = format_node_status(
+                                    current_node, selected_workflow
+                                )
 
                                 return f"""🚀 **Workflow Started:** {selected_workflow.name}
 
 **Task:** {task_description}
 
 {status}"""
-
                             else:
-                                return f"""❌ **Workflow Not Found:** {workflow_name}
-
-Available workflows:
-{chr(10).join([f"• {name}" for name in available_workflows])}
-
-Please use exact workflow name or use legacy fallback."""
+                                return _format_yaml_error_guidance(
+                                    "Failed to load workflow from provided YAML - invalid structure",
+                                    workflow_name,
+                                )
 
                         except Exception as e:
-                            return f"❌ **Error starting workflow:** {str(e)}\n\nFalling back to legacy workflow."
+                            return _format_yaml_error_guidance(
+                                f"Error loading workflow from YAML: {str(e)}",
+                                workflow_name,
+                            )
 
-                    else:
-                        return _handle_legacy_fallback(
-                            client_id, task_description, action, context, options
-                        )
+                    elif workflow_name and not yaml_content:
+                        # Agent provided workflow name without YAML - instruct them to provide YAML
+                        return f"""❌ **Workflow YAML Required**
+
+You specified workflow: **{workflow_name}**
+
+**🚨 AGENT ACTION REQUIRED:**
+The MCP server cannot access workflow files. Please provide the workflow YAML content directly.
+
+{_format_yaml_error_guidance("YAML content missing", workflow_name)}"""
 
                 elif action.lower() == "start":
                     # No context provided - show discovery
-                    try:
-                        available_workflows = loader.discover_workflows()
+                    return f"""🔍 **Workflow Discovery Required**
 
-                        if available_workflows:
-                            # Present available workflows to agent for selection
-                            workflow_list = "\n".join(
-                                [
-                                    f"• **{name}**: {wf.description}"
-                                    for name, wf in available_workflows.items()
-                                ]
-                            )
+**⚠️ AGENT ACTION REQUIRED:**
 
-                            return f"""🔍 **Available Workflows Found**
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content
 
-{workflow_list}
-
-**To start a workflow:**
-Call workflow_guidance with:
-- action: "start"
-- context: "workflow: <workflow_name>"
-
-**Example:** context="workflow: Default Coding Workflow"
-
-**📋 RECOMMENDED:** Use `workflow_discovery(task_description="{task_description}")` first to see detailed workflow information.
-
-**Legacy Fallback:** If no workflow specified, will use hardcoded legacy workflow."""
-
-                        else:
-                            # No workflows found, use legacy fallback
-                            return _handle_legacy_fallback(
-                                client_id, task_description, action, context, options
-                            )
-
-                    except Exception:
-                        # Error loading workflows, use legacy fallback
-                        return _handle_legacy_fallback(
-                            client_id, task_description, action, context, options
-                        )
+**Legacy Fallback:** Call `workflow_guidance(action="start")` without context to use hardcoded legacy workflow."""
 
                 else:
                     # NO SESSION + NON-START ACTION = FORCE DISCOVERY FIRST
-                    try:
-                        available_workflows = loader.discover_workflows()
-
-                        if available_workflows:
-                            workflow_list = "\n".join([f"• {name}" for name in available_workflows])
-                            
-                            return f"""❌ **No Active Workflow Session**
+                    return f"""❌ **No Active Workflow Session**
 
 You called workflow_guidance with action="{action}" but there's no active workflow session.
 
 **⚠️ DISCOVERY REQUIRED FIRST:**
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** `workflow_guidance(action="start", context="workflow: <name>")`
+2. **Start workflow:** Use the discovery instructions to start a workflow
 3. **Then continue:** `workflow_guidance(action="{action}", ...)`
-
-**Available workflows:**
-{workflow_list}
-
-**Alternative:** Use legacy workflow by calling `workflow_guidance(action="start")` without context.
 
 🚨 **CRITICAL:** You must start a workflow session before using action="{action}". The system enforces discovery-first workflow initiation."""
 
-                        else:
-                            # No workflows available, fall back to legacy
-                            return _handle_legacy_fallback(
-                                client_id, task_description, action, context, options
-                            )
-
-                    except Exception:
-                        # Error loading workflows, fall back to legacy
-                        return _handle_legacy_fallback(
-                            client_id, task_description, action, context, options
-                        )
-
         except Exception as e:
-            # Any error falls back to legacy
-            return f"❌ **Error in schema-driven workflow:** {str(e)}\n\nFalling back to legacy workflow."
+            # Any error requires workflow discovery
+            import traceback
+
+            traceback.print_exc()
+            return f"""❌ **Error in schema-driven workflow:** {str(e)}
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
 
     def _handle_dynamic_workflow(
         session,
@@ -252,55 +569,55 @@ You called workflow_guidance with action="{action}" but there's no active workfl
                 return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
             # Handle choice selection
-            if context and "choose:" in context.lower():
+            if context and isinstance(context, str) and "choose:" in context.lower():
                 choice = extract_choice_from_context(context)
 
                 if choice and validate_transition(current_node, choice, workflow_def):
                     # Valid transition - update session
                     if choice in (current_node.next_allowed_nodes or []):
                         # Node transition
-                        update_dynamic_session_node(session.client_id, choice)
+                        update_dynamic_session_node(
+                            session.client_id, choice, workflow_def
+                        )
                         session.current_node = choice
                         new_node = workflow_def.workflow.tree[choice]
-                        
+
                         # Log the transition
-                        add_log_to_session(session.client_id, f"🔄 TRANSITIONED TO: {choice.upper()} PHASE")
-                        
-                        status = format_enhanced_node_status(new_node, workflow_def, session)
+                        add_log_to_session(
+                            session.client_id,
+                            f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
+                        )
+
+                        # After manual transition, check for auto-progression
+                        if engine.can_auto_progress(session, workflow_def):
+                            success, final_node, auto_log = (
+                                engine.execute_auto_transition(session, workflow_def)
+                            )
+                            if success and auto_log:
+                                # Log auto-transitions
+                                for log_entry in auto_log:
+                                    add_log_to_session(session.client_id, log_entry)
+
+                                # Update current node reference and get final node
+                                final_node_def = workflow_def.workflow.tree.get(
+                                    session.current_node
+                                )
+                                if final_node_def:
+                                    new_node = final_node_def
+
+                        status = format_enhanced_node_status(
+                            new_node, workflow_def, session
+                        )
 
                         return f"""✅ **Transitioned to:** {choice.upper()}
 
 {status}"""
 
                     elif choice in (current_node.next_allowed_workflows or []):
-                        # Workflow transition
-                        try:
-                            available_workflows = loader.discover_workflows()
-                            target_workflow = available_workflows.get(choice)
-
-                            if target_workflow:
-                                # Switch to new workflow
-                                new_session = get_or_create_dynamic_session(
-                                    session.client_id, f"Switched to: {choice}"
-                                )
-                                engine.initialize_workflow(new_session, target_workflow)
-
-                                new_current_node = target_workflow.workflow.tree[
-                                    new_session.current_node
-                                ]
-                                status = format_enhanced_node_status(
-                                    new_current_node, target_workflow, new_session
-                                )
-
-                                return f"""🔄 **Switched to Workflow:** {choice}
-
-{status}"""
-
-                            else:
-                                return f"❌ **Workflow not found:** {choice}"
-
-                        except Exception as e:
-                            return f"❌ **Error switching workflow:** {str(e)}"
+                        # Workflow transition - not implemented yet
+                        return (
+                            f"❌ **Workflow transitions not yet implemented:** {choice}"
+                        )
 
                 else:
                     # Invalid choice
@@ -313,401 +630,38 @@ You called workflow_guidance with action="{action}" but there's no active workfl
 
 **Usage:** Use context="choose: <option_name>" with exact option name."""
 
+            # Check for auto-progression when no explicit choice is made
+            if not context and engine.can_auto_progress(session, workflow_def):
+                success, final_node, auto_log = engine.execute_auto_transition(
+                    session, workflow_def
+                )
+
+                if success and auto_log:
+                    # Log auto-transitions
+                    for log_entry in auto_log:
+                        add_log_to_session(session.client_id, log_entry)
+
+                    # Get final node after auto-progression
+                    final_node_def = workflow_def.workflow.tree.get(
+                        session.current_node
+                    )
+                    if final_node_def:
+                        current_node = final_node_def
+
+                        # Add auto-progression indicator to status
+                        status = format_enhanced_node_status(
+                            current_node, workflow_def, session
+                        )
+                        return f"""🤖 **Auto-progressed to:** {session.current_node.upper()}
+
+{status}"""
+
             # Default: show current status with enhanced guidance
             status = format_enhanced_node_status(current_node, workflow_def, session)
             return status
 
         except Exception as e:
             return f"❌ **Dynamic workflow error:** {str(e)}"
-
-    def _handle_legacy_fallback(
-        client_id: str, task_description: str, action: str, context: str, options: str
-    ) -> str:
-        """Handle legacy workflow as fallback when no YAML workflows available."""
-        # Legacy action handlers preserved for compatibility
-        if action.lower() == "start":
-            return _handle_start_action(client_id, task_description, options)
-        elif action.lower() == "plan":
-            return _handle_plan_action(client_id, task_description, context)
-        elif action.lower() == "build":
-            return _handle_build_action(client_id, task_description, context)
-        elif action.lower() == "revise":
-            return _handle_revise_action(client_id, task_description, context)
-        elif action.lower() == "next":
-            return _handle_next_action(client_id, task_description, context)
-        else:
-            return _handle_start_action(client_id, task_description, options)
-
-    # ==================== LEGACY ACTION HANDLERS (PRESERVED) ====================
-
-    def _handle_start_action(
-        client_id: str, task_description: str, options: str
-    ) -> str:
-        """Legacy start action handler."""
-        try:
-            # Create session and initialize state
-            get_or_create_session(client_id)
-
-            # Parse options for project config path
-            project_config_path = ".workflow-commander/project_config.md"
-            if options:
-                try:
-                    opts = json.loads(options)
-                    project_config_path = opts.get(
-                        "project_config_path", project_config_path
-                    )
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            # Add task to session items
-            add_item_to_session(client_id, task_description)
-
-            # Update session state to ANALYZE phase
-            update_session_state(
-                client_id, WorkflowPhase.ANALYZE, WorkflowStatus.RUNNING
-            )
-
-            # Add log entry
-            add_log_to_session(
-                client_id, f"🚀 WORKFLOW INITIALIZED: {task_description}"
-            )
-            add_log_to_session(
-                client_id, f"📊 ANALYZE PHASE STARTED: {task_description}"
-            )
-
-            # Get file operations guidance
-            file_ops = get_file_operation_instructions(project_config_path)
-
-            return f"""🚀 **ANALYZE PHASE - REQUIREMENTS GATHERING**
-
-**Task:** {task_description}
-
-{file_ops}
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**🎯 PHASE OBJECTIVE:** Gather comprehensive information about requirements, constraints, and codebase to understand what needs to be done.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**1. READ PROJECT CONFIGURATION** ⚠️ REQUIRED
-   - MUST read `{project_config_path}` to understand project context
-   - MUST understand coding standards, testing requirements, and project structure
-   - MUST note any specific constraints or requirements
-
-**2. CODEBASE ANALYSIS** ⚠️ REQUIRED
-   - MUST perform semantic search to understand relevant code patterns
-   - MUST identify existing implementations that relate to the task
-   - MUST understand current architecture and design patterns
-   - MUST identify potential integration points and dependencies
-
-**3. REQUIREMENTS ANALYSIS** ⚠️ REQUIRED
-   - MUST break down the task into clear, actionable requirements
-   - MUST identify any ambiguities that need clarification
-   - MUST determine scope boundaries and what's in/out of scope
-   - MUST identify potential risks and complexity factors
-
-**4. CONTEXT GATHERING** ⚠️ REQUIRED
-   - MUST gather any additional context needed (documentation, examples, etc.)
-   - MUST understand user expectations and success criteria
-   - MUST identify any external dependencies or constraints
-
-**🚨 ERROR RECOVERY:**
-If ANY step fails, call: `workflow_guidance`
-Parameters: action="next", task_description="{task_description}"
-
-**✅ WHEN ANALYSIS IS COMPLETE:**
-Call: `workflow_guidance`
-Parameters: action="plan", task_description="{task_description}", context="<summary of analysis findings>"
-
-🎯 **Analysis phase started - gather comprehensive information!**"""
-
-        except Exception as e:
-            return f"❌ **Error in start action:** {str(e)}"
-
-    def _handle_plan_action(client_id: str, task_description: str, context: str) -> str:
-        """Legacy plan action handler."""
-        try:
-            # Update session state to BLUEPRINT phase
-            update_session_state(
-                client_id, WorkflowPhase.BLUEPRINT, WorkflowStatus.RUNNING
-            )
-            add_log_to_session(
-                client_id, f"📋 BLUEPRINT PHASE STARTED: {task_description}"
-            )
-            add_log_to_session(client_id, f"Analysis Summary: {context}")
-
-            return f"""📋 **BLUEPRINT PHASE - IMPLEMENTATION PLANNING**
-
-**Task:** {task_description}
-
-**Analysis Summary:** {context}
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**🎯 PHASE OBJECTIVE:** Create a detailed, step-by-step implementation plan based on the analysis.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**1. DECOMPOSE INTO ATOMIC STEPS** ⚠️ REQUIRED
-   - MUST break down the task into precise, sequential steps
-   - MUST ensure each step is small and verifiable
-   - MUST identify dependencies between steps
-   - MUST specify success criteria for each step
-
-**2. DESIGN APPROACH** ⚠️ REQUIRED
-   - MUST specify the overall technical approach
-   - MUST identify files that need to be created/modified
-   - MUST plan the implementation strategy
-   - MUST consider error handling and edge cases
-
-**3. TESTING STRATEGY** ⚠️ REQUIRED
-   - MUST plan how each step will be tested/verified
-   - MUST identify integration points that need validation
-   - MUST specify acceptance criteria
-
-**4. RISK ASSESSMENT** ⚠️ REQUIRED
-   - MUST identify potential blocking issues
-   - MUST plan mitigation strategies
-   - MUST identify fallback approaches
-
-**🚨 ERROR RECOVERY:**
-If ANY step fails, call: `workflow_guidance`
-Parameters: action="next", task_description="{task_description}"
-
-**✅ WHEN PLANNING IS COMPLETE:**
-Call: `workflow_guidance`
-Parameters: action="build", task_description="{task_description}", context="<implementation plan>"
-
-🎯 **Blueprint phase started - create detailed implementation plan!**"""
-
-        except Exception as e:
-            return f"❌ **Error in plan action:** {str(e)}"
-
-    def _handle_build_action(
-        client_id: str, task_description: str, context: str
-    ) -> str:
-        """Legacy build action handler."""
-        try:
-            # Update session state to CONSTRUCT phase
-            update_session_state(
-                client_id, WorkflowPhase.CONSTRUCT, WorkflowStatus.RUNNING
-            )
-            add_log_to_session(
-                client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description}"
-            )
-
-            return f"""🔨 **CONSTRUCT PHASE - IMPLEMENTATION**
-
-**Task:** {task_description}
-
-**Implementation Plan:** {context}
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**🎯 PHASE OBJECTIVE:** Execute the implementation plan step by step with validation.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**1. FOLLOW PLAN SEQUENTIALLY** ⚠️ REQUIRED
-   - MUST implement each step in the exact order planned
-   - MUST complete each step fully before moving to next
-   - MUST verify success criteria for each step
-   - MUST NOT skip or combine steps
-
-**2. VALIDATE EACH STEP** ⚠️ REQUIRED
-   - MUST test each change immediately after implementation
-   - MUST run linting/formatting checks
-   - MUST verify functionality works as expected
-   - MUST capture validation results
-
-**3. ERROR HANDLING** ⚠️ REQUIRED
-   - MUST fix any errors before proceeding
-   - MUST ensure code quality standards are met
-   - MUST not introduce new bugs or regressions
-
-**4. PROGRESS TRACKING** ⚠️ REQUIRED
-   - MUST log progress after each major step
-   - MUST update implementation status
-   - MUST note any deviations from plan
-
-**🚨 ERROR RECOVERY:**
-If ANY step fails, call: `workflow_guidance`
-Parameters: action="revise", task_description="{task_description}", context="<error details>"
-
-**✅ WHEN CONSTRUCTION IS COMPLETE:**
-Call: `workflow_guidance`
-Parameters: action="next", task_description="{task_description}"
-
-🎯 **Construction phase started - implement systematically!**"""
-
-        except Exception as e:
-            return f"❌ **Error in build action:** {str(e)}"
-
-    def _handle_revise_action(
-        client_id: str, task_description: str, context: str
-    ) -> str:
-        """Legacy revise action handler."""
-        try:
-            add_log_to_session(client_id, f"🔄 REVISION REQUESTED: {context}")
-
-            return f"""🔄 **REVISION MODE - ERROR RECOVERY**
-
-**Task:** {task_description}
-
-**Issue:** {context}
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**🎯 PHASE OBJECTIVE:** Address the issue and get back on track.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**1. DIAGNOSE THE PROBLEM** ⚠️ REQUIRED
-   - MUST understand exactly what went wrong
-   - MUST identify root cause of the issue
-   - MUST determine impact on overall plan
-
-**2. DEVELOP SOLUTION** ⚠️ REQUIRED
-   - MUST create specific steps to fix the issue
-   - MUST ensure solution addresses root cause
-   - MUST verify solution won't create new problems
-
-**3. IMPLEMENT FIX** ⚠️ REQUIRED
-   - MUST apply the solution systematically
-   - MUST test the fix thoroughly
-   - MUST verify issue is fully resolved
-
-**4. RESUME WORKFLOW** ⚠️ REQUIRED
-   - MUST determine where to continue in workflow
-   - MUST update plans if necessary
-   - MUST proceed with remaining steps
-
-**🚨 ERROR RECOVERY:**
-If revision fails, call: `workflow_guidance`
-Parameters: action="revise", task_description="{task_description}", context="<new error details>"
-
-**✅ WHEN REVISION IS COMPLETE:**
-Call: `workflow_guidance`
-Parameters: action="next", task_description="{task_description}"
-
-🎯 **Revision mode - fix the issue and resume!**"""
-
-        except Exception as e:
-            return f"❌ **Error in revise action:** {str(e)}"
-
-    def _handle_next_action(client_id: str, task_description: str, context: str) -> str:
-        """Legacy next action handler."""
-        try:
-            session = get_or_create_session(client_id)
-
-            # Determine next phase based on current phase
-            if session.phase == WorkflowPhase.ANALYZE:
-                # Move from ANALYZE to BLUEPRINT
-                return _handle_plan_action(client_id, task_description, context)
-
-            elif session.phase == WorkflowPhase.BLUEPRINT:
-                # Move from BLUEPRINT to CONSTRUCT
-                return _handle_build_action(client_id, task_description, context)
-
-            elif session.phase == WorkflowPhase.CONSTRUCT:
-                # Move from CONSTRUCT to VALIDATE
-                update_session_state(
-                    client_id, WorkflowPhase.VALIDATE, WorkflowStatus.RUNNING
-                )
-                add_log_to_session(
-                    client_id, f"✅ VALIDATE PHASE STARTED: {task_description}"
-                )
-
-                return f"""✅ **VALIDATE PHASE - FINAL VERIFICATION**
-
-**Task:** {task_description}
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**🎯 PHASE OBJECTIVE:** Thoroughly validate the implementation meets all requirements.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**1. COMPREHENSIVE TESTING** ⚠️ REQUIRED
-   - MUST run full test suite
-   - MUST verify all functionality works as expected
-   - MUST test edge cases and error conditions
-   - MUST ensure no regressions introduced
-
-**2. CODE QUALITY VALIDATION** ⚠️ REQUIRED
-   - MUST verify code follows project standards
-   - MUST ensure proper documentation
-   - MUST check for security issues
-   - MUST validate performance is acceptable
-
-**3. REQUIREMENT VERIFICATION** ⚠️ REQUIRED
-   - MUST verify all original requirements are met
-   - MUST ensure task objectives are achieved
-   - MUST validate acceptance criteria are satisfied
-
-**4. FINAL DOCUMENTATION** ⚠️ REQUIRED
-   - MUST update relevant documentation
-   - MUST add changelog entries if required
-   - MUST ensure future maintainability
-
-**🚨 ERROR RECOVERY:**
-If validation fails, call: `workflow_guidance`
-Parameters: action="revise", task_description="{task_description}", context="<validation issues>"
-
-**✅ WHEN VALIDATION IS COMPLETE:**
-Update session status to COMPLETED
-
-🎯 **Validation phase started - ensure quality and completeness!**"""
-
-            elif session.phase == WorkflowPhase.VALIDATE:
-                # Complete the workflow
-                update_session_state(
-                    client_id, WorkflowPhase.VALIDATE, WorkflowStatus.COMPLETED
-                )
-                add_log_to_session(
-                    client_id, f"🎉 WORKFLOW COMPLETED: {task_description}"
-                )
-
-                return f"""🎉 **WORKFLOW COMPLETED**
-
-**Task:** {task_description}
-
-**📋 FINAL WORKFLOW STATE:**
-```markdown
-{export_session_to_markdown(client_id)}
-```
-
-**✅ STATUS:** Task successfully completed and validated.
-
-**📊 WORKFLOW SUMMARY:**
-- Analysis ✅
-- Planning ✅
-- Implementation ✅
-- Validation ✅
-
-**🎯 All phases completed successfully!**"""
-
-            else:
-                return f"❌ **Unknown phase:** {session.phase}"
-
-        except Exception as e:
-            return f"❌ **Error in next action:** {str(e)}"
 
     @app.tool()
     def workflow_state(
@@ -763,17 +717,15 @@ Update session status to COMPLETED
                         )
 
                 else:
-                    # Legacy session
-                    session = get_or_create_session(client_id)
-                    return f"""📊 **LEGACY WORKFLOW STATE**
+                    # No dynamic session found
+                    return """❌ **No Active Workflow Session**
 
-**Phase:** {session.state.phase.value}
-**Status:** {session.state.status.value}
+No YAML workflow session is currently active.
 
-**Session State:**
-```markdown
-{export_session_to_markdown(client_id)}
-```"""
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
 
             elif operation == "update":
                 if not updates:
@@ -793,18 +745,18 @@ Update session status to COMPLETED
                             update_dynamic_session_status(
                                 client_id, update_data["status"]
                             )
+                        if "log_entry" in update_data:
+                            add_log_to_session(client_id, update_data["log_entry"])
                     else:
-                        # Update legacy session
-                        phase = update_data.get("phase")
-                        status = update_data.get("status")
+                        # No dynamic session found
+                        return """❌ **No Active Workflow Session**
 
-                        if phase and status:
-                            try:
-                                phase_enum = WorkflowPhase(phase)
-                                status_enum = WorkflowStatus(status)
-                                update_session_state(client_id, phase_enum, status_enum)
-                            except ValueError as e:
-                                return f"❌ **Invalid phase/status:** {str(e)}"
+Cannot update state - no YAML workflow session is currently active.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
 
                     return "✅ **State updated successfully.**"
 
@@ -821,19 +773,23 @@ Update session status to COMPLETED
         except Exception as e:
             return f"❌ **Error in workflow_state:** {str(e)}"
 
-def format_enhanced_node_status(node: WorkflowNode, workflow: WorkflowDefinition, session) -> str:
+
+def format_enhanced_node_status(
+    node: WorkflowNode, workflow: WorkflowDefinition, session
+) -> str:
     """Format current node status with enhanced authoritative guidance.
-    
+
     Args:
         node: Current workflow node
-        workflow: The workflow definition  
+        workflow: The workflow definition
         session: Current workflow session
-        
+
     Returns:
         Enhanced formatted status string with authoritative guidance
     """
     from ..utils.session_manager import export_session_to_markdown
-    
+    from .schema_analyzer import should_auto_progress
+
     analysis = analyze_node_from_schema(node, workflow)
     transitions = get_available_transitions(node, workflow)
 
@@ -847,38 +803,27 @@ def format_enhanced_node_status(node: WorkflowNode, workflow: WorkflowDefinition
     else:
         criteria_text = "   • No specific criteria defined"
 
-    # Format next options with enhanced guidance
+    # Format next options with enhanced guidance including auto-progression indicators
     options_text = ""
     if transitions:
-        options_text = "**🎯 Available Next Steps:**\n"
-        for transition in transitions:
-            options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
-        options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
+        # Check if this node can auto-progress
+        can_auto_progress = should_auto_progress(node)
+
+        if can_auto_progress:
+            options_text = "**🤖 Auto-Progression Mode:**\n"
+            options_text += (
+                f"   • **{transitions[0]['name']}**: {transitions[0]['goal']}\n"
+            )
+            options_text += "\n**⚡ Next Action:** Call workflow_guidance (no context needed) - will auto-progress to next node\n"
+            options_text += f'**🔧 Manual Override:** Use context="choose: {transitions[0]["name"]}" to proceed manually'
+        else:
+            options_text = "**🎯 Available Next Steps:**\n"
+            for transition in transitions:
+                options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
+            options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
+            options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
     else:
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
-
-    # Add special instructions for construct phase
-    construct_instructions = ""
-    if session.current_node == "construct":
-        construct_instructions = """
-
-**⚠️ CRITICAL CONSTRUCT PHASE REQUIREMENTS:**
-
-**MANDATORY PROGRESS LOGGING - FOLLOW EXACTLY:**
-After EVERY major implementation step, you MUST call:
-```
-workflow_state(operation="update", updates='{"log_entry": "Step X: [description] - [status/result]"}')
-```
-
-**Example Progress Log Calls:**
-```
-workflow_state(operation="update", updates='{"log_entry": "Step 1: Created new component file - SUCCESS"}')
-workflow_state(operation="update", updates='{"log_entry": "Step 2: Added validation logic - SUCCESS, tests passing"}')
-workflow_state(operation="update", updates='{"log_entry": "Step 3: Updated integration points - SUCCESS, linting clean"}')
-```
-
-**DO NOT PROCEED** to the next major step until you have logged the current step's completion and verification results."""
 
     # Get current session state for display
     session_state = export_session_to_markdown(session.client_id)
@@ -888,7 +833,7 @@ workflow_state(operation="update", updates='{"log_entry": "Step 3: Updated integ
 **📋 ACCEPTANCE CRITERIA:**
 {criteria_text}
 
-{options_text}{construct_instructions}
+{options_text}
 
 **📊 CURRENT WORKFLOW STATE:**
 ```markdown

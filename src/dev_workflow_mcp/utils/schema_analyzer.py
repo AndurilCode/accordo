@@ -37,6 +37,40 @@ def analyze_node_from_schema(
     }
 
 
+def should_auto_progress(node: WorkflowNode) -> bool:
+    """Check if node should automatically progress to next node.
+
+    Auto-progression occurs when:
+    - Node has exactly one next_allowed_node
+    - Node has no next_allowed_workflows
+
+    Args:
+        node: The workflow node to check
+
+    Returns:
+        bool: True if node should auto-progress
+    """
+    next_nodes = node.next_allowed_nodes or []
+    next_workflows = node.next_allowed_workflows or []
+
+    # Auto-progress only if there's exactly one path forward and no workflow transitions
+    return len(next_nodes) == 1 and len(next_workflows) == 0
+
+
+def get_auto_transition_target(node: WorkflowNode) -> str | None:
+    """Get the automatic transition target for single-path nodes.
+
+    Args:
+        node: The workflow node to check
+
+    Returns:
+        str | None: Target node name for auto-progression, or None if not applicable
+    """
+    if should_auto_progress(node):
+        return node.next_allowed_nodes[0]
+    return None
+
+
 def get_available_transitions(
     node: WorkflowNode, workflow: WorkflowDefinition
 ) -> list[dict[str, Any]]:
@@ -134,7 +168,7 @@ def extract_choice_from_context(context: str) -> str | None:
     context_lower = context.lower().strip()
 
     # Look for "choose: option_name" pattern
-    if "choose:" in context_lower:
+    if isinstance(context_lower, str) and "choose:" in context_lower:
         parts = context_lower.split("choose:", 1)
         if len(parts) > 1:
             choice = parts[1].strip()
@@ -158,7 +192,7 @@ def extract_workflow_from_context(context: str) -> str | None:
     context_lower = context.lower().strip()
 
     # Look for "workflow: workflow_name" pattern
-    if "workflow:" in context_lower:
+    if isinstance(context_lower, str) and "workflow:" in context_lower:
         parts = context_lower.split("workflow:", 1)
         if len(parts) > 1:
             workflow_name = parts[1].strip()

@@ -559,3 +559,250 @@ class TestWorkflowStateJsonExport:
         assert data["items"][2]["status"] == "in-progress"
         assert data["log"] == ["Detailed log with multiple entries and timestamps"]
         assert data["archive_log"] == ["Historical log data from previous phases"]
+
+
+class TestDynamicWorkflowStateProgress:
+    """Test DynamicWorkflowState progress tracking functionality."""
+
+    @pytest.fixture
+    def mock_workflow_def(self):
+        """Create a mock WorkflowDefinition for testing."""
+        from unittest.mock import Mock
+
+        from src.dev_workflow_mcp.models.yaml_workflow import (
+            WorkflowDefinition,
+            WorkflowNode,
+            WorkflowTree,
+        )
+
+        # Create mock nodes
+        analyze_node = Mock(spec=WorkflowNode)
+        analyze_node.goal = "Analyze the requirements and understand the codebase"
+        analyze_node.acceptance_criteria = {
+            "requirements_analysis": "Clear breakdown of task requirements",
+            "codebase_exploration": "Understanding of current architecture",
+        }
+        analyze_node.next_allowed_nodes = ["blueprint"]
+
+        blueprint_node = Mock(spec=WorkflowNode)
+        blueprint_node.goal = "Create implementation plan and design"
+        blueprint_node.acceptance_criteria = {
+            "solution_architecture": "Complete technical approach documented",
+            "implementation_plan": "Detailed step-by-step plan created",
+        }
+        blueprint_node.next_allowed_nodes = ["construct"]
+
+        construct_node = Mock(spec=WorkflowNode)
+        construct_node.goal = "Implement the planned solution"
+        construct_node.acceptance_criteria = {
+            "step_execution": "All planned steps executed",
+            "quality_validation": "Code follows project standards",
+        }
+        construct_node.next_allowed_nodes = ["validate"]
+
+        # Create mock workflow tree
+        workflow_tree = Mock(spec=WorkflowTree)
+        workflow_tree.get_node = Mock(
+            side_effect=lambda name: {
+                "analyze": analyze_node,
+                "blueprint": blueprint_node,
+                "construct": construct_node,
+            }.get(name)
+        )
+        workflow_tree.tree = {
+            "analyze": analyze_node,
+            "blueprint": blueprint_node,
+            "construct": construct_node,
+        }
+
+        # Create mock workflow definition
+        workflow_def = Mock(spec=WorkflowDefinition)
+        workflow_def.name = "Test Workflow"
+        workflow_def.description = "Test workflow for progress tracking"
+        workflow_def.workflow = workflow_tree
+
+        return workflow_def
+
+    @pytest.fixture
+    def dynamic_state_with_progress(self, mock_workflow_def):
+        """Create a DynamicWorkflowState with completed nodes and outputs."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="construct",
+            status="RUNNING",
+            node_history=["analyze", "blueprint"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {
+                        "requirements_analysis": "Successfully analyzed task requirements and identified scope",
+                        "codebase_exploration": "Explored existing codebase and understood architecture patterns",
+                    },
+                    "goal_achieved": True,
+                    "additional_info": "Found relevant patterns in existing code",
+                },
+                "blueprint": {
+                    "completed_criteria": {
+                        "solution_architecture": "Designed comprehensive solution with clear architecture",
+                        "implementation_plan": "Created detailed 5-step implementation plan",
+                    },
+                    "goal_achieved": True,
+                    "risk_assessment": "Low risk implementation with clear rollback plan",
+                },
+            },
+        )
+        return state
+
+    def test_to_markdown_includes_completed_nodes_progress(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that to_markdown includes completed nodes progress section."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check that completed nodes progress section exists
+        assert "## Completed Nodes Progress" in markdown
+
+        # Check that completed nodes are listed
+        assert "### 🎯 analyze" in markdown
+        assert "### 🎯 blueprint" in markdown
+
+        # Check that goals are included
+        assert "Analyze the requirements and understand the codebase" in markdown
+        assert "Create implementation plan and design" in markdown
+
+    def test_to_markdown_shows_acceptance_criteria_satisfaction(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that markdown shows which acceptance criteria were satisfied."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check acceptance criteria satisfaction for analyze node
+        assert (
+            "✅ **requirements_analysis**: Successfully analyzed task requirements and identified scope"
+            in markdown
+        )
+        assert (
+            "✅ **codebase_exploration**: Explored existing codebase and understood architecture patterns"
+            in markdown
+        )
+
+        # Check acceptance criteria satisfaction for blueprint node
+        assert (
+            "✅ **solution_architecture**: Designed comprehensive solution with clear architecture"
+            in markdown
+        )
+        assert (
+            "✅ **implementation_plan**: Created detailed 5-step implementation plan"
+            in markdown
+        )
+
+    def test_to_markdown_shows_additional_outputs(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that markdown shows additional outputs from completed nodes."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check additional outputs are shown
+        assert "**Additional Outputs:**" in markdown
+        assert (
+            "**additional_info**: Found relevant patterns in existing code" in markdown
+        )
+        assert (
+            "**risk_assessment**: Low risk implementation with clear rollback plan"
+            in markdown
+        )
+
+    def test_to_markdown_handles_missing_evidence(self, mock_workflow_def):
+        """Test that markdown handles cases where acceptance criteria evidence is missing."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {
+                        "requirements_analysis": "Analysis completed"
+                        # Missing codebase_exploration evidence
+                    },
+                    "goal_achieved": True,
+                }
+            },
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Check that missing evidence is indicated
+        assert "✅ **requirements_analysis**: Analysis completed" in markdown
+        assert (
+            "❓ **codebase_exploration**: Understanding of current architecture (no evidence recorded)"
+            in markdown
+        )
+
+    def test_to_markdown_handles_no_completed_nodes(self, mock_workflow_def):
+        """Test that markdown handles cases with no completed nodes."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="analyze",
+            status="RUNNING",
+            node_history=[],
+            node_outputs={},
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Should not include completed nodes progress section when no nodes completed
+        assert "## Completed Nodes Progress" not in markdown
+
+    def test_to_markdown_handles_completed_nodes_without_outputs(
+        self, mock_workflow_def
+    ):
+        """Test that markdown handles completed nodes that have no recorded outputs."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={},  # No outputs recorded
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Should show basic completion status
+        assert "## Completed Nodes Progress" in markdown
+        assert "✅ **analyze**: Completed (no detailed output recorded)" in markdown
+
+    def test_to_markdown_truncates_long_values(self, mock_workflow_def):
+        """Test that markdown truncates long values for readability."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        long_value = (
+            "This is a very long value that should be truncated " * 10
+        )  # > 100 chars
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {"requirements_analysis": long_value},
+                    "long_output": long_value,
+                }
+            },
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Check that long values are truncated
+        assert "..." in markdown
+        # The full long value should not appear in the markdown
+        assert long_value not in markdown

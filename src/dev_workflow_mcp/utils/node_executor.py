@@ -230,6 +230,9 @@ class NodeExecutor:
         task_lower = task.lower()
 
         # Simple keyword-based decision
+        if not node.children:
+            return None
+
         for child_name, child_node in node.children.items():
             child_goal_lower = child_node.goal.lower()
 
@@ -244,11 +247,11 @@ class NodeExecutor:
             }
 
             for category, words in keywords.items():
-                if any(word in task_lower for word in words):
-                    if category in child_name.lower() or any(
-                        word in child_goal_lower for word in words
-                    ):
-                        return child_name
+                if any(word in task_lower for word in words) and (
+                    category in child_name.lower()
+                    or any(word in child_goal_lower for word in words)
+                ):
+                    return child_name
 
         # If no keyword match, try to match by node name similarity
         for child_name in node.children:

@@ -98,6 +98,9 @@ workflow:
            - MUST define rollback procedures if needed
 
         **FORMAT:** Plan must be actionable and specific enough for systematic execution.
+
+        ASK FOR APPROVAL BEFORE PROCEEDING.
+        
       acceptance_criteria:
         solution_architecture: "Complete technical approach with design patterns, file changes, and architectural decisions documented"
         step_breakdown: "Detailed, atomic implementation steps with specific verification commands and success criteria"

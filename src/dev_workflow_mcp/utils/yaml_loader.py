@@ -79,6 +79,32 @@ class WorkflowLoader:
         except Exception:
             return None
 
+    def load_workflow_from_string(
+        self, yaml_content: str, workflow_name: str = None
+    ) -> WorkflowDefinition | None:
+        """Load a workflow from YAML string content.
+
+        Args:
+            yaml_content: YAML content as string
+            workflow_name: Optional name override for the workflow
+
+        Returns:
+            WorkflowDefinition object or None if loading fails
+        """
+        try:
+            yaml_data = yaml.safe_load(yaml_content)
+
+            # Override name if provided
+            if workflow_name:
+                yaml_data["name"] = workflow_name
+
+            # Validate and create workflow definition
+            workflow = WorkflowDefinition(**yaml_data)
+            return workflow
+
+        except Exception:
+            return None
+
     def load_all_workflows(self) -> dict[str, WorkflowDefinition]:
         """Load all workflows from the workflows directory.
 
@@ -118,15 +144,85 @@ class WorkflowLoader:
             Validation result with success status and any errors
         """
         try:
-            workflow = self.load_workflow(file_path)
+            # First try to load and parse the YAML
+            with open(file_path, encoding="utf-8") as f:
+                yaml_data = yaml.safe_load(f)
 
-            if workflow is None:
+            # First do basic field validation before Pydantic validation
+            errors = []
+
+            # Check for empty or missing required fields
+            if not yaml_data.get("name") or yaml_data.get("name") == "":
+                errors.append("Workflow name is required")
+            if not yaml_data.get("description") or yaml_data.get("description") == "":
+                errors.append("Workflow description is required")
+
+            workflow_data = yaml_data.get("workflow", {})
+            if not workflow_data:
+                errors.append("Workflow structure is required")
+            else:
+                if not workflow_data.get("root"):
+                    errors.append("Workflow must have a root node defined")
+                if not workflow_data.get("tree"):
+                    errors.append("Workflow must have tree nodes defined")
+                elif len(workflow_data.get("tree", {})) == 0:
+                    errors.append("Workflow tree cannot be empty")
+                else:
+                    # Check if root exists in tree
+                    root = workflow_data.get("root")
+                    tree = workflow_data.get("tree", {})
+                    if root and root not in tree:
+                        errors.append(f"Root node '{root}' not found in workflow tree")
+
+                    # Check node references
+                    for node_name, node in tree.items():
+                        next_nodes = (
+                            node.get("next_allowed_nodes", [])
+                            if isinstance(node, dict)
+                            else []
+                        )
+                        for next_node in next_nodes:
+                            if next_node not in tree:
+                                errors.append(
+                                    f"Node '{node_name}' references non-existent node '{next_node}'"
+                                )
+
+            # If we found validation errors, return them without trying Pydantic validation
+            if errors:
                 return {
                     "valid": False,
-                    "error": "Failed to load workflow - invalid YAML or schema",
+                    "errors": errors,
+                    "error": errors[0],
                 }
 
-            # Basic validation checks
+            # Try to create workflow definition to catch any remaining Pydantic validation errors
+            try:
+                workflow = WorkflowDefinition(**yaml_data)
+            except Exception as pydantic_error:
+                # Parse Pydantic validation errors for more specific messages
+                error_msg = str(pydantic_error)
+                errors = []
+
+                if "references non-existent node" in error_msg:
+                    errors.append(error_msg)
+                if "Root node" in error_msg and "not found" in error_msg:
+                    errors.append(error_msg)
+
+                # If no specific errors found, use generic message
+                if not errors:
+                    errors = [
+                        f"Failed to load workflow - invalid YAML or schema: {error_msg}"
+                    ]
+
+                return {
+                    "valid": False,
+                    "errors": errors,
+                    "error": errors[0]
+                    if errors
+                    else f"Failed to load workflow - invalid YAML or schema: {error_msg}",
+                }
+
+            # Basic validation checks for loaded workflow
             errors = []
 
             # Check required fields
@@ -143,11 +239,14 @@ class WorkflowLoader:
                 errors.append("Workflow must have tree nodes defined")
 
             # Check that root node exists in tree
-            if workflow.workflow and workflow.workflow.root:
-                if workflow.workflow.root not in workflow.workflow.tree:
-                    errors.append(
-                        f"Root node '{workflow.workflow.root}' not found in workflow tree"
-                    )
+            if (
+                workflow.workflow
+                and workflow.workflow.root
+                and workflow.workflow.root not in workflow.workflow.tree
+            ):
+                errors.append(
+                    f"Root node '{workflow.workflow.root}' not found in workflow tree"
+                )
 
             # Check node references
             if workflow.workflow and workflow.workflow.tree:
@@ -170,7 +269,11 @@ class WorkflowLoader:
             }
 
         except Exception as e:
-            return {"valid": False, "error": f"Exception during validation: {str(e)}"}
+            return {
+                "valid": False,
+                "errors": [f"Exception during validation: {str(e)}"],
+                "error": f"Exception during validation: {str(e)}",
+            }
 
 
 # Convenience functions for common operations

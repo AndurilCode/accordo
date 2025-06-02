@@ -1,5 +1,6 @@
 """Workflow state models and enums."""
 
+import contextlib
 import json
 from datetime import UTC, datetime
 from enum import Enum
@@ -210,6 +211,8 @@ class DynamicWorkflowState(BaseModel):
         # Get workflow-specific information
         workflow_info = ""
         available_nodes = []
+        completed_nodes_progress = ""
+
         if workflow_def:
             current_node_def = workflow_def.workflow.get_node(self.current_node)
             if current_node_def:
@@ -230,6 +233,85 @@ class DynamicWorkflowState(BaseModel):
 """
             available_nodes = self.get_available_next_nodes(workflow_def)
 
+            # Generate completed nodes progress section
+            if self.node_outputs:
+                progress_lines = ["## Completed Nodes Progress", ""]
+
+                for node_name in self.node_history:
+                    if node_name in self.node_outputs:
+                        node_def = workflow_def.workflow.get_node(node_name)
+                        outputs = self.node_outputs[node_name]
+
+                        progress_lines.append(f"### 🎯 {node_name}")
+
+                        if node_def and node_def.goal:
+                            # Truncate long goals for readability
+                            goal_summary = node_def.goal.split("\n")[0][:100]
+                            if len(node_def.goal) > 100:
+                                goal_summary += "..."
+                            progress_lines.append(f"**Goal:** {goal_summary}")
+
+                        # Show acceptance criteria satisfaction
+                        if node_def and node_def.acceptance_criteria:
+                            progress_lines.append("**Acceptance Criteria Satisfied:**")
+
+                            # Check if outputs contain acceptance criteria evidence
+                            criteria_evidence = outputs.get("completed_criteria", {})
+                            if isinstance(criteria_evidence, dict):
+                                for (
+                                    criterion,
+                                    description,
+                                ) in node_def.acceptance_criteria.items():
+                                    if criterion in criteria_evidence:
+                                        evidence = criteria_evidence[criterion]
+                                        # Truncate long evidence for readability
+                                        if (
+                                            isinstance(evidence, str)
+                                            and len(evidence) > 100
+                                        ):
+                                            evidence = evidence[:100] + "..."
+                                        progress_lines.append(
+                                            f"- ✅ **{criterion}**: {evidence}"
+                                        )
+                                    else:
+                                        progress_lines.append(
+                                            f"- ❓ **{criterion}**: {description} (no evidence recorded)"
+                                        )
+                            else:
+                                # Fallback: just list the criteria as completed
+                                for (
+                                    criterion,
+                                    description,
+                                ) in node_def.acceptance_criteria.items():
+                                    progress_lines.append(
+                                        f"- ✅ **{criterion}**: {description}"
+                                    )
+
+                        # Show additional outputs if any
+                        if outputs:
+                            filtered_outputs = {
+                                k: v
+                                for k, v in outputs.items()
+                                if k not in ["completed_criteria", "goal_achieved"]
+                            }
+                            if filtered_outputs:
+                                progress_lines.append("**Additional Outputs:**")
+                                for key, value in filtered_outputs.items():
+                                    # Truncate long values for readability
+                                    if isinstance(value, str) and len(value) > 100:
+                                        value = value[:100] + "..."
+                                    progress_lines.append(f"- **{key}**: {value}")
+
+                        progress_lines.append("")  # Add spacing between nodes
+
+                completed_nodes_progress = chr(10).join(progress_lines) + chr(10)
+            elif self.node_history:
+                completed_nodes_progress = f"""## Completed Nodes Progress
+
+{chr(10).join(f"- ✅ **{node}**: Completed (no detailed output recorded)" for node in self.node_history)}
+
+"""
+
         # Create dynamic template
         template = f"""# Dynamic Workflow State
 _Last updated: {timestamp}_
@@ -240,7 +322,7 @@ Current Node: {self.current_node}
 Status: {self.status}  
 Current Item: {current_item}  
 {workflow_info}
-## Plan
+{completed_nodes_progress}## Plan
 {plan}
 
 ## Rules
@@ -470,12 +552,36 @@ Action ▶
     def to_json(self) -> str:
         """Convert to JSON for persistence."""
         # Convert to dict and handle datetime serialization
-        data = self.model_dump()
+        raw_data = self.model_dump()
 
         # Convert datetime objects to ISO format
         for field in ["created_at", "last_updated"]:
-            if field in data and data[field]:
-                data[field] = data[field].isoformat()
+            if field in raw_data and raw_data[field]:
+                raw_data[field] = raw_data[field].isoformat()
+
+        # Helper function to convert empty values to None (except items which should stay as array)
+        def empty_to_none(value):
+            if value == "" or value == []:
+                return None
+            return value
+
+        # Structure data according to expected format
+        data = {
+            "metadata": {
+                "client_id": raw_data["client_id"],
+                "created_at": raw_data["created_at"],
+                "last_updated": raw_data["last_updated"],
+            },
+            "state": {
+                "phase": raw_data["phase"],
+                "status": raw_data["status"],
+                "current_item": empty_to_none(raw_data["current_item"]),
+            },
+            "plan": empty_to_none(raw_data["plan"]),
+            "items": raw_data["items"],  # Keep items as array even when empty
+            "log": empty_to_none(raw_data["log"]),
+            "archive_log": empty_to_none(raw_data["archive_log"]),
+        }
 
         return json.dumps(data, indent=2)
 
@@ -536,16 +642,12 @@ Action ▶
             for line in content:
                 if line.startswith("Phase:"):
                     phase_str = line.split(":", 1)[1].strip()
-                    try:
+                    with contextlib.suppress(ValueError):
                         context["phase"] = WorkflowPhase(phase_str)
-                    except ValueError:
-                        pass
                 elif line.startswith("Status:"):
                     status_str = line.split(":", 1)[1].strip()
-                    try:
+                    with contextlib.suppress(ValueError):
                         context["status"] = WorkflowStatus(status_str)
-                    except ValueError:
-                        pass
                 elif line.startswith("CurrentItem:"):
                     current_item_str = line.split(":", 1)[1].strip()
                     context["current_item"] = (

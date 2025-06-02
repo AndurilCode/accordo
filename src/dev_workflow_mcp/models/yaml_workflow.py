@@ -160,15 +160,3 @@ class WorkflowDefinition(BaseModel):
             )
 
         return result
-
-
-class WorkflowMatchScore(BaseModel):
-    """Score for how well a workflow matches a task."""
-
-    workflow_name: str = Field(description="Name of the workflow")
-    score: float = Field(description="Match score (0.0 to 1.0)")
-    reasons: list[str] = Field(description="Reasons for the score")
-
-    def __lt__(self, other: "WorkflowMatchScore") -> bool:
-        """Enable sorting by score (descending)."""
-        return self.score > other.score  # Note: reversed for descending sort
