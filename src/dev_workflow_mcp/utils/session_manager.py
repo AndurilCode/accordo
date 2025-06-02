@@ -258,14 +258,9 @@ def get_or_create_dynamic_session(
 
         if workflow_name:
             # Load specific workflow by name
-            workflows = loader.load_all_workflows()
+            workflows = loader.discover_workflows()
             if workflow_name in workflows:
                 workflow_def = workflows[workflow_name]
-                return create_dynamic_session(client_id, task_description, workflow_def)
-        else:
-            # Find best matching workflow
-            workflow_def = loader.find_best_workflow(task_description)
-            if workflow_def:
                 return create_dynamic_session(client_id, task_description, workflow_def)
 
     except Exception:

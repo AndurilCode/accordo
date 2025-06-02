@@ -1,4 +1,7 @@
-"""Workflow discovery prompts for finding and selecting appropriate workflows."""
+"""Discovery prompts for workflow selection.
+
+Updated for pure discovery system - no hardcoded scoring, agents make decisions.
+"""
 
 from pathlib import Path
 
@@ -8,29 +11,23 @@ from ..utils.yaml_loader import WorkflowLoader, WorkflowLoadError
 
 
 def register_discovery_prompts(mcp: FastMCP) -> None:
-    """Register workflow discovery prompts with the MCP server.
-
-    Args:
-        mcp: The FastMCP server instance
-    """
+    """Register discovery prompt tools for workflow selection."""
 
     @mcp.tool()
     def workflow_discovery(
         task_description: str,
         workflows_dir: str = ".workflow-commander/workflows",
-        max_suggestions: int = 3,
-        min_score: float = 0.1,
     ) -> dict:
-        """Discover and select the best workflow for a given task description.
+        """Discover available workflows for agent selection.
+
+        Pure discovery without scoring - presents workflows for agent choice.
 
         Args:
-            task_description: Description of the task to find a workflow for
+            task_description: Description of the task to be performed
             workflows_dir: Directory containing workflow YAML files
-            max_suggestions: Maximum number of workflow suggestions to return
-            min_score: Minimum score threshold for workflow suggestions
 
         Returns:
-            dict: Contains the best workflow selection and alternative suggestions
+            dict: Available workflows for agent selection
         """
         try:
             loader = WorkflowLoader(workflows_dir)
@@ -41,85 +38,68 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                 return {
                     "status": "error",
                     "message": f"Workflows directory not found: {workflows_dir}",
-                    "best_workflow": None,
-                    "suggestions": [],
-                    "available_workflows": [],
-                }
-
-            # Discover available workflows
-            workflow_files = loader.discover_workflows()
-            if not workflow_files:
-                return {
-                    "status": "no_workflows",
-                    "message": f"No workflow files found in {workflows_dir}",
-                    "best_workflow": None,
-                    "suggestions": [],
+                    "task_description": task_description,
                     "available_workflows": [],
                 }
 
             # Load all workflows
             try:
-                workflows = loader.load_all_workflows()
+                workflows = loader.discover_workflows()
             except WorkflowLoadError as e:
                 return {
                     "status": "error",
                     "message": f"Error loading workflows: {e}",
-                    "best_workflow": None,
-                    "suggestions": [],
-                    "available_workflows": [str(f) for f in workflow_files],
+                    "task_description": task_description,
+                    "available_workflows": [],
                 }
 
-            # Get workflow suggestions
-            suggestions = loader.get_workflow_suggestions(
-                task_description, max_suggestions
-            )
+            if not workflows:
+                return {
+                    "status": "no_workflows",
+                    "message": f"No valid workflows found in {workflows_dir}",
+                    "task_description": task_description,
+                    "available_workflows": [],
+                }
 
-            # Find best workflow
-            best_workflow = loader.find_best_workflow(task_description, min_score)
-
-            # Prepare response
-            result = {
-                "status": "success",
-                "task_description": task_description,
-                "available_workflows": list(workflows.keys()),
-                "suggestions": [
-                    {
-                        "workflow_name": suggestion.workflow_name,
-                        "score": suggestion.score,
-                        "reasons": suggestion.reasons,
-                    }
-                    for suggestion in suggestions
-                ],
-                "best_workflow": None,
-            }
-
-            if best_workflow:
-                result["best_workflow"] = {
-                    "name": best_workflow.name,
-                    "description": best_workflow.description,
-                    "root_node": best_workflow.workflow.root,
-                    "total_nodes": len(best_workflow.workflow.tree),
+            # Prepare response with all available workflows for agent selection
+            workflow_list = []
+            for name, workflow_def in workflows.items():
+                workflow_info = {
+                    "name": workflow_def.name,
+                    "description": workflow_def.description,
+                    "root_node": workflow_def.workflow.root,
+                    "total_nodes": len(workflow_def.workflow.tree),
+                    "goal": workflow_def.workflow.goal,
                     "inputs": {
-                        name: {
+                        input_name: {
                             "type": input_def.type,
                             "description": input_def.description,
                             "required": input_def.required,
                             "default": input_def.default,
                         }
-                        for name, input_def in best_workflow.inputs.items()
+                        for input_name, input_def in (workflow_def.inputs or {}).items()
                     },
                 }
-            else:
-                result["message"] = f"No workflows found with score >= {min_score}"
+                workflow_list.append(workflow_info)
 
-            return result
+            return {
+                "status": "success",
+                "task_description": task_description,
+                "total_workflows": len(workflows),
+                "available_workflows": workflow_list,
+                "message": "Agent should select appropriate workflow based on task requirements",
+                "selection_guidance": {
+                    "instruction": "Choose workflow based on task type and requirements",
+                    "method": "Use workflow_guidance tool with context='workflow: <workflow_name>'",
+                    "example": "workflow_guidance(action='start', context='workflow: Default Coding Workflow')"
+                }
+            }
 
         except Exception as e:
             return {
                 "status": "error",
                 "message": f"Unexpected error during workflow discovery: {e}",
-                "best_workflow": None,
-                "suggestions": [],
+                "task_description": task_description,
                 "available_workflows": [],
             }
 
@@ -147,9 +127,17 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                     "workflows": [],
                 }
 
-            # Discover workflow files
-            workflow_files = loader.discover_workflows()
-            if not workflow_files:
+            # Discover workflows
+            try:
+                workflows = loader.discover_workflows()
+            except WorkflowLoadError as e:
+                return {
+                    "status": "error",
+                    "message": f"Error loading workflows: {e}",
+                    "workflows": [],
+                }
+
+            if not workflows:
                 return {
                     "status": "no_workflows",
                     "message": f"No workflow files found in {workflows_dir}",
@@ -158,32 +146,31 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
 
             # Load and list all workflows
             workflows_info = []
-            for workflow_path in workflow_files:
+            for name, workflow_def in workflows.items():
                 try:
-                    workflow = loader.load_workflow(workflow_path)
                     workflows_info.append(
                         {
-                            "file": str(workflow_path),
-                            "name": workflow.name,
-                            "description": workflow.description,
-                            "root_node": workflow.workflow.root,
-                            "total_nodes": len(workflow.workflow.tree),
-                            "node_names": list(workflow.workflow.tree.keys()),
-                            "inputs": list(workflow.inputs.keys()),
+                            "name": workflow_def.name,
+                            "description": workflow_def.description,
+                            "root_node": workflow_def.workflow.root,
+                            "total_nodes": len(workflow_def.workflow.tree),
+                            "node_names": list(workflow_def.workflow.tree.keys()),
+                            "inputs": list((workflow_def.inputs or {}).keys()),
+                            "goal": workflow_def.workflow.goal,
                             "valid": True,
                             "error": None,
                         }
                     )
-                except WorkflowLoadError as e:
+                except Exception as e:
                     workflows_info.append(
                         {
-                            "file": str(workflow_path),
-                            "name": None,
-                            "description": None,
+                            "name": name,
+                            "description": "Failed to load workflow details",
                             "root_node": None,
                             "total_nodes": 0,
                             "node_names": [],
                             "inputs": [],
+                            "goal": None,
                             "valid": False,
                             "error": str(e),
                         }
@@ -192,7 +179,7 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
             return {
                 "status": "success",
                 "workflows_directory": workflows_dir,
-                "total_files": len(workflow_files),
+                "total_workflows": len(workflows),
                 "valid_workflows": len([w for w in workflows_info if w["valid"]]),
                 "invalid_workflows": len([w for w in workflows_info if not w["valid"]]),
                 "workflows": workflows_info,
@@ -226,42 +213,51 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                 }
 
             loader = WorkflowLoader()
-            is_valid, error_message = loader.validate_workflow_file(file_path)
+            validation_result = loader.validate_workflow_file(str(file_path))
 
-            if is_valid:
+            if validation_result["valid"]:
                 # Load the workflow to get details
-                workflow = loader.load_workflow(file_path)
-                return {
-                    "status": "success",
-                    "valid": True,
-                    "workflow": {
-                        "name": workflow.name,
-                        "description": workflow.description,
-                        "root_node": workflow.workflow.root,
-                        "total_nodes": len(workflow.workflow.tree),
-                        "node_names": list(workflow.workflow.tree.keys()),
-                        "inputs": {
-                            name: {
-                                "type": input_def.type,
-                                "description": input_def.description,
-                                "required": input_def.required,
-                                "default": input_def.default,
-                            }
-                            for name, input_def in workflow.inputs.items()
+                workflow = loader.load_workflow(str(file_path))
+                if workflow:
+                    return {
+                        "status": "success",
+                        "valid": True,
+                        "workflow": {
+                            "name": workflow.name,
+                            "description": workflow.description,
+                            "root_node": workflow.workflow.root,
+                            "total_nodes": len(workflow.workflow.tree),
+                            "node_names": list(workflow.workflow.tree.keys()),
+                            "goal": workflow.workflow.goal,
+                            "inputs": {
+                                name: {
+                                    "type": input_def.type,
+                                    "description": input_def.description,
+                                    "required": input_def.required,
+                                    "default": input_def.default,
+                                }
+                                for name, input_def in (workflow.inputs or {}).items()
+                            },
                         },
-                    },
-                    "message": "Workflow file is valid",
-                }
+                        "message": "Workflow file is valid",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "valid": False,
+                        "message": "Workflow validation passed but failed to load workflow details",
+                    }
             else:
                 return {
-                    "status": "validation_error",
+                    "status": "error",
                     "valid": False,
-                    "message": error_message,
+                    "message": f"Workflow validation failed: {validation_result.get('error', 'Unknown error')}",
+                    "errors": validation_result.get("errors", []),
                 }
 
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Unexpected error validating workflow: {e}",
                 "valid": False,
+                "message": f"Exception during validation: {e}",
             }
