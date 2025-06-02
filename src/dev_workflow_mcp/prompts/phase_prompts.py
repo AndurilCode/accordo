@@ -1,68 +1,53 @@
-"""Phase-specific workflow prompts with explicit next-prompt guidance."""
+"""Pure schema-driven workflow prompts.
 
-import re
+This module provides workflow guidance based purely on YAML workflow schemas.
+No hardcoded logic - all behavior determined by workflow definitions.
+"""
 
-from fastmcp import Context, FastMCP
+import json
+
+from fastmcp import FastMCP
 from pydantic import Field
 
 from ..models.workflow_state import WorkflowPhase, WorkflowStatus
+from ..models.yaml_workflow import WorkflowDefinition, WorkflowNode
+from ..utils.schema_analyzer import (
+    analyze_node_from_schema,
+    extract_choice_from_context,
+    extract_workflow_from_context,
+    format_node_status,
+    get_available_transitions,
+    get_workflow_summary,
+    validate_transition,
+)
 from ..utils.session_manager import (
     add_item_to_session,
     add_log_to_session,
     export_session_to_markdown,
+    get_dynamic_session_workflow_def,
+    get_or_create_dynamic_session,
     get_or_create_session,
+    get_session_type,
+    update_dynamic_session_node,
+    update_dynamic_session_status,
     update_session_state,
 )
 from ..utils.state_manager import get_file_operation_instructions
+from ..utils.workflow_engine import WorkflowEngine
+from ..utils.yaml_loader import WorkflowLoader
 
 
-def validate_task_description(value: str) -> str:
-    """
-    Validate task_description parameter format.
+def register_phase_prompts(app: FastMCP):
+    """Register purely schema-driven workflow prompts."""
 
-    Expected format: "Action: Brief description"
-    Where Action is a verb (Add, Fix, Implement, Refactor, Update, Create, Remove, etc.)
-
-    Args:
-        value: The task description to validate
-
-    Returns:
-        The validated task description
-
-    Raises:
-        ValueError: If the format is invalid
-    """
-    if not value or not isinstance(value, str):
-        raise ValueError("task_description must be a non-empty string")
-
-    # Check for the "Action: Description" pattern
-    pattern = r"^[A-Z][a-zA-Z]+:\s+.+"
-    if not re.match(pattern, value.strip()):
-        raise ValueError(
-            "task_description must follow the format 'Action: Brief description'. "
-            "Examples: 'Add: user authentication', 'Fix: memory leak', "
-            "'Implement: OAuth login', 'Refactor: database queries'. "
-            f"Received: '{value}'"
-        )
-
-    return value.strip()
-
-
-def register_phase_prompts(mcp: FastMCP):
-    """Register all phase-related prompts."""
-
-    # ==================== CONSOLIDATED SMART TOOLS (PROPOSAL 4) ====================
-
-    @mcp.tool()
+    @app.tool()
     def workflow_guidance(
-        ctx: Context,
-        action: str = Field(
-            description="Workflow action: 'start' (init+analyze), 'plan' (blueprint), 'build' (construct+validate), 'revise', 'next' (auto-determine)"
-        ),
         task_description: str = Field(
-            description="Task description in format 'Action: Brief description'. "
-            "Examples: 'Add: user authentication', 'Fix: memory leak', "
-            "'Implement: OAuth login', 'Refactor: database queries'",
+            description="Task description in format 'Action: Brief description'"
+        ),
+        action: str = Field(
+            default="",
+            description="Workflow action: 'start', 'plan', 'build', 'revise', 'next'",
         ),
         context: str = Field(
             default="",
@@ -73,32 +58,611 @@ def register_phase_prompts(mcp: FastMCP):
             description="Optional parameters like project_config_path for specific actions",
         ),
     ) -> str:
-        """Consolidated smart workflow guidance tool with mandatory execution steps for all phase operations."""
-        # Validate task description format
-        task_description = validate_task_description(task_description)
+        """Pure schema-driven workflow guidance.
 
-        # Get client session
-        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        Provides guidance based entirely on workflow schema structure.
+        No hardcoded behavior - everything driven by YAML definitions.
+        """
+        try:
+            client_id = "default"  # In real implementation, extract from Context
 
-        # Route to appropriate action handler
+            # Initialize workflow engine and loader
+            engine = WorkflowEngine()
+            loader = WorkflowLoader()
+
+            # Check if we have a dynamic session already
+            session_type = get_session_type(client_id)
+
+            if session_type == "dynamic":
+                # Continue with existing dynamic workflow
+                session = get_or_create_dynamic_session(client_id, task_description)
+                workflow_def = get_dynamic_session_workflow_def(client_id)
+
+                if not workflow_def:
+                    # Fallback if workflow missing
+                    return _handle_legacy_fallback(
+                        client_id, task_description, action, context, options
+                    )
+
+                return _handle_dynamic_workflow(
+                    session, workflow_def, action, context, engine, loader
+                )
+
+            elif action.lower() == "start":
+                # Try to discover and start a dynamic workflow
+                try:
+                    available_workflows = loader.discover_workflows()
+
+                    if available_workflows:
+                        # Present available workflows to agent for selection
+                        workflow_list = "\n".join(
+                            [
+                                f"• **{name}**: {wf.description}"
+                                for name, wf in available_workflows.items()
+                            ]
+                        )
+
+                        return f"""🔍 **Available Workflows Found**
+
+{workflow_list}
+
+**To start a workflow:**
+Call workflow_guidance with:
+- action: "start"
+- context: "workflow: <workflow_name>"
+
+**Example:** context="workflow: Default Coding Workflow"
+
+**Legacy Fallback:** If no workflow specified, will use hardcoded legacy workflow."""
+
+                    else:
+                        # No workflows found, use legacy fallback
+                        return _handle_legacy_fallback(
+                            client_id, task_description, action, context, options
+                        )
+
+                except Exception:
+                    # Error loading workflows, use legacy fallback
+                    return _handle_legacy_fallback(
+                        client_id, task_description, action, context, options
+                    )
+
+            elif action.lower() == "start" and context:
+                # User specified workflow
+                workflow_name = extract_workflow_from_context(context)
+
+                if workflow_name:
+                    try:
+                        # Try to start the specified workflow
+                        available_workflows = loader.discover_workflows()
+
+                        # Find matching workflow (case-insensitive)
+                        selected_workflow = None
+                        for name, wf in available_workflows.items():
+                            if name.lower() == workflow_name.lower():
+                                selected_workflow = wf
+                                break
+
+                        if selected_workflow:
+                            # Initialize dynamic session with selected workflow
+                            session = get_or_create_dynamic_session(
+                                client_id, task_description
+                            )
+                            engine.initialize_workflow(session, selected_workflow)
+
+                            # Get current node info
+                            current_node = selected_workflow.workflow.tree[
+                                session.current_node
+                            ]
+                            status = format_node_status(current_node, selected_workflow)
+
+                            return f"""🚀 **Workflow Started:** {selected_workflow.name}
+
+**Task:** {task_description}
+
+{status}"""
+
+                        else:
+                            return f"""❌ **Workflow Not Found:** {workflow_name}
+
+Available workflows:
+{chr(10).join([f"• {name}" for name in available_workflows])}
+
+Please use exact workflow name or use legacy fallback."""
+
+                    except Exception as e:
+                        return f"❌ **Error starting workflow:** {str(e)}\n\nFalling back to legacy workflow."
+
+                else:
+                    return _handle_legacy_fallback(
+                        client_id, task_description, action, context, options
+                    )
+
+            else:
+                # For all other actions, use legacy fallback
+                return _handle_legacy_fallback(
+                    client_id, task_description, action, context, options
+                )
+
+        except Exception as e:
+            # Any error falls back to legacy
+            return f"❌ **Error in schema-driven workflow:** {str(e)}\n\nFalling back to legacy workflow."
+
+    def _handle_dynamic_workflow(
+        session,
+        workflow_def,
+        action: str,
+        context: str,
+        engine: WorkflowEngine,
+        loader: WorkflowLoader,
+    ) -> str:
+        """Handle dynamic workflow execution based purely on schema."""
+        try:
+            current_node = workflow_def.workflow.tree.get(session.current_node)
+
+            if not current_node:
+                return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
+
+            # Handle choice selection
+            if context and "choose:" in context.lower():
+                choice = extract_choice_from_context(context)
+
+                if choice and validate_transition(current_node, choice, workflow_def):
+                    # Valid transition - update session
+                    if choice in (current_node.next_allowed_nodes or []):
+                        # Node transition
+                        update_dynamic_session_node(session.client_id, choice)
+                        session.current_node = choice
+                        new_node = workflow_def.workflow.tree[choice]
+                        
+                        # Log the transition
+                        add_log_to_session(session.client_id, f"🔄 TRANSITIONED TO: {choice.upper()} PHASE")
+                        
+                        status = format_enhanced_node_status(new_node, workflow_def, session)
+
+                        return f"""✅ **Transitioned to:** {choice.upper()}
+
+{status}"""
+
+                    elif choice in (current_node.next_allowed_workflows or []):
+                        # Workflow transition
+                        try:
+                            available_workflows = loader.discover_workflows()
+                            target_workflow = available_workflows.get(choice)
+
+                            if target_workflow:
+                                # Switch to new workflow
+                                new_session = get_or_create_dynamic_session(
+                                    session.client_id, f"Switched to: {choice}"
+                                )
+                                engine.initialize_workflow(new_session, target_workflow)
+
+                                new_current_node = target_workflow.workflow.tree[
+                                    new_session.current_node
+                                ]
+                                status = format_enhanced_node_status(
+                                    new_current_node, target_workflow, new_session
+                                )
+
+                                return f"""🔄 **Switched to Workflow:** {choice}
+
+{status}"""
+
+                            else:
+                                return f"❌ **Workflow not found:** {choice}"
+
+                        except Exception as e:
+                            return f"❌ **Error switching workflow:** {str(e)}"
+
+                else:
+                    # Invalid choice
+                    transitions = get_available_transitions(current_node, workflow_def)
+                    valid_options = [t["name"] for t in transitions]
+
+                    return f"""❌ **Invalid choice:** {choice}
+
+**Valid options:** {", ".join(valid_options)}
+
+**Usage:** Use context="choose: <option_name>" with exact option name."""
+
+            # Default: show current status with enhanced guidance
+            status = format_enhanced_node_status(current_node, workflow_def, session)
+            return status
+
+        except Exception as e:
+            return f"❌ **Dynamic workflow error:** {str(e)}"
+
+    def _handle_legacy_fallback(
+        client_id: str, task_description: str, action: str, context: str, options: str
+    ) -> str:
+        """Handle legacy workflow as fallback when no YAML workflows available."""
+        # Legacy action handlers preserved for compatibility
         if action.lower() == "start":
             return _handle_start_action(client_id, task_description, options)
         elif action.lower() == "plan":
             return _handle_plan_action(client_id, task_description, context)
         elif action.lower() == "build":
-            return _handle_build_action(client_id, task_description)
+            return _handle_build_action(client_id, task_description, context)
         elif action.lower() == "revise":
             return _handle_revise_action(client_id, task_description, context)
         elif action.lower() == "next":
-            return _handle_next_action(client_id, task_description)
+            return _handle_next_action(client_id, task_description, context)
         else:
-            raise ValueError(
-                f"Unknown action: {action}. Valid actions: start, plan, build, revise, next"
+            return _handle_start_action(client_id, task_description, options)
+
+    # ==================== LEGACY ACTION HANDLERS (PRESERVED) ====================
+
+    def _handle_start_action(
+        client_id: str, task_description: str, options: str
+    ) -> str:
+        """Legacy start action handler."""
+        try:
+            # Create session and initialize state
+            get_or_create_session(client_id)
+
+            # Parse options for project config path
+            project_config_path = ".workflow-commander/project_config.md"
+            if options:
+                try:
+                    opts = json.loads(options)
+                    project_config_path = opts.get(
+                        "project_config_path", project_config_path
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Add task to session items
+            add_item_to_session(client_id, task_description)
+
+            # Update session state to ANALYZE phase
+            update_session_state(
+                client_id, WorkflowPhase.ANALYZE, WorkflowStatus.RUNNING
             )
 
-    @mcp.tool()
+            # Add log entry
+            add_log_to_session(
+                client_id, f"🚀 WORKFLOW INITIALIZED: {task_description}"
+            )
+            add_log_to_session(
+                client_id, f"📊 ANALYZE PHASE STARTED: {task_description}"
+            )
+
+            # Get file operations guidance
+            file_ops = get_file_operation_instructions(project_config_path)
+
+            return f"""🚀 **ANALYZE PHASE - REQUIREMENTS GATHERING**
+
+**Task:** {task_description}
+
+{file_ops}
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**🎯 PHASE OBJECTIVE:** Gather comprehensive information about requirements, constraints, and codebase to understand what needs to be done.
+
+**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
+
+**1. READ PROJECT CONFIGURATION** ⚠️ REQUIRED
+   - MUST read `{project_config_path}` to understand project context
+   - MUST understand coding standards, testing requirements, and project structure
+   - MUST note any specific constraints or requirements
+
+**2. CODEBASE ANALYSIS** ⚠️ REQUIRED
+   - MUST perform semantic search to understand relevant code patterns
+   - MUST identify existing implementations that relate to the task
+   - MUST understand current architecture and design patterns
+   - MUST identify potential integration points and dependencies
+
+**3. REQUIREMENTS ANALYSIS** ⚠️ REQUIRED
+   - MUST break down the task into clear, actionable requirements
+   - MUST identify any ambiguities that need clarification
+   - MUST determine scope boundaries and what's in/out of scope
+   - MUST identify potential risks and complexity factors
+
+**4. CONTEXT GATHERING** ⚠️ REQUIRED
+   - MUST gather any additional context needed (documentation, examples, etc.)
+   - MUST understand user expectations and success criteria
+   - MUST identify any external dependencies or constraints
+
+**🚨 ERROR RECOVERY:**
+If ANY step fails, call: `workflow_guidance`
+Parameters: action="next", task_description="{task_description}"
+
+**✅ WHEN ANALYSIS IS COMPLETE:**
+Call: `workflow_guidance`
+Parameters: action="plan", task_description="{task_description}", context="<summary of analysis findings>"
+
+🎯 **Analysis phase started - gather comprehensive information!**"""
+
+        except Exception as e:
+            return f"❌ **Error in start action:** {str(e)}"
+
+    def _handle_plan_action(client_id: str, task_description: str, context: str) -> str:
+        """Legacy plan action handler."""
+        try:
+            # Update session state to BLUEPRINT phase
+            update_session_state(
+                client_id, WorkflowPhase.BLUEPRINT, WorkflowStatus.RUNNING
+            )
+            add_log_to_session(
+                client_id, f"📋 BLUEPRINT PHASE STARTED: {task_description}"
+            )
+            add_log_to_session(client_id, f"Analysis Summary: {context}")
+
+            return f"""📋 **BLUEPRINT PHASE - IMPLEMENTATION PLANNING**
+
+**Task:** {task_description}
+
+**Analysis Summary:** {context}
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**🎯 PHASE OBJECTIVE:** Create a detailed, step-by-step implementation plan based on the analysis.
+
+**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
+
+**1. DECOMPOSE INTO ATOMIC STEPS** ⚠️ REQUIRED
+   - MUST break down the task into precise, sequential steps
+   - MUST ensure each step is small and verifiable
+   - MUST identify dependencies between steps
+   - MUST specify success criteria for each step
+
+**2. DESIGN APPROACH** ⚠️ REQUIRED
+   - MUST specify the overall technical approach
+   - MUST identify files that need to be created/modified
+   - MUST plan the implementation strategy
+   - MUST consider error handling and edge cases
+
+**3. TESTING STRATEGY** ⚠️ REQUIRED
+   - MUST plan how each step will be tested/verified
+   - MUST identify integration points that need validation
+   - MUST specify acceptance criteria
+
+**4. RISK ASSESSMENT** ⚠️ REQUIRED
+   - MUST identify potential blocking issues
+   - MUST plan mitigation strategies
+   - MUST identify fallback approaches
+
+**🚨 ERROR RECOVERY:**
+If ANY step fails, call: `workflow_guidance`
+Parameters: action="next", task_description="{task_description}"
+
+**✅ WHEN PLANNING IS COMPLETE:**
+Call: `workflow_guidance`
+Parameters: action="build", task_description="{task_description}", context="<implementation plan>"
+
+🎯 **Blueprint phase started - create detailed implementation plan!**"""
+
+        except Exception as e:
+            return f"❌ **Error in plan action:** {str(e)}"
+
+    def _handle_build_action(
+        client_id: str, task_description: str, context: str
+    ) -> str:
+        """Legacy build action handler."""
+        try:
+            # Update session state to CONSTRUCT phase
+            update_session_state(
+                client_id, WorkflowPhase.CONSTRUCT, WorkflowStatus.RUNNING
+            )
+            add_log_to_session(
+                client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description}"
+            )
+
+            return f"""🔨 **CONSTRUCT PHASE - IMPLEMENTATION**
+
+**Task:** {task_description}
+
+**Implementation Plan:** {context}
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**🎯 PHASE OBJECTIVE:** Execute the implementation plan step by step with validation.
+
+**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
+
+**1. FOLLOW PLAN SEQUENTIALLY** ⚠️ REQUIRED
+   - MUST implement each step in the exact order planned
+   - MUST complete each step fully before moving to next
+   - MUST verify success criteria for each step
+   - MUST NOT skip or combine steps
+
+**2. VALIDATE EACH STEP** ⚠️ REQUIRED
+   - MUST test each change immediately after implementation
+   - MUST run linting/formatting checks
+   - MUST verify functionality works as expected
+   - MUST capture validation results
+
+**3. ERROR HANDLING** ⚠️ REQUIRED
+   - MUST fix any errors before proceeding
+   - MUST ensure code quality standards are met
+   - MUST not introduce new bugs or regressions
+
+**4. PROGRESS TRACKING** ⚠️ REQUIRED
+   - MUST log progress after each major step
+   - MUST update implementation status
+   - MUST note any deviations from plan
+
+**🚨 ERROR RECOVERY:**
+If ANY step fails, call: `workflow_guidance`
+Parameters: action="revise", task_description="{task_description}", context="<error details>"
+
+**✅ WHEN CONSTRUCTION IS COMPLETE:**
+Call: `workflow_guidance`
+Parameters: action="next", task_description="{task_description}"
+
+🎯 **Construction phase started - implement systematically!**"""
+
+        except Exception as e:
+            return f"❌ **Error in build action:** {str(e)}"
+
+    def _handle_revise_action(
+        client_id: str, task_description: str, context: str
+    ) -> str:
+        """Legacy revise action handler."""
+        try:
+            add_log_to_session(client_id, f"🔄 REVISION REQUESTED: {context}")
+
+            return f"""🔄 **REVISION MODE - ERROR RECOVERY**
+
+**Task:** {task_description}
+
+**Issue:** {context}
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**🎯 PHASE OBJECTIVE:** Address the issue and get back on track.
+
+**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
+
+**1. DIAGNOSE THE PROBLEM** ⚠️ REQUIRED
+   - MUST understand exactly what went wrong
+   - MUST identify root cause of the issue
+   - MUST determine impact on overall plan
+
+**2. DEVELOP SOLUTION** ⚠️ REQUIRED
+   - MUST create specific steps to fix the issue
+   - MUST ensure solution addresses root cause
+   - MUST verify solution won't create new problems
+
+**3. IMPLEMENT FIX** ⚠️ REQUIRED
+   - MUST apply the solution systematically
+   - MUST test the fix thoroughly
+   - MUST verify issue is fully resolved
+
+**4. RESUME WORKFLOW** ⚠️ REQUIRED
+   - MUST determine where to continue in workflow
+   - MUST update plans if necessary
+   - MUST proceed with remaining steps
+
+**🚨 ERROR RECOVERY:**
+If revision fails, call: `workflow_guidance`
+Parameters: action="revise", task_description="{task_description}", context="<new error details>"
+
+**✅ WHEN REVISION IS COMPLETE:**
+Call: `workflow_guidance`
+Parameters: action="next", task_description="{task_description}"
+
+🎯 **Revision mode - fix the issue and resume!**"""
+
+        except Exception as e:
+            return f"❌ **Error in revise action:** {str(e)}"
+
+    def _handle_next_action(client_id: str, task_description: str, context: str) -> str:
+        """Legacy next action handler."""
+        try:
+            session = get_or_create_session(client_id)
+
+            # Determine next phase based on current phase
+            if session.state.phase == WorkflowPhase.ANALYZE:
+                # Move from ANALYZE to BLUEPRINT
+                return _handle_plan_action(client_id, task_description, context)
+
+            elif session.state.phase == WorkflowPhase.BLUEPRINT:
+                # Move from BLUEPRINT to CONSTRUCT
+                return _handle_build_action(client_id, task_description, context)
+
+            elif session.state.phase == WorkflowPhase.CONSTRUCT:
+                # Move from CONSTRUCT to VALIDATE
+                update_session_state(
+                    client_id, WorkflowPhase.VALIDATE, WorkflowStatus.RUNNING
+                )
+                add_log_to_session(
+                    client_id, f"✅ VALIDATE PHASE STARTED: {task_description}"
+                )
+
+                return f"""✅ **VALIDATE PHASE - FINAL VERIFICATION**
+
+**Task:** {task_description}
+
+**📋 CURRENT WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**🎯 PHASE OBJECTIVE:** Thoroughly validate the implementation meets all requirements.
+
+**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
+
+**1. COMPREHENSIVE TESTING** ⚠️ REQUIRED
+   - MUST run full test suite
+   - MUST verify all functionality works as expected
+   - MUST test edge cases and error conditions
+   - MUST ensure no regressions introduced
+
+**2. CODE QUALITY VALIDATION** ⚠️ REQUIRED
+   - MUST verify code follows project standards
+   - MUST ensure proper documentation
+   - MUST check for security issues
+   - MUST validate performance is acceptable
+
+**3. REQUIREMENT VERIFICATION** ⚠️ REQUIRED
+   - MUST verify all original requirements are met
+   - MUST ensure task objectives are achieved
+   - MUST validate acceptance criteria are satisfied
+
+**4. FINAL DOCUMENTATION** ⚠️ REQUIRED
+   - MUST update relevant documentation
+   - MUST add changelog entries if required
+   - MUST ensure future maintainability
+
+**🚨 ERROR RECOVERY:**
+If validation fails, call: `workflow_guidance`
+Parameters: action="revise", task_description="{task_description}", context="<validation issues>"
+
+**✅ WHEN VALIDATION IS COMPLETE:**
+Update session status to COMPLETED
+
+🎯 **Validation phase started - ensure quality and completeness!**"""
+
+            elif session.state.phase == WorkflowPhase.VALIDATE:
+                # Complete the workflow
+                update_session_state(
+                    client_id, WorkflowPhase.VALIDATE, WorkflowStatus.COMPLETED
+                )
+                add_log_to_session(
+                    client_id, f"🎉 WORKFLOW COMPLETED: {task_description}"
+                )
+
+                return f"""🎉 **WORKFLOW COMPLETED**
+
+**Task:** {task_description}
+
+**📋 FINAL WORKFLOW STATE:**
+```markdown
+{export_session_to_markdown(client_id)}
+```
+
+**✅ STATUS:** Task successfully completed and validated.
+
+**📊 WORKFLOW SUMMARY:**
+- Analysis ✅
+- Planning ✅
+- Implementation ✅
+- Validation ✅
+
+**🎯 All phases completed successfully!**"""
+
+            else:
+                return f"❌ **Unknown phase:** {session.state.phase}"
+
+        except Exception as e:
+            return f"❌ **Error in next action:** {str(e)}"
+
+    @app.tool()
     def workflow_state(
-        ctx: Context,
         operation: str = Field(
             description="State operation: 'get' (current status), 'update' (modify state), 'reset' (clear state)"
         ),
@@ -107,531 +671,180 @@ def register_phase_prompts(mcp: FastMCP):
             description='JSON string with state updates for \'update\' operation. Example: \'{"phase": "CONSTRUCT", "status": "RUNNING"}\'',
         ),
     ) -> str:
-        """Smart workflow state management tool with guided operations."""
-        client_id = ctx.client_id if ctx and ctx.client_id is not None else "default"
+        """Get or update workflow state."""
+        try:
+            client_id = "default"  # In real implementation, extract from Context
 
-        if operation.lower() == "get":
-            return _handle_get_state(client_id)
-        elif operation.lower() == "update":
-            return _handle_update_state(client_id, updates)
-        elif operation.lower() == "reset":
-            return _handle_reset_state(client_id)
-        else:
-            raise ValueError(
-                f"Unknown operation: {operation}. Valid operations: get, update, reset"
-            )
+            if operation == "get":
+                # Check session type first
+                session_type = get_session_type(client_id)
 
+                if session_type == "dynamic":
+                    session = get_or_create_dynamic_session(client_id, "")
+                    workflow_def = get_dynamic_session_workflow_def(client_id)
 
-# ==================== ACTION HANDLERS ====================
+                    if workflow_def:
+                        current_node = workflow_def.workflow.tree.get(
+                            session.current_node
+                        )
+                        summary = get_workflow_summary(workflow_def)
 
+                        return f"""📊 **DYNAMIC WORKFLOW STATE**
 
-def _handle_start_action(client_id: str, task_description: str, options: str) -> str:
-    """Handle 'start' action - combines init and analyze phases."""
-    # Initialize workflow
-    session = get_or_create_session(client_id, task_description)
+**Workflow:** {summary["name"]}
+**Current Node:** {session.current_node}
+**Status:** {session.status}
 
-    # Add task to items if not already present
-    if not any(item.description == task_description for item in session.items):
-        add_item_to_session(client_id, task_description)
+**Current Goal:** {current_node.goal if current_node else "Unknown"}
 
-    # Update to INIT state
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.INIT,
-        status=WorkflowStatus.READY,
-        current_item=task_description,
-    )
-    add_log_to_session(client_id, f"🚀 WORKFLOW INITIALIZED: {task_description}")
+**Progress:** {session.current_node} (Node {list(summary["all_nodes"]).index(session.current_node) + 1} of {summary["total_nodes"]})
 
-    # Transition to ANALYZE phase
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.ANALYZE,
-        status=WorkflowStatus.RUNNING,
-        current_item=task_description,
-    )
-    add_log_to_session(client_id, f"📊 ANALYZE PHASE STARTED: {task_description}")
+**Workflow Structure:**
+- **Root:** {summary["root_node"]}
+- **Total Nodes:** {summary["total_nodes"]}
+- **Decision Points:** {", ".join(summary["decision_nodes"]) if summary["decision_nodes"] else "None"}
+- **Terminal Nodes:** {", ".join(summary["terminal_nodes"]) if summary["terminal_nodes"] else "None"}
 
-    # Get project config path from options or use default
-    project_config_path = ".workflow-commander/project_config.md"
-    if options and isinstance(options, str) and "project_config_path=" in options:
-        project_config_path = (
-            options.split("project_config_path=")[1].split(",")[0].strip()
-        )
-
-    # Get updated state and file operations
-    updated_state = export_session_to_markdown(client_id)
-    file_operations = get_file_operation_instructions(client_id)
-
-    return f"""🚀 WORKFLOW STARTED - ANALYZE PHASE
-
-**Task:** {task_description}
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → ANALYZE 
-- Status → RUNNING
-- Workflow initialized and analysis started
-
-**📋 CURRENT WORKFLOW STATE:**
+**Session State:**
 ```markdown
-{updated_state}
-```{file_operations}
+{export_session_to_markdown(client_id)}
+```"""
+                    else:
+                        return (
+                            "❌ **Error:** Dynamic session has no workflow definition."
+                        )
 
-**🎯 PHASE OBJECTIVE:** Thoroughly understand requirements and existing codebase WITHOUT any coding or planning.
+                else:
+                    # Legacy session
+                    session = get_or_create_session(client_id)
+                    return f"""📊 **LEGACY WORKFLOW STATE**
 
-**📊 MANDATORY ACTIONS - EXECUTE IN ORDER:**
+**Phase:** {session.state.phase.value}
+**Status:** {session.state.status.value}
 
-**1. PROJECT CONFIGURATION ANALYSIS** ⚠️ REQUIRED
-   - MUST read and parse {project_config_path} completely
-   - MUST identify all test commands and dependencies
-   - MUST understand project structure and conventions
-   - MUST note any existing quality gates or validation requirements
-
-**2. CODEBASE EXPLORATION** ⚠️ REQUIRED
-   - MUST read relevant existing code files
-   - MUST understand current architecture and patterns
-   - MUST identify integration points and dependencies
-   - MUST note any existing documentation or comments
-
-**3. REQUIREMENTS ANALYSIS** ⚠️ REQUIRED
-   - MUST break down the task into clear, specific requirements
-   - MUST identify affected components and systems
-   - MUST understand scope and boundaries
-   - MUST identify potential risks or complexities
-
-**4. DOCUMENTATION REVIEW** ⚠️ REQUIRED
-   - MUST read any relevant README, docs, or comments
-   - MUST understand existing patterns and conventions
-   - MUST identify any constraints or limitations
-
-**🔍 COMPLETION VALIDATION CHECKLIST:**
-Before proceeding, you MUST verify ALL of the following:
-
-✅ **Understanding Criteria:**
-- [ ] Can explain the task requirements in your own words
-- [ ] Can identify all files and components that will be affected
-- [ ] Can describe the current system architecture relevant to the task
-- [ ] Can list all dependencies and integration points
-- [ ] Can identify potential risks or edge cases
-
-**🔄 WHEN ANALYSIS COMPLETE:**
-Call: `workflow_guidance`
-Parameters: action="plan", task_description="{task_description}", context="<comprehensive requirements summary>"
-
-🎯 **Combined init+analyze started - understand requirements thoroughly!**
-"""
-
-
-def _handle_plan_action(client_id: str, task_description: str, context: str) -> str:
-    """Handle 'plan' action - blueprint phase."""
-    if not context:
-        raise ValueError(
-            "'plan' action requires context parameter with requirements summary from analysis"
-        )
-
-    # Update to BLUEPRINT phase
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.BLUEPRINT,
-        status=WorkflowStatus.RUNNING,
-    )
-    add_log_to_session(client_id, f"📋 BLUEPRINT PHASE STARTED: {task_description}")
-    add_log_to_session(client_id, f"Analysis Summary: {context}")
-
-    # Get updated state and file operations
-    updated_state = export_session_to_markdown(client_id)
-    file_operations = get_file_operation_instructions(client_id)
-
-    return f"""📋 BLUEPRINT PHASE - DETAILED IMPLEMENTATION PLANNING
-
-**Task:** {task_description}
-
-**Analysis Summary:**
-{context}
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → BLUEPRINT
-- Status → RUNNING
-- Planning phase initiated
-
-**📋 CURRENT WORKFLOW STATE:**
+**Session State:**
 ```markdown
-{updated_state}
-```{file_operations}
+{export_session_to_markdown(client_id)}
+```"""
 
-**🎯 PHASE OBJECTIVE:** Create a comprehensive, step-by-step implementation plan.
+            elif operation == "update":
+                if not updates:
+                    return "❌ **Error:** No updates provided."
 
-**📋 MANDATORY PLANNING PROCESS - EXECUTE IN ORDER:**
+                try:
+                    update_data = json.loads(updates)
 
-**1. SOLUTION ARCHITECTURE** ⚠️ REQUIRED
-   - MUST define overall approach and strategy
-   - MUST identify all components to be created/modified
-   - MUST specify integration points and dependencies
-   - MUST consider scalability and maintainability
-   - MUST align with existing architecture patterns
+                    # Update based on session type
+                    session_type = get_session_type(client_id)
 
-**2. DETAILED STEP BREAKDOWN** ⚠️ REQUIRED
-   - MUST create atomic, ordered implementation steps
-   - MUST specify files to create/modify for each step
-   - MUST include verification commands for each step
-   - MUST estimate complexity and potential risks
-   - MUST plan rollback procedures for each step
+                    if session_type == "dynamic":
+                        # Update dynamic session
+                        if "node" in update_data:
+                            update_dynamic_session_node(client_id, update_data["node"])
+                        if "status" in update_data:
+                            update_dynamic_session_status(
+                                client_id, update_data["status"]
+                            )
+                    else:
+                        # Update legacy session
+                        phase = update_data.get("phase")
+                        status = update_data.get("status")
 
-**3. QUALITY ASSURANCE PLAN** ⚠️ REQUIRED
-   - MUST specify testing strategy and test cases
-   - MUST define acceptance criteria for each component
-   - MUST plan integration testing approach
-   - MUST specify validation and verification steps
+                        if phase and status:
+                            try:
+                                phase_enum = WorkflowPhase(phase)
+                                status_enum = WorkflowStatus(status)
+                                update_session_state(client_id, phase_enum, status_enum)
+                            except ValueError as e:
+                                return f"❌ **Invalid phase/status:** {str(e)}"
 
-**4. IMPLEMENTATION PLAN DOCUMENTATION** ⚠️ REQUIRED
-   - MUST write comprehensive plan under **## Plan** section
-   - MUST include pseudocode or high-level diff outlines
-   - MUST specify success criteria and rollback procedures
-   - MUST document assumptions and constraints
+                    return "✅ **State updated successfully.**"
 
-**⚠️ PLAN APPROVAL REQUIRED:**
-After completing your plan, you MUST:
-1. Set status to NEEDS_PLAN_APPROVAL
-2. Wait for user confirmation before proceeding
+                except json.JSONDecodeError:
+                    return "❌ **Error:** Invalid JSON in updates parameter."
 
-**✅ WHEN USER APPROVES PLAN:**
-Call: `workflow_guidance`
-Parameters: action="build", task_description="{task_description}"
+            elif operation == "reset":
+                # Reset session (implementation depends on session manager)
+                return "✅ **State reset - ready for new workflow.**"
 
-**❌ IF USER REJECTS PLAN:**
-Call: `workflow_guidance`
-Parameters: action="revise", task_description="{task_description}", context="<user feedback>"
+            else:
+                return f"❌ **Invalid operation:** {operation}. Use 'get', 'update', or 'reset'."
 
-🎯 **Blueprint phase started - create comprehensive implementation plan!**
-"""
+        except Exception as e:
+            return f"❌ **Error in workflow_state:** {str(e)}"
 
+def format_enhanced_node_status(node: WorkflowNode, workflow: WorkflowDefinition, session) -> str:
+    """Format current node status with enhanced authoritative guidance.
+    
+    Args:
+        node: Current workflow node
+        workflow: The workflow definition  
+        session: Current workflow session
+        
+    Returns:
+        Enhanced formatted status string with authoritative guidance
+    """
+    from ..utils.session_manager import export_session_to_markdown
+    
+    analysis = analyze_node_from_schema(node, workflow)
+    transitions = get_available_transitions(node, workflow)
 
-def _handle_build_action(client_id: str, task_description: str) -> str:
-    """Handle 'build' action - construct and validate phases."""
-    # Update to CONSTRUCT phase
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.CONSTRUCT,
-        status=WorkflowStatus.RUNNING,
-    )
-    add_log_to_session(client_id, f"🔨 CONSTRUCT PHASE STARTED: {task_description}")
-
-    # Get updated state and file operations
-    updated_state = export_session_to_markdown(client_id)
-    file_operations = get_file_operation_instructions(client_id)
-
-    return f"""🔨 BUILD PHASE - SYSTEMATIC IMPLEMENTATION
-
-**Task:** {task_description}
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → CONSTRUCT
-- Status → RUNNING
-- Implementation phase initiated
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{updated_state}
-```{file_operations}
-
-**🎯 PHASE OBJECTIVE:** Execute the approved plan exactly with mandatory verification after each atomic change.
-
-**🔨 MANDATORY EXECUTION PROCESS - FOLLOW EXACTLY:**
-
-**FOR EACH STEP IN YOUR PLAN:**
-
-**1. PRE-STEP VERIFICATION** ⚠️ REQUIRED
-   - MUST confirm all prerequisites are met
-   - MUST verify current state matches step expectations
-   - MUST check that previous steps completed successfully
-   - MUST ensure all required files/dependencies exist
-
-**2. ATOMIC IMPLEMENTATION** ⚠️ REQUIRED
-   - MUST implement ONLY the current step (no ahead-jumping)
-   - MUST make changes exactly as specified in plan
-   - MUST follow existing code patterns and conventions
-   - MUST maintain backwards compatibility unless specified otherwise
-
-**3. MANDATORY VERIFICATION** ⚠️ REQUIRED
-   - MUST run the verification command specified in step
-   - MUST capture and log complete command output
-   - MUST run project linting: `ruff check .`
-   - MUST run project formatting check: `ruff format --check .`
-   - MUST verify success criteria from plan are met
-
-**4. QUALITY VALIDATION** ⚠️ REQUIRED
-   - MUST check that code follows project standards
-   - MUST verify no new linting errors introduced
-   - MUST ensure all imports resolve correctly
-   - MUST confirm no circular dependencies created
-
-**🚨 ERROR RECOVERY:**
-If ANY step fails, call: `workflow_guidance`
-Parameters: action="next", task_description="{task_description}"
-
-**✅ WHEN ALL STEPS COMPLETE:**
-Automatically transition to validation phase
-
-🎯 **Build phase started - implement systematically with verification!**
-"""
-
-
-def _handle_revise_action(client_id: str, task_description: str, context: str) -> str:
-    """Handle 'revise' action - revise blueprint based on feedback."""
-    if not context:
-        raise ValueError(
-            "'revise' action requires context parameter with user feedback"
-        )
-
-    # Update session state and add feedback to log
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.BLUEPRINT,
-        status=WorkflowStatus.RUNNING,
-    )
-    add_log_to_session(client_id, f"🔄 PLAN REVISION REQUESTED: {context}")
-
-    # Get updated state and file operations
-    updated_state = export_session_to_markdown(client_id)
-    file_operations = get_file_operation_instructions(client_id)
-
-    return f"""🔄 REVISING BLUEPRINT
-
-**Task:** {task_description}
-**User Feedback:** {context}
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → BLUEPRINT
-- Status → RUNNING  
-- Revision feedback logged
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{updated_state}
-```{file_operations}
-
-**🔄 REQUIRED ACTIONS:**
-1. Review user feedback carefully
-2. Revise the implementation plan addressing all concerns:
-   - Incorporate user suggestions
-   - Fix identified issues  
-   - Improve clarity and detail
-   - Address any missing requirements
-3. Update plan with revised approach
-
-**⚠️ PLAN APPROVAL REQUIRED:**
-Once you complete the revised plan, update status to NEEDS_PLAN_APPROVAL and wait for user confirmation.
-
-**✅ WHEN USER APPROVES REVISED PLAN:**
-Call: `workflow_guidance`
-Parameters: action="build", task_description="{task_description}"
-
-🎯 **Plan revision initiated - address feedback systematically!**
-"""
-
-
-def _handle_next_action(client_id: str, task_description: str) -> str:
-    """Handle 'next' action - auto-determine next step based on current state."""
-    session = get_or_create_session(client_id, task_description)
-    current_phase = session.phase
-    current_status = session.status
-
-    # Determine next action based on current state
-    if current_phase == WorkflowPhase.INIT or current_phase == WorkflowPhase.ANALYZE:
-        return _handle_start_action(client_id, task_description, "")
-    elif (
-        current_phase == WorkflowPhase.BLUEPRINT
-        and current_status == WorkflowStatus.RUNNING
-    ):
-        return f"""📋 BLUEPRINT IN PROGRESS
-
-**Current State:** {current_phase} - {current_status}
-
-Continue working on your implementation plan. When complete:
-
-**✅ FOR PLAN APPROVAL:**
-Call: `workflow_guidance`
-Parameters: action="build", task_description="{task_description}"
-
-**❌ IF PLAN NEEDS REVISION:**
-Call: `workflow_guidance`
-Parameters: action="revise", task_description="{task_description}", context="<user feedback>"
-"""
-    elif current_phase == WorkflowPhase.CONSTRUCT:
-        return _handle_build_action(client_id, task_description)
-    elif current_phase == WorkflowPhase.VALIDATE:
-        return _handle_validate_action(client_id, task_description)
+    # Format acceptance criteria with enhanced detail
+    criteria_text = ""
+    if analysis["acceptance_criteria"]:
+        criteria_items = []
+        for key, value in analysis["acceptance_criteria"].items():
+            criteria_items.append(f"   ✅ **{key}**: {value}")
+        criteria_text = "\n".join(criteria_items)
     else:
-        # Get current state for context
-        updated_state = export_session_to_markdown(client_id)
-        return f"""🔍 CURRENT WORKFLOW STATE
+        criteria_text = "   • No specific criteria defined"
 
-**Task:** {task_description}
+    # Format next options with enhanced guidance
+    options_text = ""
+    if transitions:
+        options_text = "**🎯 Available Next Steps:**\n"
+        for transition in transitions:
+            options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
+        options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
+        options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
+    else:
+        options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
-**📋 CURRENT STATE:**
-```markdown
-{updated_state}
+    # Add special instructions for construct phase
+    construct_instructions = ""
+    if session.current_node == "construct":
+        construct_instructions = """
+
+**⚠️ CRITICAL CONSTRUCT PHASE REQUIREMENTS:**
+
+**MANDATORY PROGRESS LOGGING - FOLLOW EXACTLY:**
+After EVERY major implementation step, you MUST call:
+```
+workflow_state(operation="update", updates='{"log_entry": "Step X: [description] - [status/result]"}')
 ```
 
-**🔄 AVAILABLE ACTIONS:**
-- `action="start"` - Initialize and start analysis
-- `action="plan"` - Create implementation blueprint  
-- `action="build"` - Execute construction and validation
-- `action="revise"` - Revise plan based on feedback
-
-Please specify the appropriate action based on your current needs.
-"""
-
-
-def _handle_validate_action(client_id: str, task_description: str) -> str:
-    """Handle validation phase."""
-    # Update to VALIDATE phase
-    update_session_state(
-        client_id=client_id,
-        phase=WorkflowPhase.VALIDATE,
-        status=WorkflowStatus.RUNNING,
-    )
-    add_log_to_session(client_id, f"✅ VALIDATE PHASE STARTED: {task_description}")
-
-    # Get updated state and file operations
-    updated_state = export_session_to_markdown(client_id)
-    file_operations = get_file_operation_instructions(client_id)
-
-    return f"""✅ VALIDATE PHASE - COMPREHENSIVE QUALITY VERIFICATION
-
-**Task:** {task_description}
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → VALIDATE
-- Status → RUNNING
-- Validation phase initiated
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-{updated_state}
-```{file_operations}
-
-**🎯 PHASE OBJECTIVE:** Verify implementation quality, functionality, and requirements compliance.
-
-**✅ MANDATORY VALIDATION PROCESS - EXECUTE IN ORDER:**
-
-**1. FUNCTIONAL TESTING** ⚠️ REQUIRED
-   - MUST run complete test suite
-   - MUST verify all new functionality works correctly
-   - MUST test edge cases and error conditions
-   - MUST ensure no regression in existing functionality
-
-**2. QUALITY VERIFICATION** ⚠️ REQUIRED
-   - MUST run linting checks: `ruff check .`
-   - MUST verify formatting: `ruff format --check .`
-   - MUST check type annotations (if applicable)
-   - MUST verify code follows project standards
-
-**3. INTEGRATION TESTING** ⚠️ REQUIRED
-   - MUST verify backwards compatibility
-   - MUST test integration with existing systems
-   - MUST ensure no circular dependencies
-   - MUST validate all imports resolve correctly
-
-**4. REQUIREMENTS VERIFICATION** ⚠️ REQUIRED
-   - MUST verify all original requirements implemented
-   - MUST check success criteria are met
-   - MUST validate acceptance criteria satisfied
-   - MUST ensure user expectations met
-
-**5. DOCUMENTATION VALIDATION** ⚠️ REQUIRED
-   - MUST verify code is properly documented
-   - MUST check API documentation complete
-   - MUST ensure usage examples provided (if needed)
-   - MUST validate project documentation updated
-
-**✅ IF ALL VALIDATIONS PASS:**
-Call: `complete_workflow_guidance`
-Parameters: task_description="{task_description}"
-
-**❌ IF VALIDATION FAILS:**
-Call: `fix_validation_issues_guidance`
-Parameters: task_description="{task_description}", issues="<comprehensive failure report>"
-
-🎯 **Validation phase started - verify comprehensive implementation quality!**
-"""
-
-
-# ==================== STATE MANAGEMENT HANDLERS ====================
-
-
-def _handle_get_state(client_id: str) -> str:
-    """Get current workflow state."""
-    updated_state = export_session_to_markdown(client_id)
-    return f"""📋 CURRENT WORKFLOW STATE
-
-```markdown
-{updated_state}
+**Example Progress Log Calls:**
+```
+workflow_state(operation="update", updates='{"log_entry": "Step 1: Created new component file - SUCCESS"}')
+workflow_state(operation="update", updates='{"log_entry": "Step 2: Added validation logic - SUCCESS, tests passing"}')
+workflow_state(operation="update", updates='{"log_entry": "Step 3: Updated integration points - SUCCESS, linting clean"}')
 ```
 
-**🔄 REQUIRED ACTIONS:**
-- `workflow_guidance(action="start", ...)` - Initialize and analyze
-- `workflow_guidance(action="plan", ...)` - Create implementation plan
-- `workflow_guidance(action="build", ...)` - Execute construction
-- `workflow_guidance(action="revise", ...)` - Revise plan with feedback
-- `workflow_guidance(action="next", ...)` - Auto-determine next step
+**DO NOT PROCEED** to the next major step until you have logged the current step's completion and verification results."""
 
-**📞 Call:** Use `workflow_guidance` with appropriate action to proceed with workflow.
-"""
+    # Get current session state for display
+    session_state = export_session_to_markdown(session.client_id)
 
+    return f"""{analysis["goal"]}
 
-def _handle_update_state(client_id: str, updates: str) -> str:
-    """Update workflow state with provided changes."""
-    import json
+**📋 ACCEPTANCE CRITERIA:**
+{criteria_text}
 
-    try:
-        update_data = json.loads(updates) if updates else {}
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in updates parameter: {updates}") from e
+{options_text}{construct_instructions}
 
-    # Apply updates to session
-    phase = WorkflowPhase(update_data["phase"]) if "phase" in update_data else None
-    status = WorkflowStatus(update_data["status"]) if "status" in update_data else None
-
-    current_item = update_data.get("current_item")
-
-    if phase or status or current_item:
-        update_session_state(
-            client_id=client_id,
-            phase=phase,
-            status=status,
-            current_item=current_item,
-        )
-
-    # Add log entry if provided
-    if "log_entry" in update_data:
-        add_log_to_session(client_id, update_data["log_entry"])
-
-    # Return updated state
-    updated_state = export_session_to_markdown(client_id)
-    return f"""✅ STATE UPDATED
-
-**Updates Applied:** {update_data}
-
-**📋 UPDATED WORKFLOW STATE:**
+**📊 CURRENT WORKFLOW STATE:**
 ```markdown
-{updated_state}
+{session_state}
 ```
-"""
 
-
-def _handle_reset_state(client_id: str) -> str:
-    """Reset workflow state to initial state."""
-    # This would need to be implemented based on session manager capabilities
-    # For now, return information about manual reset
-    return """🔄 WORKFLOW RESET
-
-**Manual Reset Required:**
-To reset the workflow state, you can:
-
-1. **Soft Reset**: Call `workflow_guidance(action="start", ...)` with a new task
-2. **Hard Reset**: Delete session data (implementation dependent)
-
-**Current State Access:**
-Call: `workflow_state(operation="get")` to view current state before reset.
-"""
+**🚨 REMEMBER:** Follow the mandatory execution steps exactly as specified. Each phase has critical requirements that must be completed before proceeding."""

@@ -1,11 +1,13 @@
 """Workflow state models and enums."""
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator
+
+from .yaml_workflow import WorkflowDefinition
 
 
 class WorkflowPhase(str, Enum):
@@ -34,6 +36,248 @@ class WorkflowItem(BaseModel):
     id: int
     description: str
     status: str = "pending"
+
+
+class DynamicWorkflowState(BaseModel):
+    """Dynamic workflow state that can work with any YAML-defined workflow."""
+
+    # Session identification
+    client_id: str = Field(default="default", description="Client session identifier")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Session creation time"
+    )
+
+    # Workflow definition reference
+    workflow_name: str = Field(description="Name of the workflow being executed")
+    workflow_file: str | None = Field(
+        default=None, description="Path to workflow YAML file"
+    )
+
+    # Dynamic workflow state
+    last_updated: datetime = Field(default_factory=datetime.now)
+    current_node: str = Field(description="Current node in the workflow")
+    status: str = Field(description="Current status (node-specific or global)")
+    execution_context: dict[str, Any] = Field(
+        default_factory=dict, description="Runtime context and variables"
+    )
+
+    # Workflow inputs and outputs
+    inputs: dict[str, Any] = Field(
+        default_factory=dict, description="Workflow input values"
+    )
+    node_outputs: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Outputs from completed nodes"
+    )
+
+    # Execution tracking
+    current_item: str | None = None
+    plan: str = ""
+    items: list[WorkflowItem] = Field(default_factory=list)
+    log: list[str] = Field(default_factory=list)
+    archive_log: list[str] = Field(default_factory=list)
+
+    # Node execution history
+    node_history: list[str] = Field(
+        default_factory=list, description="History of visited nodes"
+    )
+
+    def add_log_entry(self, entry: str) -> None:
+        """Add entry to log with timestamp."""
+        timestamp = datetime.now().strftime("%H:%M:%S")  # noqa: DTZ005
+        formatted_entry = f"[{timestamp}] {entry}"
+        self.log.append(formatted_entry)
+
+        # Check if log rotation is needed (>5000 chars total)
+        total_chars = sum(len(log_entry) for log_entry in self.log)
+        if total_chars > 5000:
+            self.rotate_log()
+
+    def rotate_log(self) -> None:
+        """Rotate log to archive when it gets too long."""
+        # Move current log to archive
+        if self.archive_log:
+            self.archive_log.append("--- LOG ROTATION ---")
+        self.archive_log.extend(self.log)
+        self.log.clear()
+
+    def get_next_pending_item(self) -> WorkflowItem | None:
+        """Get the next pending item."""
+        for item in self.items:
+            if item.status == "pending":
+                return item
+        return None
+
+    def mark_item_completed(self, item_id: int) -> bool:
+        """Mark an item as completed."""
+        for item in self.items:
+            if item.id == item_id:
+                item.status = "completed"
+                return True
+        return False
+
+    def transition_to_node(
+        self, node_name: str, workflow_def: WorkflowDefinition
+    ) -> bool:
+        """Transition to a new node in the workflow.
+
+        Args:
+            node_name: The name of the node to transition to
+            workflow_def: The workflow definition to validate the transition
+
+        Returns:
+            bool: True if transition is valid and successful
+        """
+        # Validate that the transition is allowed
+        if not workflow_def.workflow.validate_transition(self.current_node, node_name):
+            return False
+
+        # Record the transition
+        self.node_history.append(self.current_node)
+        self.current_node = node_name
+        self.last_updated = datetime.now(UTC)
+
+        # Log the transition
+        self.add_log_entry(
+            f"🔄 Transitioned from {self.node_history[-1]} to {node_name}"
+        )
+
+        return True
+
+    def complete_current_node(self, outputs: dict[str, Any] | None = None) -> None:
+        """Mark the current node as completed with optional outputs.
+
+        Args:
+            outputs: Optional outputs from the completed node
+        """
+        if outputs:
+            self.node_outputs[self.current_node] = outputs
+
+        self.add_log_entry(f"✅ Completed node: {self.current_node}")
+
+    def get_available_next_nodes(self, workflow_def: WorkflowDefinition) -> list[str]:
+        """Get the list of nodes that can be transitioned to from current node.
+
+        Args:
+            workflow_def: The workflow definition
+
+        Returns:
+            list[str]: List of available next node names
+        """
+        current_node = workflow_def.workflow.get_node(self.current_node)
+        if not current_node:
+            return []
+        return current_node.next_allowed_nodes
+
+    def to_markdown(self, workflow_def: WorkflowDefinition | None = None) -> str:
+        """Generate markdown representation of dynamic workflow state."""
+        # Format timestamp
+        timestamp = self.last_updated.strftime("%Y-%m-%d")
+
+        # Format current item
+        current_item = self.current_item or "null"
+
+        # Format items table
+        if self.items:
+            items_lines = [
+                "| id | description | status |",
+                "|----|-------------|--------|",
+            ]
+            for item in self.items:
+                items_lines.append(
+                    f"| {item.id} | {item.description} | {item.status} |"
+                )
+            items_table = "\n".join(items_lines)
+        else:
+            items_table = "| id | description | status |\n|----|-------------|--------|\n<!-- No items yet -->"
+
+        # Format plan
+        plan = (
+            self.plan
+            if self.plan.strip()
+            else "*No plan yet. Use `workflow_guidance` with action `plan` to create one.*"
+        )
+
+        # Format log
+        log_content = "\n".join(self.log) if self.log else "<!-- No log entries yet -->"
+
+        # Format archive log
+        archive_log_content = (
+            "\n".join(self.archive_log)
+            if self.archive_log
+            else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
+        )
+
+        # Get workflow-specific information
+        workflow_info = ""
+        available_nodes = []
+        if workflow_def:
+            current_node_def = workflow_def.workflow.get_node(self.current_node)
+            if current_node_def:
+                workflow_info = f"""
+## Current Workflow: {workflow_def.name}
+**Description:** {workflow_def.description}
+**Current Node:** {self.current_node}
+**Goal:** {current_node_def.goal}
+
+### Acceptance Criteria:
+{chr(10).join(f"- **{key}:** {value}" for key, value in current_node_def.acceptance_criteria.items())}
+
+### Available Next Nodes:
+{chr(10).join(f"- {node}" for node in current_node_def.next_allowed_nodes) if current_node_def.next_allowed_nodes else "- End of workflow"}
+
+### Node History:
+{chr(10).join(f"{i + 1}. {node}" for i, node in enumerate(self.node_history))}
+"""
+            available_nodes = self.get_available_next_nodes(workflow_def)
+
+        # Create dynamic template
+        template = f"""# Dynamic Workflow State
+_Last updated: {timestamp}_
+
+## State
+Workflow: {self.workflow_name}  
+Current Node: {self.current_node}  
+Status: {self.status}  
+Current Item: {current_item}  
+{workflow_info}
+## Plan
+{plan}
+
+## Rules
+> **Dynamic workflow execution based on YAML definition**
+
+### Current Node Processing
+1. Execute the goal: {workflow_def.workflow.get_node(self.current_node).goal if workflow_def else "Loading..."}
+2. Meet acceptance criteria before proceeding
+3. Choose next node from available options: {", ".join(available_nodes) if available_nodes else "End workflow"}
+
+### Workflow Navigation
+- **Available Next Nodes:** {", ".join(available_nodes) if available_nodes else "None (end of workflow)"}
+- **Node History:** {" → ".join(self.node_history + [self.current_node])}
+
+---
+
+## Items
+{items_table}
+
+## Log
+{log_content}
+
+## ArchiveLog
+{archive_log_content}
+"""
+
+        return template
+
+    def to_json(self) -> str:
+        """Convert state to JSON string for persistence."""
+        return self.model_dump_json(indent=2)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DynamicWorkflowState":
+        """Create state from JSON string."""
+        data = json.loads(json_str)
+        return cls(**data)
 
 
 class WorkflowState(BaseModel):
@@ -198,23 +442,20 @@ Action ▶
         plan = (
             self.plan
             if self.plan.strip()
-            else "<!-- The AI fills this in during the BLUEPRINT phase -->"
+            else "*No plan yet. Use `workflow_guidance` with action `plan` to create one.*"
         )
 
         # Format log
-        log = (
-            "\n".join(self.log)
-            if self.log
-            else "<!-- AI appends detailed reasoning, tool output, and errors here -->"
-        )
+        log_content = "\n".join(self.log) if self.log else "<!-- No log entries yet -->"
 
         # Format archive log
-        archive_log = (
+        archive_log_content = (
             "\n".join(self.archive_log)
             if self.archive_log
             else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
         )
 
+        # Fill in template
         return self.MARKDOWN_TEMPLATE.format(
             timestamp=timestamp,
             phase=self.phase.value,
@@ -222,111 +463,55 @@ Action ▶
             current_item=current_item,
             plan=plan,
             items_table=items_table,
-            log=log,
-            archive_log=archive_log,
+            log=log_content,
+            archive_log=archive_log_content,
         )
 
     def to_json(self) -> str:
-        """Generate JSON representation of workflow state."""
-        # Create a dictionary with all the state information
-        state_dict = {
-            "metadata": {
-                "last_updated": self.last_updated.isoformat(),
-                "client_id": self.client_id,
-                "created_at": self.created_at.isoformat(),
-            },
-            "state": {
-                "phase": self.phase.value,
-                "status": self.status.value,
-                "current_item": self.current_item,
-            },
-            "plan": self.plan if self.plan.strip() else None,
-            "items": [
-                {"id": item.id, "description": item.description, "status": item.status}
-                for item in self.items
-            ],
-            "log": self.log if self.log else None,
-            "archive_log": self.archive_log if self.archive_log else None,
-        }
+        """Convert to JSON for persistence."""
+        # Convert to dict and handle datetime serialization
+        data = self.model_dump()
 
-        return json.dumps(state_dict, indent=2)
+        # Convert datetime objects to ISO format
+        for field in ["created_at", "last_updated"]:
+            if field in data and data[field]:
+                data[field] = data[field].isoformat()
+
+        return json.dumps(data, indent=2)
 
     @classmethod
     def from_markdown(cls, content: str, client_id: str) -> "WorkflowState":
-        """Create WorkflowState from markdown content."""
-        # This is a simplified parser - in production you'd want more robust parsing
+        """Parse workflow state from markdown content."""
         lines = content.split("\n")
 
-        # Default values
+        # Initialize with defaults
         phase = WorkflowPhase.INIT
         status = WorkflowStatus.READY
         current_item = None
         plan = ""
+        items = []
         log = []
         archive_log = []
-        items = []
 
-        # Parse the markdown (basic implementation)
+        # Parse sections
         current_section = None
-        section_content = []
+        current_content = []
 
         for line in lines:
             if line.startswith("## "):
                 # Process previous section
-                if current_section and section_content:
-                    content_text = "\n".join(section_content).strip()
-
-                    if current_section == "Plan":
-                        plan = content_text
-                    elif current_section == "Log":
-                        log = [
-                            line.strip()
-                            for line in content_text.split("\n")
-                            if line.strip()
-                        ]
-                    elif current_section == "ArchiveLog":
-                        archive_log = [
-                            line.strip()
-                            for line in content_text.split("\n")
-                            if line.strip()
-                        ]
-                    elif current_section == "Items":
-                        # Parse items table (simplified)
-                        items = cls._parse_items_table(section_content)
+                if current_section:
+                    cls._process_section(current_section, current_content, locals())
 
                 # Start new section
                 current_section = line[3:].strip()
-                section_content = []
-
-            elif line.startswith("Phase: "):
-                phase = WorkflowPhase(line[7:].strip())
-            elif line.startswith("Status: "):
-                status = WorkflowStatus(line[8:].strip())
-            elif line.startswith("CurrentItem: "):
-                current_item_text = line[13:].strip()
-                current_item = (
-                    current_item_text if current_item_text != "null" else None
-                )
+                current_content = []
             else:
-                if current_section:
-                    section_content.append(line)
+                current_content.append(line)
 
         # Process final section
-        if current_section and section_content:
-            content_text = "\n".join(section_content).strip()
-
-            if current_section == "Plan":
-                plan = content_text
-            elif current_section == "Log":
-                log = [
-                    line.strip() for line in content_text.split("\n") if line.strip()
-                ]
-            elif current_section == "ArchiveLog":
-                archive_log = [
-                    line.strip() for line in content_text.split("\n") if line.strip()
-                ]
-            elif current_section == "Items":
-                items = cls._parse_items_table(section_content)
+        if current_section:
+            cls._process_section(current_section, current_content, locals())
 
         return cls(
             client_id=client_id,
@@ -340,26 +525,62 @@ Action ▶
         )
 
     @classmethod
+    def _process_section(
+        cls, section_name: str, content: list[str], context: dict
+    ) -> None:
+        """Process a section of markdown content."""
+        content_text = "\n".join(content).strip()
+
+        if section_name == "State":
+            # Parse state fields
+            for line in content:
+                if line.startswith("Phase:"):
+                    phase_str = line.split(":", 1)[1].strip()
+                    try:
+                        context["phase"] = WorkflowPhase(phase_str)
+                    except ValueError:
+                        pass
+                elif line.startswith("Status:"):
+                    status_str = line.split(":", 1)[1].strip()
+                    try:
+                        context["status"] = WorkflowStatus(status_str)
+                    except ValueError:
+                        pass
+                elif line.startswith("CurrentItem:"):
+                    current_item_str = line.split(":", 1)[1].strip()
+                    context["current_item"] = (
+                        current_item_str if current_item_str != "null" else None
+                    )
+
+        elif section_name == "Plan":
+            context["plan"] = content_text
+
+        elif section_name == "Items":
+            context["items"] = cls._parse_items_table(content)
+
+        elif section_name == "Log":
+            context["log"] = [line.strip() for line in content if line.strip()]
+
+        elif section_name == "ArchiveLog":
+            context["archive_log"] = [line.strip() for line in content if line.strip()]
+
+    @classmethod
     def _parse_items_table(cls, lines: list[str]) -> list[WorkflowItem]:
         """Parse items table from markdown lines."""
         items = []
-
         for line in lines:
-            if line.startswith("| ") and not line.startswith("|-"):
-                parts = [
-                    part.strip() for part in line.split("|")[1:-1]
-                ]  # Remove empty first/last
-                if len(parts) >= 3 and parts[0] != "id":  # Skip header
+            if "|" in line and "----" not in line and "id" not in line:
+                parts = [part.strip() for part in line.split("|")]
+                if len(parts) >= 4:  # | id | description | status |
                     try:
-                        item_id = int(parts[0])
-                        description = parts[1]
-                        status = parts[2]
+                        item_id = int(parts[1])
+                        description = parts[2]
+                        status = parts[3]
                         items.append(
                             WorkflowItem(
                                 id=item_id, description=description, status=status
                             )
                         )
                     except (ValueError, IndexError):
-                        continue  # Skip malformed lines
-
+                        continue
         return items

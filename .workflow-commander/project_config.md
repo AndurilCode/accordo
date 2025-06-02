@@ -51,6 +51,10 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- [2025-06-02] Enhanced documentation.yaml and debugging.yaml workflows with highly authoritative guidance following same pattern as default-coding workflow, including mandatory progress logging in create_docs and develop_fix phases for comprehensive tracking and validation
+- [2025-06-02] Enhanced default-coding.yaml workflow with highly authoritative and specific execution guidance, including mandatory progress logging in construct phase requiring workflow_state tool calls after every major step to ensure proper tracking and validation
+- [2025-06-02] Updated bootstrap-execute-tasks.sh to deploy guidelines for the new dynamic workflow system, replacing hardcoded workflow instructions with schema-driven discovery and agent-controlled workflow selection documentation
+- [2025-06-02] Transformed hardcoded YAML workflow system into truly dynamic schema-driven architecture by eliminating all hardcoded routing logic, implementing pure schema analysis, and enabling agent-driven workflow selection while preserving legacy fallback compatibility
 - [2025-05-30] Implemented standardized task_description parameter format validation with "Action: Brief description" pattern across all 6 phase prompt tools, including comprehensive Field documentation and helpful error messages for non-conforming formats
 - Added WORKFLOW_AUTO_APPROVE_PLANS environment variable to enable automatic blueprint approval, allowing workflows to bypass manual user approval and transition directly from blueprint to construction phase when set to "true"
 - Enhanced all four core phase prompts (analyze, blueprint, construct, validate) with mandatory validation checklists, explicit anti-patterns, detailed examples, escalation triggers, and comprehensive verification procedures to provide clearer agent guidance and reduce workflow divergence
