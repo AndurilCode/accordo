@@ -62,6 +62,11 @@ def register_phase_prompts(app: FastMCP):
 
         Provides guidance based entirely on workflow schema structure.
         No hardcoded behavior - everything driven by YAML definitions.
+        
+        CRITICAL DISCOVERY-FIRST LOGIC:
+        - If no session exists, FORCE discovery first regardless of action
+        - Dynamic sessions continue with schema-driven workflow
+        - Legacy only when YAML workflows unavailable
         """
         try:
             client_id = "default"  # In real implementation, extract from Context
@@ -88,21 +93,82 @@ def register_phase_prompts(app: FastMCP):
                     session, workflow_def, action, context, engine, loader
                 )
 
-            elif action.lower() == "start":
-                # Try to discover and start a dynamic workflow
-                try:
-                    available_workflows = loader.discover_workflows()
+            elif session_type == "legacy":
+                # Continue with existing legacy workflow
+                return _handle_legacy_fallback(
+                    client_id, task_description, action, context, options
+                )
 
-                    if available_workflows:
-                        # Present available workflows to agent for selection
-                        workflow_list = "\n".join(
-                            [
-                                f"• **{name}**: {wf.description}"
-                                for name, wf in available_workflows.items()
-                            ]
+            else:
+                # session_type is None - NO SESSION EXISTS
+                # MANDATORY DISCOVERY-FIRST ENFORCEMENT
+                
+                if action.lower() == "start" and context:
+                    # User specified workflow - attempt to start it
+                    workflow_name = extract_workflow_from_context(context)
+
+                    if workflow_name:
+                        try:
+                            # Try to start the specified workflow
+                            available_workflows = loader.discover_workflows()
+
+                            # Find matching workflow (case-insensitive)
+                            selected_workflow = None
+                            for name, wf in available_workflows.items():
+                                if name.lower() == workflow_name.lower():
+                                    selected_workflow = wf
+                                    break
+
+                            if selected_workflow:
+                                # Initialize dynamic session with selected workflow
+                                session = get_or_create_dynamic_session(
+                                    client_id, task_description
+                                )
+                                engine.initialize_workflow(session, selected_workflow)
+
+                                # Get current node info
+                                current_node = selected_workflow.workflow.tree[
+                                    session.current_node
+                                ]
+                                status = format_node_status(current_node, selected_workflow)
+
+                                return f"""🚀 **Workflow Started:** {selected_workflow.name}
+
+**Task:** {task_description}
+
+{status}"""
+
+                            else:
+                                return f"""❌ **Workflow Not Found:** {workflow_name}
+
+Available workflows:
+{chr(10).join([f"• {name}" for name in available_workflows])}
+
+Please use exact workflow name or use legacy fallback."""
+
+                        except Exception as e:
+                            return f"❌ **Error starting workflow:** {str(e)}\n\nFalling back to legacy workflow."
+
+                    else:
+                        return _handle_legacy_fallback(
+                            client_id, task_description, action, context, options
                         )
 
-                        return f"""🔍 **Available Workflows Found**
+                elif action.lower() == "start":
+                    # No context provided - show discovery
+                    try:
+                        available_workflows = loader.discover_workflows()
+
+                        if available_workflows:
+                            # Present available workflows to agent for selection
+                            workflow_list = "\n".join(
+                                [
+                                    f"• **{name}**: {wf.description}"
+                                    for name, wf in available_workflows.items()
+                                ]
+                            )
+
+                            return f"""🔍 **Available Workflows Found**
 
 {workflow_list}
 
@@ -113,76 +179,58 @@ Call workflow_guidance with:
 
 **Example:** context="workflow: Default Coding Workflow"
 
+**📋 RECOMMENDED:** Use `workflow_discovery(task_description="{task_description}")` first to see detailed workflow information.
+
 **Legacy Fallback:** If no workflow specified, will use hardcoded legacy workflow."""
 
-                    else:
-                        # No workflows found, use legacy fallback
+                        else:
+                            # No workflows found, use legacy fallback
+                            return _handle_legacy_fallback(
+                                client_id, task_description, action, context, options
+                            )
+
+                    except Exception:
+                        # Error loading workflows, use legacy fallback
                         return _handle_legacy_fallback(
                             client_id, task_description, action, context, options
                         )
 
-                except Exception:
-                    # Error loading workflows, use legacy fallback
-                    return _handle_legacy_fallback(
-                        client_id, task_description, action, context, options
-                    )
-
-            elif action.lower() == "start" and context:
-                # User specified workflow
-                workflow_name = extract_workflow_from_context(context)
-
-                if workflow_name:
+                else:
+                    # NO SESSION + NON-START ACTION = FORCE DISCOVERY FIRST
                     try:
-                        # Try to start the specified workflow
                         available_workflows = loader.discover_workflows()
 
-                        # Find matching workflow (case-insensitive)
-                        selected_workflow = None
-                        for name, wf in available_workflows.items():
-                            if name.lower() == workflow_name.lower():
-                                selected_workflow = wf
-                                break
+                        if available_workflows:
+                            workflow_list = "\n".join([f"• {name}" for name in available_workflows])
+                            
+                            return f"""❌ **No Active Workflow Session**
 
-                        if selected_workflow:
-                            # Initialize dynamic session with selected workflow
-                            session = get_or_create_dynamic_session(
-                                client_id, task_description
-                            )
-                            engine.initialize_workflow(session, selected_workflow)
+You called workflow_guidance with action="{action}" but there's no active workflow session.
 
-                            # Get current node info
-                            current_node = selected_workflow.workflow.tree[
-                                session.current_node
-                            ]
-                            status = format_node_status(current_node, selected_workflow)
+**⚠️ DISCOVERY REQUIRED FIRST:**
 
-                            return f"""🚀 **Workflow Started:** {selected_workflow.name}
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** `workflow_guidance(action="start", context="workflow: <name>")`
+3. **Then continue:** `workflow_guidance(action="{action}", ...)`
 
-**Task:** {task_description}
+**Available workflows:**
+{workflow_list}
 
-{status}"""
+**Alternative:** Use legacy workflow by calling `workflow_guidance(action="start")` without context.
+
+🚨 **CRITICAL:** You must start a workflow session before using action="{action}". The system enforces discovery-first workflow initiation."""
 
                         else:
-                            return f"""❌ **Workflow Not Found:** {workflow_name}
+                            # No workflows available, fall back to legacy
+                            return _handle_legacy_fallback(
+                                client_id, task_description, action, context, options
+                            )
 
-Available workflows:
-{chr(10).join([f"• {name}" for name in available_workflows])}
-
-Please use exact workflow name or use legacy fallback."""
-
-                    except Exception as e:
-                        return f"❌ **Error starting workflow:** {str(e)}\n\nFalling back to legacy workflow."
-
-                else:
-                    return _handle_legacy_fallback(
-                        client_id, task_description, action, context, options
-                    )
-
-            else:
-                # For all other actions, use legacy fallback
-                return _handle_legacy_fallback(
-                    client_id, task_description, action, context, options
-                )
+                    except Exception:
+                        # Error loading workflows, fall back to legacy
+                        return _handle_legacy_fallback(
+                            client_id, task_description, action, context, options
+                        )
 
         except Exception as e:
             # Any error falls back to legacy
