@@ -5,6 +5,7 @@ from typing import Any
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
 from ..utils.yaml_loader import WorkflowLoader
+from .schema_analyzer import get_auto_transition_target, should_auto_progress
 
 
 class WorkflowEngineError(Exception):
@@ -49,7 +50,9 @@ class WorkflowEngine:
             workflow_def = workflows[workflow_name]
         else:
             # Pure discovery system - cannot auto-select workflow without agent choice
-            raise WorkflowEngineError("Workflow name required - use pure discovery system for workflow selection")
+            raise WorkflowEngineError(
+                "Workflow name required - use pure discovery system for workflow selection"
+            )
 
         # Validate and prepare inputs
         inputs = self._prepare_inputs(task_description, workflow_def)
@@ -70,6 +73,35 @@ class WorkflowEngine:
         state.add_log_entry(f"🎯 Task: {task_description}")
 
         return state, workflow_def
+
+    def initialize_workflow_from_definition(
+        self, session: "DynamicWorkflowState", workflow_def: "WorkflowDefinition"
+    ) -> bool:
+        """Initialize a workflow session with a given workflow definition.
+
+        Args:
+            session: Existing dynamic workflow session to initialize
+            workflow_def: The workflow definition to use
+
+        Returns:
+            bool: True if initialization was successful
+        """
+        try:
+            # Update session with workflow information
+            session.workflow_name = workflow_def.name
+            session.current_node = workflow_def.workflow.root
+            session.status = "READY"
+
+            # Add initialization logs
+            session.add_log_entry(f"🚀 WORKFLOW INITIALIZED: {workflow_def.name}")
+            session.add_log_entry(
+                f"📍 Starting at root node: {workflow_def.workflow.root}"
+            )
+
+            return True
+
+        except Exception:
+            return False
 
     def get_current_node_info(
         self, state: DynamicWorkflowState, workflow_def: WorkflowDefinition
@@ -324,6 +356,87 @@ class WorkflowEngine:
         ]
 
         return is_terminal or is_completed_status
+
+    def can_auto_progress(
+        self, state: DynamicWorkflowState, workflow_def: WorkflowDefinition
+    ) -> bool:
+        """Check if current node can automatically progress to next node.
+
+        Args:
+            state: Current workflow state
+            workflow_def: Workflow definition
+
+        Returns:
+            bool: True if node can auto-progress
+        """
+        current_node = workflow_def.workflow.get_node(state.current_node)
+        if not current_node:
+            return False
+
+        return should_auto_progress(current_node)
+
+    def execute_auto_transition(
+        self,
+        state: DynamicWorkflowState,
+        workflow_def: WorkflowDefinition,
+        max_auto_depth: int = 5,
+    ) -> tuple[bool, str, list[str]]:
+        """Execute automatic transition for single-path nodes.
+
+        Args:
+            state: Current workflow state
+            workflow_def: Workflow definition
+            max_auto_depth: Maximum number of automatic transitions to prevent loops
+
+        Returns:
+            tuple[bool, str, list[str]]: (success, final_node, transition_log)
+        """
+        transition_log = []
+        transitions_made = 0
+
+        while transitions_made < max_auto_depth:
+            current_node = workflow_def.workflow.get_node(state.current_node)
+            if not current_node:
+                return False, state.current_node, transition_log
+
+            # Check if we can auto-progress
+            if not should_auto_progress(current_node):
+                # No more auto-progression possible
+                break
+
+            # Get the target node
+            target_node = get_auto_transition_target(current_node)
+            if not target_node:
+                break
+
+            # Validate the transition is allowed
+            is_valid, reason = self.validate_transition(
+                state, workflow_def, target_node
+            )
+            if not is_valid:
+                transition_log.append(f"❌ Auto-transition failed: {reason}")
+                return False, state.current_node, transition_log
+
+            # Execute the transition
+            success = self.execute_transition(state, workflow_def, target_node)
+            if not success:
+                transition_log.append(
+                    f"❌ Failed to execute auto-transition to {target_node}"
+                )
+                return False, state.current_node, transition_log
+
+            transition_log.append(
+                f"🤖 Auto-transitioned: {state.node_history[-1]} → {target_node}"
+            )
+            transitions_made += 1
+
+        # Check if we hit the depth limit
+        if transitions_made >= max_auto_depth:
+            transition_log.append(
+                f"⚠️ Reached max auto-transition depth ({max_auto_depth})"
+            )
+
+        return True, state.current_node, transition_log
 
     def _prepare_inputs(
         self, task_description: str, workflow_def: WorkflowDefinition

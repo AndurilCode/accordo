@@ -20,17 +20,13 @@ from .session_manager import (
     add_item_to_session,
     add_log_to_session,
     cleanup_completed_sessions,
-    create_session,
     delete_session,
     export_session_to_markdown,
     get_all_sessions,
-    get_or_create_session,
     get_session,
     get_session_stats,
     mark_item_completed_in_session,
-    migrate_session_from_markdown,
     update_session,
-    update_session_state,
 )
 from .state_manager import StateManager
 from .validators import validate_project_config, validate_project_files
@@ -44,19 +40,15 @@ __all__ = [
     "get_workflow_config",
     # Session management
     "get_session",
-    "create_session",
     "update_session",
     "delete_session",
     "get_all_sessions",
     "export_session_to_markdown",
-    "get_or_create_session",
     "add_log_to_session",
-    "update_session_state",
     "add_item_to_session",
     "mark_item_completed_in_session",
     "get_session_stats",
     "cleanup_completed_sessions",
-    "migrate_session_from_markdown",
     # Path utilities
     "get_workflow_dir",
     "get_project_config_path",

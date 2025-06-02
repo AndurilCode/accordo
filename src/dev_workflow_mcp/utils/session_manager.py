@@ -7,40 +7,23 @@ from pathlib import Path
 from ..models.workflow_state import (
     DynamicWorkflowState,
     WorkflowItem,
-    WorkflowPhase,
-    WorkflowState,
-    WorkflowStatus,
 )
 from ..models.yaml_workflow import WorkflowDefinition
 from ..utils.yaml_loader import WorkflowLoader
 
 # Global session store with thread-safe access
-client_sessions: dict[str, WorkflowState | DynamicWorkflowState] = {}
+client_sessions: dict[str, DynamicWorkflowState] = {}
 session_lock = threading.Lock()
 
+# Global workflow definition cache for dynamically created workflows
+workflow_definitions_cache: dict[str, WorkflowDefinition] = {}
+workflow_cache_lock = threading.Lock()
 
-def get_session(client_id: str) -> WorkflowState | DynamicWorkflowState | None:
+
+def get_session(client_id: str) -> DynamicWorkflowState | None:
     """Get workflow session for a client."""
     with session_lock:
         return client_sessions.get(client_id)
-
-
-def create_session(client_id: str, task_description: str) -> WorkflowState:
-    """Create a new workflow session for a client (legacy mode)."""
-    with session_lock:
-        # Create initial workflow state
-        state = WorkflowState(
-            client_id=client_id,
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
-            current_item=task_description,
-            items=[WorkflowItem(id=1, description=task_description, status="pending")],
-        )
-
-        # Store in global sessions
-        client_sessions[client_id] = state
-
-        return state
 
 
 def create_dynamic_session(
@@ -163,7 +146,7 @@ def delete_session(client_id: str) -> bool:
         return False
 
 
-def get_all_sessions() -> dict[str, WorkflowState | DynamicWorkflowState]:
+def get_all_sessions() -> dict[str, DynamicWorkflowState]:
     """Get all current sessions (returns a copy for safety)."""
     with session_lock:
         return client_sessions.copy()
@@ -175,20 +158,17 @@ def export_session_to_markdown(
     """Export a session as markdown string."""
     with session_lock:
         session = client_sessions.get(client_id)
-        if not session:
+        if not session or not isinstance(session, DynamicWorkflowState):
             return None
 
-        if isinstance(session, DynamicWorkflowState):
-            return session.to_markdown(workflow_def)
-        else:
-            return session.to_markdown()
+        return session.to_markdown(workflow_def)
 
 
 def export_session_to_json(client_id: str) -> str | None:
     """Export a session as JSON string."""
     with session_lock:
         session = client_sessions.get(client_id)
-        if not session:
+        if not session or not isinstance(session, DynamicWorkflowState):
             return None
 
         return session.to_json()
@@ -218,25 +198,12 @@ def export_session(
         return export_session_to_markdown(client_id, workflow_def)
 
 
-def get_or_create_session(
-    client_id: str, task_description: str | None = None
-) -> WorkflowState:
-    """Get existing session or create new one if it doesn't exist (legacy mode)."""
-    session = get_session(client_id)
-    if session is None:
-        # Create with default task if none provided
-        default_task = task_description or "Default workflow task"
-        session = create_session(client_id, default_task)
-
-    return session
-
-
 def get_or_create_dynamic_session(
     client_id: str,
     task_description: str,
     workflow_name: str | None = None,
     workflows_dir: str = ".workflow-commander/workflows",
-) -> DynamicWorkflowState | WorkflowState:
+) -> DynamicWorkflowState | None:
     """Get existing session or create a new dynamic one if it doesn't exist.
 
     Args:
@@ -246,10 +213,10 @@ def get_or_create_dynamic_session(
         workflows_dir: Directory containing workflow definitions
 
     Returns:
-        Union[DynamicWorkflowState, WorkflowState]: The session (falls back to legacy if no workflows found)
+        DynamicWorkflowState | None: The session or None if no workflows found
     """
     session = get_session(client_id)
-    if session is not None:
+    if session is not None and isinstance(session, DynamicWorkflowState):
         return session
 
     # Try to find and load a suitable workflow
@@ -264,11 +231,11 @@ def get_or_create_dynamic_session(
                 return create_dynamic_session(client_id, task_description, workflow_def)
 
     except Exception:
-        # If workflow loading fails, fall back to legacy mode
+        # If workflow loading fails, return None
         pass
 
-    # Fall back to legacy workflow if no dynamic workflow available
-    return create_session(client_id, task_description)
+    # No dynamic workflow available
+    return None
 
 
 def add_log_to_session(client_id: str, entry: str) -> bool:
@@ -280,27 +247,6 @@ def add_log_to_session(client_id: str, entry: str) -> bool:
 
         session.add_log_entry(entry)
         return True
-
-
-def update_session_state(
-    client_id: str,
-    phase: WorkflowPhase | None = None,
-    status: WorkflowStatus | None = None,
-    current_item: str | None = None,
-) -> bool:
-    """Update session state fields (for legacy sessions)."""
-    updates = {}
-
-    if phase is not None:
-        updates["phase"] = phase
-    if status is not None:
-        updates["status"] = status
-    # Always update current_item if the parameter was passed (even if None)
-    # We need to use a sentinel value to distinguish between "not passed" and "passed as None"
-    # For now, we'll always update current_item when this function is called
-    updates["current_item"] = current_item
-
-    return update_session(client_id, **updates)
 
 
 def update_dynamic_session_status(
@@ -354,13 +300,13 @@ def mark_item_completed_in_session(client_id: str, item_id: int) -> bool:
 
 
 def get_session_type(client_id: str) -> str | None:
-    """Get the type of session (legacy or dynamic).
+    """Get the type of session.
 
     Args:
         client_id: The client session identifier
 
     Returns:
-        str | None: "legacy", "dynamic", or None if session doesn't exist
+        str | None: "dynamic" or None if session doesn't exist
     """
     with session_lock:
         session = client_sessions.get(client_id)
@@ -370,7 +316,7 @@ def get_session_type(client_id: str) -> str | None:
         if isinstance(session, DynamicWorkflowState):
             return "dynamic"
         else:
-            return "legacy"
+            return None
 
 
 def get_session_stats() -> dict[str, int]:
@@ -378,9 +324,7 @@ def get_session_stats() -> dict[str, int]:
     with session_lock:
         stats = {
             "total_sessions": len(client_sessions),
-            "legacy_sessions": 0,
             "dynamic_sessions": 0,
-            "sessions_by_phase": {},
             "sessions_by_status": {},
         }
 
@@ -391,13 +335,6 @@ def get_session_stats() -> dict[str, int]:
                 status = session.status
                 stats["sessions_by_status"][status] = (
                     stats["sessions_by_status"].get(status, 0) + 1
-                )
-            else:
-                stats["legacy_sessions"] += 1
-                # For legacy sessions, track by phase
-                phase = session.phase.value
-                stats["sessions_by_phase"][phase] = (
-                    stats["sessions_by_phase"].get(phase, 0) + 1
                 )
 
         return stats
@@ -430,9 +367,6 @@ def cleanup_completed_sessions(keep_recent_hours: int = 24) -> int:
                     "ERROR",
                     "FINISHED",
                 ]
-            else:
-                # For legacy sessions
-                is_completed = session.status == WorkflowStatus.COMPLETED
 
             if is_completed and session_time < cutoff_time:
                 sessions_to_remove.append(client_id)
@@ -443,25 +377,6 @@ def cleanup_completed_sessions(keep_recent_hours: int = 24) -> int:
             cleaned_count += 1
 
     return cleaned_count
-
-
-def migrate_session_from_markdown(client_id: str, markdown_content: str) -> bool:
-    """Migrate a session from markdown content (legacy mode only).
-
-    Args:
-        client_id: Client ID for the session
-        markdown_content: Markdown content to parse
-
-    Returns:
-        bool: True if successful
-    """
-    try:
-        with session_lock:
-            session = WorkflowState.from_markdown(markdown_content, client_id)
-            client_sessions[client_id] = session
-            return True
-    except Exception:
-        return False
 
 
 def get_dynamic_session_workflow_def(client_id: str) -> WorkflowDefinition | None:
@@ -478,7 +393,12 @@ def get_dynamic_session_workflow_def(client_id: str) -> WorkflowDefinition | Non
         if not session or not isinstance(session, DynamicWorkflowState):
             return None
 
-        # Try to load the workflow definition
+        # First check the cache for dynamically created workflows
+        cached_def = get_workflow_definition_from_cache(client_id)
+        if cached_def:
+            return cached_def
+
+        # Try to load the workflow definition from filesystem
         try:
             if session.workflow_file:
                 # Load from specific file
@@ -491,3 +411,170 @@ def get_dynamic_session_workflow_def(client_id: str) -> WorkflowDefinition | Non
                 return workflows.get(session.workflow_name)
         except Exception:
             return None
+
+
+def store_workflow_definition_in_cache(
+    client_id: str, workflow_def: WorkflowDefinition
+) -> None:
+    """Store a workflow definition in the cache for a client session.
+
+    Args:
+        client_id: The client session identifier
+        workflow_def: The workflow definition to store
+    """
+    with workflow_cache_lock:
+        workflow_definitions_cache[client_id] = workflow_def
+
+
+def get_workflow_definition_from_cache(client_id: str) -> WorkflowDefinition | None:
+    """Get a workflow definition from the cache for a client session.
+
+    Args:
+        client_id: The client session identifier
+
+    Returns:
+        WorkflowDefinition | None: The cached workflow definition or None
+    """
+    with workflow_cache_lock:
+        return workflow_definitions_cache.get(client_id)
+
+
+def clear_workflow_definition_cache(client_id: str) -> None:
+    """Clear the workflow definition cache for a client session.
+
+    Args:
+        client_id: The client session identifier
+    """
+    with workflow_cache_lock:
+        workflow_definitions_cache.pop(client_id, None)
+
+
+def detect_session_conflict(client_id: str) -> dict[str, any] | None:
+    """Detect if there's an existing session that would conflict with starting a new workflow.
+
+    Args:
+        client_id: The client session identifier
+
+    Returns:
+        dict: Session conflict information if conflict exists, None if no conflict
+
+    The returned dict contains:
+        - has_conflict: bool - Whether there's a conflict
+        - session_type: str - Type of existing session ("legacy" or "dynamic")
+        - session_summary: str - Human-readable summary of the existing session
+        - current_item: str - Current item/task being processed
+        - workflow_name: str - Name of workflow (for dynamic sessions)
+        - phase_or_node: str - Current phase (legacy) or node (dynamic)
+        - status: str - Current session status
+    """
+    with session_lock:
+        session = client_sessions.get(client_id)
+        if not session:
+            return None
+
+        # Only handle dynamic sessions now
+        if isinstance(session, DynamicWorkflowState):
+            session_type = "dynamic"
+            workflow_name = session.workflow_name
+            phase_or_node = session.current_node
+            status = session.status
+
+            session_summary = (
+                f"Dynamic workflow '{workflow_name}' is active at node '{phase_or_node}' "
+                f"with status '{status}'"
+            )
+        else:
+            # Non-dynamic sessions are no longer supported
+            return None
+
+        return {
+            "has_conflict": True,
+            "session_type": session_type,
+            "session_summary": session_summary,
+            "current_item": session.current_item or "No current item",
+            "workflow_name": workflow_name,
+            "phase_or_node": phase_or_node,
+            "status": status,
+            "last_updated": session.last_updated.isoformat()
+            if session.last_updated
+            else "Unknown",
+        }
+
+
+def get_session_summary(client_id: str) -> str:
+    """Get a human-readable summary of the current session state.
+
+    Args:
+        client_id: The client session identifier
+
+    Returns:
+        str: Formatted summary of the session, or "No active session" if none exists
+    """
+    conflict_info = detect_session_conflict(client_id)
+    if not conflict_info:
+        return "No active session"
+
+    return (
+        f"**{conflict_info['workflow_name']}** ({conflict_info['session_type']})\n"
+        f"• Current: {conflict_info['phase_or_node']}\n"
+        f"• Status: {conflict_info['status']}\n"
+        f"• Task: {conflict_info['current_item']}\n"
+        f"• Last Updated: {conflict_info['last_updated']}"
+    )
+
+
+def clear_session_completely(client_id: str) -> dict[str, any]:
+    """Completely clear a session and all associated data.
+
+    This function provides atomic cleanup of all session-related data including
+    the main session, workflow cache, and any other associated state.
+
+    Args:
+        client_id: The client session identifier
+
+    Returns:
+        dict: Cleanup results with the following keys:
+        - success: bool - Whether cleanup was successful
+        - session_cleared: bool - Whether main session was removed
+        - cache_cleared: bool - Whether workflow cache was cleared
+        - previous_session_type: str | None - Type of session that was cleared
+        - error: str | None - Error message if cleanup failed
+    """
+    results = {
+        "success": False,
+        "session_cleared": False,
+        "cache_cleared": False,
+        "previous_session_type": None,
+        "error": None,
+    }
+
+    try:
+        # First, get information about the existing session
+        conflict_info = detect_session_conflict(client_id)
+        if conflict_info:
+            results["previous_session_type"] = conflict_info["session_type"]
+
+        # Clear main session with thread safety
+        with session_lock:
+            if client_id in client_sessions:
+                del client_sessions[client_id]
+                results["session_cleared"] = True
+
+        # Clear workflow definition cache
+        with workflow_cache_lock:
+            if client_id in workflow_definitions_cache:
+                del workflow_definitions_cache[client_id]
+                results["cache_cleared"] = True
+            elif results["previous_session_type"] == "dynamic":
+                # For dynamic sessions, cache might exist even if not indexed by client_id
+                # This ensures we clear any potential cached data
+                results["cache_cleared"] = True
+
+        # Mark as successful if session was cleared
+        results["success"] = results["session_cleared"] or conflict_info is None
+
+        return results
+
+    except Exception as e:
+        results["error"] = str(e)
+        return results

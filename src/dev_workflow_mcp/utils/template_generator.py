@@ -177,7 +177,7 @@ class WorkflowTemplateGenerator:
 
         for workflow in workflows.values():
             # Analyze node names
-            for node_name in workflow.workflow.tree.keys():
+            for node_name in workflow.workflow.tree:
                 patterns["common_node_names"][node_name] = (
                     patterns["common_node_names"].get(node_name, 0) + 1
                 )
@@ -187,7 +187,7 @@ class WorkflowTemplateGenerator:
 
             # Analyze inputs
             if workflow.inputs:
-                for input_name in workflow.inputs.keys():
+                for input_name in workflow.inputs:
                     patterns["common_inputs"][input_name] = (
                         patterns["common_inputs"].get(input_name, 0) + 1
                     )
