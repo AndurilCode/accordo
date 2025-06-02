@@ -614,15 +614,15 @@ Parameters: action="next", task_description="{task_description}"
             session = get_or_create_session(client_id)
 
             # Determine next phase based on current phase
-            if session.state.phase == WorkflowPhase.ANALYZE:
+            if session.phase == WorkflowPhase.ANALYZE:
                 # Move from ANALYZE to BLUEPRINT
                 return _handle_plan_action(client_id, task_description, context)
 
-            elif session.state.phase == WorkflowPhase.BLUEPRINT:
+            elif session.phase == WorkflowPhase.BLUEPRINT:
                 # Move from BLUEPRINT to CONSTRUCT
                 return _handle_build_action(client_id, task_description, context)
 
-            elif session.state.phase == WorkflowPhase.CONSTRUCT:
+            elif session.phase == WorkflowPhase.CONSTRUCT:
                 # Move from CONSTRUCT to VALIDATE
                 update_session_state(
                     client_id, WorkflowPhase.VALIDATE, WorkflowStatus.RUNNING
@@ -675,7 +675,7 @@ Update session status to COMPLETED
 
 🎯 **Validation phase started - ensure quality and completeness!**"""
 
-            elif session.state.phase == WorkflowPhase.VALIDATE:
+            elif session.phase == WorkflowPhase.VALIDATE:
                 # Complete the workflow
                 update_session_state(
                     client_id, WorkflowPhase.VALIDATE, WorkflowStatus.COMPLETED
@@ -704,7 +704,7 @@ Update session status to COMPLETED
 **🎯 All phases completed successfully!**"""
 
             else:
-                return f"❌ **Unknown phase:** {session.state.phase}"
+                return f"❌ **Unknown phase:** {session.phase}"
 
         except Exception as e:
             return f"❌ **Error in next action:** {str(e)}"

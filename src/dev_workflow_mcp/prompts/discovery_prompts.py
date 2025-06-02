@@ -3,11 +3,8 @@
 Updated for pure discovery system - no hardcoded scoring, agents make decisions.
 """
 
-from pathlib import Path
 
 from fastmcp import FastMCP
-
-from ..utils.yaml_loader import WorkflowLoader, WorkflowLoadError
 
 
 def register_discovery_prompts(mcp: FastMCP) -> None:
@@ -18,246 +15,135 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
         task_description: str,
         workflows_dir: str = ".workflow-commander/workflows",
     ) -> dict:
-        """Discover available workflows for agent selection.
+        """Discover available workflows through agent file access.
 
-        Pure discovery without scoring - presents workflows for agent choice.
+        The MCP server cannot access files directly. This tool instructs the agent
+        to check the workflows directory and provide workflow information.
 
         Args:
             task_description: Description of the task to be performed
-            workflows_dir: Directory containing workflow YAML files
+            workflows_dir: Directory containing workflow YAML files (for agent to check)
 
         Returns:
-            dict: Available workflows for agent selection
+            dict: Instructions for agent to discover workflows
         """
-        try:
-            loader = WorkflowLoader(workflows_dir)
-
-            # Check if workflows directory exists
-            workflows_path = Path(workflows_dir)
-            if not workflows_path.exists():
-                return {
-                    "status": "error",
-                    "message": f"Workflows directory not found: {workflows_dir}",
-                    "task_description": task_description,
-                    "available_workflows": [],
-                }
-
-            # Load all workflows
-            try:
-                workflows = loader.discover_workflows()
-            except WorkflowLoadError as e:
-                return {
-                    "status": "error",
-                    "message": f"Error loading workflows: {e}",
-                    "task_description": task_description,
-                    "available_workflows": [],
-                }
-
-            if not workflows:
-                return {
-                    "status": "no_workflows",
-                    "message": f"No valid workflows found in {workflows_dir}",
-                    "task_description": task_description,
-                    "available_workflows": [],
-                }
-
-            # Prepare response with all available workflows for agent selection
-            workflow_list = []
-            for name, workflow_def in workflows.items():
-                workflow_info = {
-                    "name": workflow_def.name,
-                    "description": workflow_def.description,
-                    "root_node": workflow_def.workflow.root,
-                    "total_nodes": len(workflow_def.workflow.tree),
-                    "goal": workflow_def.workflow.goal,
-                    "inputs": {
-                        input_name: {
-                            "type": input_def.type,
-                            "description": input_def.description,
-                            "required": input_def.required,
-                            "default": input_def.default,
-                        }
-                        for input_name, input_def in (workflow_def.inputs or {}).items()
-                    },
-                }
-                workflow_list.append(workflow_info)
-
-            return {
-                "status": "success",
-                "task_description": task_description,
-                "total_workflows": len(workflows),
-                "available_workflows": workflow_list,
-                "message": "Agent should select appropriate workflow based on task requirements",
-                "selection_guidance": {
-                    "instruction": "Choose workflow based on task type and requirements",
-                    "method": "Use workflow_guidance tool with context='workflow: <workflow_name>'",
-                    "example": "workflow_guidance(action='start', context='workflow: Default Coding Workflow')"
-                }
+        return {
+            "status": "agent_action_required",
+            "task_description": task_description,
+            "instructions": {
+                "title": "🔍 **AGENT FILE ACCESS REQUIRED**",
+                "message": "The MCP server cannot access files directly. Please perform the following steps:",
+                "required_steps": [
+                    f"1. **Check directory:** Use `list_dir` tool to examine `{workflows_dir}`",
+                    "2. **Read workflow files:** Use `read_file` tool to read each .yaml/.yml file found",
+                    "3. **Analyze workflows:** Parse the YAML content to understand available workflows",
+                    "4. **Select workflow:** Choose the most appropriate workflow for the task",
+                    "5. **Start workflow:** Use `workflow_guidance(action='start', context='workflow: <chosen_name>')` to begin"
+                ],
+                "expected_workflow_structure": {
+                    "name": "Workflow display name", 
+                    "description": "Brief description of what this workflow does",
+                    "workflow": {
+                        "goal": "Main objective of the workflow",
+                        "root": "starting_node_name",
+                        "tree": "Node definitions with goals and transitions"
+                    }
+                },
+                "selection_criteria": [
+                    "**Task complexity:** Simple vs complex multi-step tasks",
+                    "**Domain match:** Coding, documentation, debugging, etc.",
+                    "**Requirements:** What the task needs vs what workflow provides",
+                    "**Goal alignment:** Task objective vs workflow goal"
+                ]
+            },
+            "agent_guidance": {
+                "workflow_directory": workflows_dir,
+                "file_patterns": ["*.yaml", "*.yml"],
+                "discovery_process": "Use file system tools to discover and analyze workflows",
+                "selection_method": "Agent decides based on task requirements and workflow capabilities"
+            },
+            "fallback": {
+                "option": "If no workflows found or accessible, use legacy workflow",
+                "command": "workflow_guidance(action='start') without context parameter"
             }
-
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Unexpected error during workflow discovery: {e}",
-                "task_description": task_description,
-                "available_workflows": [],
-            }
+        }
 
     @mcp.tool()
     def list_available_workflows(
         workflows_dir: str = ".workflow-commander/workflows",
     ) -> dict:
-        """List all available workflows in the workflows directory.
+        """Instruct agent to list available workflows.
+
+        The MCP server cannot access files directly. This tool provides instructions
+        for the agent to discover available workflows.
 
         Args:
-            workflows_dir: Directory containing workflow YAML files
+            workflows_dir: Directory containing workflow YAML files (for agent to check)
 
         Returns:
-            dict: Information about all available workflows
+            dict: Instructions for agent to list workflows
         """
-        try:
-            loader = WorkflowLoader(workflows_dir)
-
-            # Check if workflows directory exists
-            workflows_path = Path(workflows_dir)
-            if not workflows_path.exists():
-                return {
-                    "status": "error",
-                    "message": f"Workflows directory not found: {workflows_dir}",
-                    "workflows": [],
-                }
-
-            # Discover workflows
-            try:
-                workflows = loader.discover_workflows()
-            except WorkflowLoadError as e:
-                return {
-                    "status": "error",
-                    "message": f"Error loading workflows: {e}",
-                    "workflows": [],
-                }
-
-            if not workflows:
-                return {
-                    "status": "no_workflows",
-                    "message": f"No workflow files found in {workflows_dir}",
-                    "workflows": [],
-                }
-
-            # Load and list all workflows
-            workflows_info = []
-            for name, workflow_def in workflows.items():
-                try:
-                    workflows_info.append(
-                        {
-                            "name": workflow_def.name,
-                            "description": workflow_def.description,
-                            "root_node": workflow_def.workflow.root,
-                            "total_nodes": len(workflow_def.workflow.tree),
-                            "node_names": list(workflow_def.workflow.tree.keys()),
-                            "inputs": list((workflow_def.inputs or {}).keys()),
-                            "goal": workflow_def.workflow.goal,
-                            "valid": True,
-                            "error": None,
-                        }
-                    )
-                except Exception as e:
-                    workflows_info.append(
-                        {
-                            "name": name,
-                            "description": "Failed to load workflow details",
-                            "root_node": None,
-                            "total_nodes": 0,
-                            "node_names": [],
-                            "inputs": [],
-                            "goal": None,
-                            "valid": False,
-                            "error": str(e),
-                        }
-                    )
-
-            return {
-                "status": "success",
-                "workflows_directory": workflows_dir,
-                "total_workflows": len(workflows),
-                "valid_workflows": len([w for w in workflows_info if w["valid"]]),
-                "invalid_workflows": len([w for w in workflows_info if not w["valid"]]),
-                "workflows": workflows_info,
-            }
-
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Unexpected error listing workflows: {e}",
-                "workflows": [],
-            }
+        return {
+            "status": "agent_action_required",
+            "instructions": {
+                "title": "📋 **AGENT WORKFLOW LISTING REQUIRED**",
+                "message": "Please use file system tools to list available workflows:",
+                "steps": [
+                    f"1. **List directory:** `list_dir(relative_workspace_path='{workflows_dir}')`",
+                    "2. **Find YAML files:** Look for .yaml or .yml files in the output",
+                    "3. **Read each file:** Use `read_file` on each workflow file found",
+                    "4. **Extract info:** Parse name, description, goal, and node structure",
+                    "5. **Summarize:** Provide a summary of all available workflows"
+                ],
+                "expected_output": "List of workflows with names, descriptions, and capabilities"
+            },
+            "directory_to_check": workflows_dir,
+            "file_extensions": [".yaml", ".yml"],
+            "agent_tools_needed": ["list_dir", "read_file"],
+            "purpose": "Discover all available YAML workflow definitions for selection"
+        }
 
     @mcp.tool()
     def validate_workflow_file(workflow_path: str) -> dict:
-        """Validate a specific workflow file.
+        """Instruct agent to validate a specific workflow file.
+
+        The MCP server cannot access files directly. This tool provides instructions
+        for the agent to validate a workflow file.
 
         Args:
             workflow_path: Path to the workflow YAML file to validate
 
         Returns:
-            dict: Validation result with details about the workflow
+            dict: Instructions for agent to validate the workflow
         """
-        try:
-            file_path = Path(workflow_path)
-
-            if not file_path.exists():
-                return {
-                    "status": "error",
-                    "message": f"Workflow file not found: {workflow_path}",
-                    "valid": False,
-                }
-
-            loader = WorkflowLoader()
-            validation_result = loader.validate_workflow_file(str(file_path))
-
-            if validation_result["valid"]:
-                # Load the workflow to get details
-                workflow = loader.load_workflow(str(file_path))
-                if workflow:
-                    return {
-                        "status": "success",
-                        "valid": True,
-                        "workflow": {
-                            "name": workflow.name,
-                            "description": workflow.description,
-                            "root_node": workflow.workflow.root,
-                            "total_nodes": len(workflow.workflow.tree),
-                            "node_names": list(workflow.workflow.tree.keys()),
-                            "goal": workflow.workflow.goal,
-                            "inputs": {
-                                name: {
-                                    "type": input_def.type,
-                                    "description": input_def.description,
-                                    "required": input_def.required,
-                                    "default": input_def.default,
-                                }
-                                for name, input_def in (workflow.inputs or {}).items()
-                            },
-                        },
-                        "message": "Workflow file is valid",
-                    }
-                else:
-                    return {
-                        "status": "error",
-                        "valid": False,
-                        "message": "Workflow validation passed but failed to load workflow details",
-                    }
-            else:
-                return {
-                    "status": "error",
-                    "valid": False,
-                    "message": f"Workflow validation failed: {validation_result.get('error', 'Unknown error')}",
-                    "errors": validation_result.get("errors", []),
-                }
-
-        except Exception as e:
-            return {
-                "status": "error",
-                "valid": False,
-                "message": f"Exception during validation: {e}",
-            }
+        return {
+            "status": "agent_action_required",
+            "workflow_path": workflow_path,
+            "instructions": {
+                "title": "✅ **AGENT WORKFLOW VALIDATION REQUIRED**",
+                "message": f"Please validate the workflow file: {workflow_path}",
+                "validation_steps": [
+                    f"1. **Check file exists:** Use `read_file(target_file='{workflow_path}')`",
+                    "2. **Parse YAML:** Verify the file contains valid YAML syntax",
+                    "3. **Check structure:** Ensure required fields are present",
+                    "4. **Validate nodes:** Verify workflow tree structure is correct",
+                    "5. **Check transitions:** Ensure node transitions are valid"
+                ],
+                "required_fields": [
+                    "name - Workflow display name",
+                    "description - Brief workflow description", 
+                    "workflow.goal - Main workflow objective",
+                    "workflow.root - Starting node name",
+                    "workflow.tree - Node definitions with goals and next_allowed_nodes"
+                ],
+                "validation_criteria": [
+                    "YAML syntax is valid",
+                    "All required fields are present",
+                    "Root node exists in tree",
+                    "Node transitions reference valid nodes",
+                    "No circular dependencies"
+                ]
+            },
+            "agent_tools_needed": ["read_file"],
+            "expected_result": "Validation report with any errors found or confirmation of validity"
+        }
