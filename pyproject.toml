@@ -1,12 +1,13 @@
 [project]
 name = "dev-workflow-mcp"
 version = "0.1.0"
-description = "Development workflow MCP server"
+description = "Development workflow MCP server with dynamic YAML workflow support"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp",
     "pydantic",
+    "PyYAML",
 ]
 
 [project.scripts]
@@ -65,4 +66,5 @@ where = ["src"]
 [dependency-groups]
 dev = [
     "build>=1.2.2.post1",
+    "ruff>=0.11.11",
 ]

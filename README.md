@@ -124,6 +124,203 @@ The workflow will guide you through each phase automatically!
 - **📝 Multi-Item Processing**: Supports iterating through multiple workflow items
 - **📋 Changelog Integration**: Automatically updates project changelog
 - **⚙️ Auto-Approval**: Optional automatic blueprint approval for streamlined workflows
+- **🔧 YAML Workflows**: Define custom workflows with YAML configuration files
+- **🎯 Dynamic Workflow Discovery**: Automatically selects appropriate workflows based on task descriptions
+- **🌟 Workflow Templates**: Create new workflows from templates (linear, branching, or custom)
+
+## YAML Workflow System
+
+The dev-workflow-mcp server now supports **dynamic YAML-defined workflows** alongside the traditional hardcoded workflow. This allows you to create custom workflows tailored to specific types of tasks.
+
+### Overview
+
+YAML workflows provide:
+- **Flexible workflow definitions** with custom nodes and transitions
+- **Automatic workflow discovery** based on task descriptions
+- **Template system** for creating new workflows
+- **Backward compatibility** with existing sessions
+- **Dynamic state management** that adapts to any workflow structure
+
+### Workflow Discovery
+
+The server automatically discovers and selects appropriate workflows from the `.workflow-commander/workflows` directory:
+
+```bash
+# Example workflow discovery tools:
+workflow_discovery(task_description="Add user authentication")
+list_available_workflows()
+validate_workflow_file("path/to/workflow.yaml")
+```
+
+### Creating YAML Workflows
+
+#### Basic Structure
+
+```yaml
+name: My Custom Workflow
+description: Workflow for specific task types
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+
+execution:
+  max_depth: 10
+  allow_backtracking: true
+
+workflow:
+  goal: Overall workflow objective
+  root: start_node  # Starting node
+  
+  tree:
+    start_node:
+      goal: |
+        What this node should accomplish.
+        Use ${{ inputs.task_description }} for dynamic content.
+      acceptance_criteria:
+        first_check: "Description of completion requirement"
+        second_check: "Another requirement"
+      next_allowed_nodes: [next_node]
+    
+    next_node:
+      goal: "Goal for the next step"
+      acceptance_criteria:
+        completion: "What constitutes completion"
+      next_allowed_nodes: []  # Terminal node
+```
+
+#### Available Default Workflows
+
+The server includes several pre-built workflows:
+
+1. **Default Coding Workflow** (`default-coding.yaml`)
+   - Standard development workflow (analyze → blueprint → construct → validate → complete)
+   - Equivalent to the traditional hardcoded workflow
+
+2. **Documentation Workflow** (`documentation.yaml`)
+   - Specialized for documentation tasks (analyze_docs → plan_docs → create_docs → review_docs → finalize_docs)
+
+3. **Debugging Workflow** (`debugging.yaml`)
+   - Focused on bug fixing (investigate → analyze_root_cause → develop_fix → test_fix → validate_solution → finalize_bugfix)
+
+### Workflow Templates
+
+Create new workflows using the template system:
+
+#### Using the Template Generator
+
+```python
+from dev_workflow_mcp.utils.template_generator import create_workflow_template
+
+# Create a linear workflow
+create_workflow_template(
+    workflow_name="My Linear Workflow",
+    description="Simple step-by-step workflow",
+    workflow_type="linear"  # Creates: analyze → plan → execute → validate
+)
+
+# Create a branching workflow
+create_workflow_template(
+    workflow_name="Decision Tree Workflow", 
+    description="Workflow with decision points",
+    workflow_type="branching"  # Creates workflow with multiple paths
+)
+
+# Create from custom template
+create_workflow_template(
+    workflow_name="Custom Workflow",
+    description="Workflow based on template",
+    workflow_type="custom"  # Uses the base template
+)
+```
+
+#### Manual Template Customization
+
+1. Copy the template: `src/dev_workflow_mcp/templates/workflow_template.yaml`
+2. Customize the workflow definition
+3. Save to `.workflow-commander/workflows/your-workflow.yaml`
+4. Test with `validate_workflow_file("your-workflow.yaml")`
+
+### Workflow Directory Structure
+
+```
+.workflow-commander/
+├── workflows/                    # Custom workflow definitions
+│   ├── default-coding.yaml      # Standard coding workflow
+│   ├── documentation.yaml       # Documentation workflow
+│   ├── debugging.yaml           # Debugging workflow
+│   └── your-custom.yaml         # Your custom workflows
+├── workflow_state.json          # Current workflow state
+└── project_config.md            # Project configuration
+```
+
+### Dynamic vs Legacy Workflows
+
+The server automatically chooses the appropriate system:
+
+- **Dynamic YAML Workflows**: Used when YAML workflows are available and match the task
+- **Legacy Hardcoded Workflow**: Used for existing sessions or when no suitable YAML workflow is found
+- **Seamless Integration**: Both systems work with the same `workflow_guidance` tools
+
+### YAML Workflow Features
+
+#### Input Variables
+Reference workflow inputs in node goals:
+```yaml
+goal: |
+  Process the task: ${{ inputs.task_description }}
+  Using configuration: ${{ inputs.config_path }}
+```
+
+#### Acceptance Criteria
+Define measurable completion requirements:
+```yaml
+acceptance_criteria:
+  code_complete: "All code changes implemented"
+  tests_pass: "Test suite passes with 100% success rate"
+  docs_updated: "Documentation updated with changes"
+```
+
+#### Node Transitions
+Control workflow flow with next_allowed_nodes:
+```yaml
+# Linear progression
+next_allowed_nodes: [next_step]
+
+# Branching/decision point
+next_allowed_nodes: [option_a, option_b, option_c]
+
+# Terminal node (no transitions)
+next_allowed_nodes: []
+```
+
+#### Decision Nodes vs Action Nodes
+- **Decision Nodes**: Have multiple next_allowed_nodes, require user choice
+- **Action Nodes**: Have single or no next_allowed_nodes, focus on execution
+
+### Best Practices
+
+1. **Node Design**
+   - Each node should have a single, clear responsibility
+   - Goals should be specific and actionable
+   - Acceptance criteria should be measurable
+
+2. **Workflow Flow**
+   - Use decision nodes for branching logic
+   - Use terminal nodes (no next_allowed_nodes) for endpoints
+   - Plan for error recovery and alternative paths
+
+3. **Input Design**
+   - Include task_description as a standard input
+   - Add workflow-specific inputs as needed
+   - Provide sensible defaults for optional inputs
+
+4. **Testing**
+   - Validate workflows with `validate_workflow_file`
+   - Test with realistic task descriptions
+   - Verify all node transitions work correctly
 
 ## Advanced Configuration
 

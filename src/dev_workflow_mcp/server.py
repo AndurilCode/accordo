@@ -2,6 +2,7 @@
 
 from fastmcp import FastMCP
 
+from .prompts.discovery_prompts import register_discovery_prompts
 from .prompts.management_prompts import register_management_prompts
 from .prompts.phase_prompts import register_phase_prompts
 from .prompts.project_prompts import register_project_prompts
@@ -15,6 +16,7 @@ register_phase_prompts(mcp)
 register_management_prompts(mcp)
 register_transition_prompts(mcp)
 register_project_prompts(mcp)
+register_discovery_prompts(mcp)
 
 
 def main():
