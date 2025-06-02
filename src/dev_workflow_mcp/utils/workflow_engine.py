@@ -43,14 +43,13 @@ class WorkflowEngine:
         """
         # Find appropriate workflow
         if workflow_name:
-            workflows = self.loader.load_all_workflows()
+            workflows = self.loader.discover_workflows()
             if workflow_name not in workflows:
                 raise WorkflowEngineError(f"Workflow '{workflow_name}' not found")
             workflow_def = workflows[workflow_name]
         else:
-            workflow_def = self.loader.find_best_workflow(task_description)
-            if not workflow_def:
-                raise WorkflowEngineError("No suitable workflow found for task")
+            # Pure discovery system - cannot auto-select workflow without agent choice
+            raise WorkflowEngineError("Workflow name required - use pure discovery system for workflow selection")
 
         # Validate and prepare inputs
         inputs = self._prepare_inputs(task_description, workflow_def)

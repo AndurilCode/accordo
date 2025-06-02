@@ -51,6 +51,7 @@ python -m src.dev_workflow_mcp.server
 ```
 
 ## Changelog
+- [2025-06-02] Fixed missing WorkflowLoadError class and updated discovery_prompts.py to work with pure discovery system by removing hardcoded scoring methods and enabling agent-driven workflow selection without automated scoring algorithms
 - [2025-06-02] Enhanced documentation.yaml and debugging.yaml workflows with highly authoritative guidance following same pattern as default-coding workflow, including mandatory progress logging in create_docs and develop_fix phases for comprehensive tracking and validation
 - [2025-06-02] Enhanced default-coding.yaml workflow with highly authoritative and specific execution guidance, including mandatory progress logging in construct phase requiring workflow_state tool calls after every major step to ensure proper tracking and validation
 - [2025-06-02] Updated bootstrap-execute-tasks.sh to deploy guidelines for the new dynamic workflow system, replacing hardcoded workflow instructions with schema-driven discovery and agent-controlled workflow selection documentation

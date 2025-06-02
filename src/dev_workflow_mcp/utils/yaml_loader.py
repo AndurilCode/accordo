@@ -11,6 +11,20 @@ import yaml
 from ..models.yaml_workflow import WorkflowDefinition
 
 
+class WorkflowLoadError(Exception):
+    """Exception raised when workflow loading fails."""
+
+    def __init__(self, message: str, file_path: str | None = None):
+        """Initialize WorkflowLoadError.
+
+        Args:
+            message: Error message
+            file_path: Path to the workflow file that failed to load
+        """
+        super().__init__(message)
+        self.file_path = file_path
+
+
 class WorkflowLoader:
     """Pure workflow loader without hardcoded selection logic."""
 
