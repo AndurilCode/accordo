@@ -18,17 +18,31 @@ The workflow system is now fully dynamic and schema-driven:
 4. **Context Parameters**: Control workflow execution using context like `context="choose: node_name"` or `context="workflow: Workflow Name"`
 
 ### Workflow Discovery Process
-**⚠️ CRITICAL START POINT:** For complex tasks, ALWAYS begin with workflow discovery:
+**⚠️ CRITICAL START POINT:** For complex tasks, choose one of these approaches:
 
-1. **First Step - Discover Available Workflows:**
+#### Option 1: Use Existing Workflows (Recommended)
+1. **Discover Available Workflows:**
    ```
    workflow_discovery(task_description="Your task description")
    ```
    This shows all available YAML workflows and their capabilities.
 
-2. **Second Step - Start Selected Workflow:**
+2. **Start Selected Workflow:**
    ```
    workflow_guidance(action="start", context="workflow: <chosen_workflow_name>")
+   ```
+
+#### Option 2: Create Custom Workflow (When existing workflows don't fit)
+1. **Get Creation Guidance:**
+   ```
+   workflow_creation_guidance(task_description="Your task description", workflow_type="coding/debugging/documentation/etc")
+   ```
+   This provides comprehensive guidance on creating custom YAML workflows.
+
+2. **Create and Start Custom Workflow:**
+   Follow the guidance to create a custom YAML workflow, then start it with:
+   ```
+   workflow_guidance(action="start", context="workflow: <workflow_name>\nyaml: <complete_yaml_content>")
    ```
 
 3. **Continue with Schema Navigation:**
@@ -42,16 +56,19 @@ The workflow system is now fully dynamic and schema-driven:
 5. **Agent-Driven Navigation**: Make routing decisions based on schema-presented options
 
 ### Available Tools
-- `workflow_discovery`: Discover and view available YAML workflows (START HERE)
+- `workflow_discovery`: Discover and view available YAML workflows (OPTION 1)
+- `workflow_creation_guidance`: Guide agent through creating custom YAML workflows (OPTION 2)
 - `workflow_guidance`: Main tool for dynamic workflow execution with agent-driven workflow selection
 - `workflow_state`: Tool for checking and updating workflow state
 - Context7: Use for up-to-date documentation about technologies
 - GitHub: Read files from other repositories when needed
 
 ### Key Principles
-- **Discovery-first approach**: ALWAYS start with `workflow_discovery()` for complex tasks
+- **Workflow-driven approach**: ALWAYS start with either `workflow_discovery()` or `workflow_creation_guidance()` for complex tasks
+- **Flexible workflow selection**: Choose existing workflows when suitable, create custom workflows when needed
 - **No hardcoded routing**: All workflow behavior is determined by YAML schema definitions
 - **Agent-driven selection**: You choose workflows and transitions based on schema-presented options
 - **Schema as source of truth**: Workflow definitions in YAML files drive all behavior
+- **Dynamic workflow creation**: Agents can create custom workflows tailored to specific task requirements
 - **Legacy fallback preserved**: System falls back to legacy workflows when no YAML workflows are available
 - If uncertain whether a task is "simple," err on the side of using the workflow tool
