@@ -18,6 +18,7 @@ from ..utils.schema_analyzer import (
     get_available_transitions,
     get_workflow_summary,
     validate_transition,
+    should_auto_progress,
 )
 from ..utils.session_manager import (
     add_log_to_session,
@@ -33,6 +34,10 @@ from ..utils.session_manager import (
 from ..utils.workflow_engine import WorkflowEngine
 from ..utils.yaml_loader import WorkflowLoader
 
+
+# =============================================================================
+# VALIDATION FUNCTIONS
+# =============================================================================
 
 def validate_task_description(description: str | None) -> str:
     """Validate task description format.
@@ -123,6 +128,10 @@ def validate_task_description(description: str | None) -> str:
 
     return description
 
+
+# =============================================================================
+# YAML PARSING FUNCTIONS
+# =============================================================================
 
 def parse_and_validate_yaml_context(
     context: str,
@@ -322,6 +331,10 @@ def _validate_and_reformat_yaml(yaml_content: str) -> str | None:
         return None
 
 
+# =============================================================================
+# FORMATTING FUNCTIONS
+# =============================================================================
+
 def _format_yaml_error_guidance(
     error_msg: str, workflow_name: str | None = None
 ) -> str:
@@ -373,6 +386,191 @@ workflow:
 
     return base_msg + guidance
 
+
+def format_enhanced_node_status(
+    node: WorkflowNode, workflow: WorkflowDefinition, session
+) -> str:
+    """Format current node status with enhanced authoritative guidance.
+
+    Args:
+        node: Current workflow node
+        workflow: The workflow definition
+        session: Current workflow session
+
+    Returns:
+        Enhanced formatted status string with authoritative guidance
+    """
+    analysis = analyze_node_from_schema(node, workflow)
+    transitions = get_available_transitions(node, workflow)
+
+    # Format acceptance criteria with enhanced detail
+    criteria_text = ""
+    if analysis["acceptance_criteria"]:
+        criteria_items = []
+        for key, value in analysis["acceptance_criteria"].items():
+            criteria_items.append(f"   ✅ **{key}**: {value}")
+        criteria_text = "\n".join(criteria_items)
+    else:
+        criteria_text = "   • No specific criteria defined"
+
+    # Format next options with enhanced guidance including auto-progression indicators
+    options_text = ""
+    if transitions:
+        # Check if this node can auto-progress
+        can_auto_progress = should_auto_progress(node)
+
+        if can_auto_progress:
+            options_text = "**🤖 Auto-Progression Mode:**\n"
+            options_text += (
+                f"   • **{transitions[0]['name']}**: {transitions[0]['goal']}\n"
+            )
+            options_text += "\n**⚡ Next Action:** Call workflow_guidance (no context needed) - will auto-progress to next node\n"
+            options_text += f'**🔧 Manual Override:** Use context="choose: {transitions[0]["name"]}" to proceed manually'
+        else:
+            options_text = "**🎯 Available Next Steps:**\n"
+            for transition in transitions:
+                options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
+            options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
+            options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
+    else:
+        options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
+
+    # Get current session state for display
+    session_state = export_session_to_markdown(session.client_id)
+
+    return f"""{analysis["goal"]}
+
+**📋 ACCEPTANCE CRITERIA:**
+{criteria_text}
+
+{options_text}
+
+**📊 CURRENT WORKFLOW STATE:**
+```markdown
+{session_state}
+```
+
+**🚨 REMEMBER:** Follow the mandatory execution steps exactly as specified. Each phase has critical requirements that must be completed before proceeding."""
+
+
+# =============================================================================
+# WORKFLOW LOGIC FUNCTIONS
+# =============================================================================
+
+def _handle_dynamic_workflow(
+    session,
+    workflow_def,
+    action: str,
+    context: str,
+    engine: WorkflowEngine,
+    loader: WorkflowLoader,
+) -> str:
+    """Handle dynamic workflow execution based purely on schema."""
+    try:
+        current_node = workflow_def.workflow.tree.get(session.current_node)
+
+        if not current_node:
+            return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
+
+        # Handle choice selection
+        if context and isinstance(context, str) and "choose:" in context.lower():
+            choice = extract_choice_from_context(context)
+
+            if choice and validate_transition(current_node, choice, workflow_def):
+                # Valid transition - update session
+                if choice in (current_node.next_allowed_nodes or []):
+                    # Node transition
+                    update_dynamic_session_node(
+                        session.client_id, choice, workflow_def
+                    )
+                    session.current_node = choice
+                    new_node = workflow_def.workflow.tree[choice]
+
+                    # Log the transition
+                    add_log_to_session(
+                        session.client_id,
+                        f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
+                    )
+
+                    # After manual transition, check for auto-progression
+                    if engine.can_auto_progress(session, workflow_def):
+                        success, final_node, auto_log = (
+                            engine.execute_auto_transition(session, workflow_def)
+                        )
+                        if success and auto_log:
+                            # Log auto-transitions
+                            for log_entry in auto_log:
+                                add_log_to_session(session.client_id, log_entry)
+
+                            # Update current node reference and get final node
+                            final_node_def = workflow_def.workflow.tree.get(
+                                session.current_node
+                            )
+                            if final_node_def:
+                                new_node = final_node_def
+
+                    status = format_enhanced_node_status(
+                        new_node, workflow_def, session
+                    )
+
+                    return f"""✅ **Transitioned to:** {choice.upper()}
+
+{status}"""
+
+                elif choice in (current_node.next_allowed_workflows or []):
+                    # Workflow transition - not implemented yet
+                    return (
+                        f"❌ **Workflow transitions not yet implemented:** {choice}"
+                    )
+
+            else:
+                # Invalid choice
+                transitions = get_available_transitions(current_node, workflow_def)
+                valid_options = [t["name"] for t in transitions]
+
+                return f"""❌ **Invalid choice:** {choice}
+
+**Valid options:** {", ".join(valid_options)}
+
+**Usage:** Use context="choose: <option_name>" with exact option name."""
+
+        # Check for auto-progression when no explicit choice is made
+        if not context and engine.can_auto_progress(session, workflow_def):
+            success, final_node, auto_log = engine.execute_auto_transition(
+                session, workflow_def
+            )
+
+            if success and auto_log:
+                # Log auto-transitions
+                for log_entry in auto_log:
+                    add_log_to_session(session.client_id, log_entry)
+
+                # Get final node after auto-progression
+                final_node_def = workflow_def.workflow.tree.get(
+                    session.current_node
+                )
+                if final_node_def:
+                    current_node = final_node_def
+
+                    # Add auto-progression indicator to status
+                    status = format_enhanced_node_status(
+                        current_node, workflow_def, session
+                    )
+                    return f"""🤖 **Auto-progressed to:** {session.current_node.upper()}
+
+{status}"""
+
+        # Default: show current status with enhanced guidance
+        status = format_enhanced_node_status(current_node, workflow_def, session)
+        return status
+
+    except Exception as e:
+        return f"❌ **Dynamic workflow error:** {str(e)}"
+
+
+# =============================================================================
+# MAIN REGISTRATION FUNCTION
+# =============================================================================
 
 def register_phase_prompts(app: FastMCP):
     """Register purely schema-driven workflow prompts."""
@@ -553,116 +751,6 @@ You called workflow_guidance with action="{action}" but there's no active workfl
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
 2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
 
-    def _handle_dynamic_workflow(
-        session,
-        workflow_def,
-        action: str,
-        context: str,
-        engine: WorkflowEngine,
-        loader: WorkflowLoader,
-    ) -> str:
-        """Handle dynamic workflow execution based purely on schema."""
-        try:
-            current_node = workflow_def.workflow.tree.get(session.current_node)
-
-            if not current_node:
-                return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
-
-            # Handle choice selection
-            if context and isinstance(context, str) and "choose:" in context.lower():
-                choice = extract_choice_from_context(context)
-
-                if choice and validate_transition(current_node, choice, workflow_def):
-                    # Valid transition - update session
-                    if choice in (current_node.next_allowed_nodes or []):
-                        # Node transition
-                        update_dynamic_session_node(
-                            session.client_id, choice, workflow_def
-                        )
-                        session.current_node = choice
-                        new_node = workflow_def.workflow.tree[choice]
-
-                        # Log the transition
-                        add_log_to_session(
-                            session.client_id,
-                            f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
-                        )
-
-                        # After manual transition, check for auto-progression
-                        if engine.can_auto_progress(session, workflow_def):
-                            success, final_node, auto_log = (
-                                engine.execute_auto_transition(session, workflow_def)
-                            )
-                            if success and auto_log:
-                                # Log auto-transitions
-                                for log_entry in auto_log:
-                                    add_log_to_session(session.client_id, log_entry)
-
-                                # Update current node reference and get final node
-                                final_node_def = workflow_def.workflow.tree.get(
-                                    session.current_node
-                                )
-                                if final_node_def:
-                                    new_node = final_node_def
-
-                        status = format_enhanced_node_status(
-                            new_node, workflow_def, session
-                        )
-
-                        return f"""✅ **Transitioned to:** {choice.upper()}
-
-{status}"""
-
-                    elif choice in (current_node.next_allowed_workflows or []):
-                        # Workflow transition - not implemented yet
-                        return (
-                            f"❌ **Workflow transitions not yet implemented:** {choice}"
-                        )
-
-                else:
-                    # Invalid choice
-                    transitions = get_available_transitions(current_node, workflow_def)
-                    valid_options = [t["name"] for t in transitions]
-
-                    return f"""❌ **Invalid choice:** {choice}
-
-**Valid options:** {", ".join(valid_options)}
-
-**Usage:** Use context="choose: <option_name>" with exact option name."""
-
-            # Check for auto-progression when no explicit choice is made
-            if not context and engine.can_auto_progress(session, workflow_def):
-                success, final_node, auto_log = engine.execute_auto_transition(
-                    session, workflow_def
-                )
-
-                if success and auto_log:
-                    # Log auto-transitions
-                    for log_entry in auto_log:
-                        add_log_to_session(session.client_id, log_entry)
-
-                    # Get final node after auto-progression
-                    final_node_def = workflow_def.workflow.tree.get(
-                        session.current_node
-                    )
-                    if final_node_def:
-                        current_node = final_node_def
-
-                        # Add auto-progression indicator to status
-                        status = format_enhanced_node_status(
-                            current_node, workflow_def, session
-                        )
-                        return f"""🤖 **Auto-progressed to:** {session.current_node.upper()}
-
-{status}"""
-
-            # Default: show current status with enhanced guidance
-            status = format_enhanced_node_status(current_node, workflow_def, session)
-            return status
-
-        except Exception as e:
-            return f"❌ **Dynamic workflow error:** {str(e)}"
-
     @app.tool()
     def workflow_state(
         operation: str = Field(
@@ -772,72 +860,3 @@ Cannot update state - no YAML workflow session is currently active.
 
         except Exception as e:
             return f"❌ **Error in workflow_state:** {str(e)}"
-
-
-def format_enhanced_node_status(
-    node: WorkflowNode, workflow: WorkflowDefinition, session
-) -> str:
-    """Format current node status with enhanced authoritative guidance.
-
-    Args:
-        node: Current workflow node
-        workflow: The workflow definition
-        session: Current workflow session
-
-    Returns:
-        Enhanced formatted status string with authoritative guidance
-    """
-    from ..utils.session_manager import export_session_to_markdown
-    from ..utils.schema_analyzer import should_auto_progress
-
-    analysis = analyze_node_from_schema(node, workflow)
-    transitions = get_available_transitions(node, workflow)
-
-    # Format acceptance criteria with enhanced detail
-    criteria_text = ""
-    if analysis["acceptance_criteria"]:
-        criteria_items = []
-        for key, value in analysis["acceptance_criteria"].items():
-            criteria_items.append(f"   ✅ **{key}**: {value}")
-        criteria_text = "\n".join(criteria_items)
-    else:
-        criteria_text = "   • No specific criteria defined"
-
-    # Format next options with enhanced guidance including auto-progression indicators
-    options_text = ""
-    if transitions:
-        # Check if this node can auto-progress
-        can_auto_progress = should_auto_progress(node)
-
-        if can_auto_progress:
-            options_text = "**🤖 Auto-Progression Mode:**\n"
-            options_text += (
-                f"   • **{transitions[0]['name']}**: {transitions[0]['goal']}\n"
-            )
-            options_text += "\n**⚡ Next Action:** Call workflow_guidance (no context needed) - will auto-progress to next node\n"
-            options_text += f'**🔧 Manual Override:** Use context="choose: {transitions[0]["name"]}" to proceed manually'
-        else:
-            options_text = "**🎯 Available Next Steps:**\n"
-            for transition in transitions:
-                options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
-            options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-            options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
-    else:
-        options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
-
-    # Get current session state for display
-    session_state = export_session_to_markdown(session.client_id)
-
-    return f"""{analysis["goal"]}
-
-**📋 ACCEPTANCE CRITERIA:**
-{criteria_text}
-
-{options_text}
-
-**📊 CURRENT WORKFLOW STATE:**
-```markdown
-{session_state}
-```
-
-**🚨 REMEMBER:** Follow the mandatory execution steps exactly as specified. Each phase has critical requirements that must be completed before proceeding."""
