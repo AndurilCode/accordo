@@ -1,24 +1,21 @@
 # Workflow Commander MCP Server
 
-A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features intelligent **auto-progression** through linear workflow paths while preserving manual control for decision points.
+A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features structured development workflows with progression control and decision points.
 
 ## What This Does
 
 This server guides AI agents through structured, schema-driven development workflows:
 - **📋 Dynamic YAML Workflows**: Custom workflows defined in YAML with schema-driven execution
-- **🤖 Auto-Progression**: Automatically advances through single-path nodes, stops at decision points  
 - **🔍 Discovery-First**: Automatically discovers and selects appropriate workflows based on task
 - **⚡ Real-time State**: Live workflow state tracking with comprehensive session management
 - **🎯 Mandatory Guidance**: Authoritative phase-by-phase instructions agents must follow
 
 ## Key Features
 
-- **🚀 Auto-Progression**: Workflows automatically flow through linear paths until reaching decision points or completion
 - **📋 YAML-Driven**: Fully customizable workflows defined in YAML with schema validation
 - **🔍 Smart Discovery**: Automatic workflow discovery and selection based on task requirements  
 - **🎯 Guided Execution**: Phase-by-phase mandatory guidance with acceptance criteria
 - **📊 Real-time Tracking**: Live workflow state with detailed progress logging
-- **🔧 Decision Control**: Manual control preserved for branching decisions and complex choices
 - **🛡️ Error Recovery**: Built-in error handling and validation at each phase
 - **📝 Session Management**: Persistent workflow sessions with automatic state synchronization
 
@@ -94,17 +91,17 @@ workflow_discovery(task_description="Add: user authentication to my API")
 # 2. Start selected workflow (agent chooses appropriate workflow)
 workflow_guidance(action="start", context="workflow: Default Coding Workflow\nyaml: <discovered_yaml_content>")
 
-# 3. Workflow auto-progresses through linear phases!
+# 3. Execute workflows step-by-step with control!
 ```
 
-### 3. Experience Auto-Progression
+### 3. Workflow Progression
 
 The workflow automatically flows through linear paths:
 ```
 Start → Auto-progress through single-path nodes → Stop at decision point → Manual choice → Auto-progress to completion
 ```
 
-**Example Auto-Progression Flow:**
+**Example Progression Flow:**
 ```
 analyze ──🤖──→ blueprint ──🤖──→ construct ──🤖──→ validate ──🤖──→ complete
           auto      auto        auto         auto
@@ -125,7 +122,6 @@ decision_point ──👤──→ option_a ──🤖──→ final
 The workflow system is **purely YAML-driven** with the following architecture:
 
 - **🔍 Discovery-First**: Agent must discover workflows before starting
-- **🤖 Auto-Progression**: Automatically advances through linear workflow paths  
 - **📋 Schema-Driven**: All behavior determined by YAML workflow definitions
 - **🎯 Agent-Controlled**: Agent selects workflows based on task requirements
 - **📊 Dynamic State**: Real-time session management with persistent state
@@ -134,33 +130,33 @@ The workflow system is **purely YAML-driven** with the following architecture:
 
 **How Auto-Progression Works:**
 
-1. **Single-Path Nodes**: Nodes with exactly one `next_allowed_node` automatically progress
-2. **Decision Points**: Nodes with multiple `next_allowed_nodes` require manual choice
-3. **Terminal Nodes**: Nodes with no `next_allowed_nodes` end the workflow
-4. **Safety Limits**: Maximum auto-transition depth prevents infinite loops
+1. **All Transitions**: Every workflow transition requires explicit manual choice
+2. **Decision Points**: Nodes with multiple `next_allowed_nodes` offer choice selection
+3. **Linear Paths**: Even single-path nodes require manual confirmation to proceed
+4. **Terminal Nodes**: Nodes with no `next_allowed_nodes` end the workflow
 
-**Auto-Progression Rules:**
+**Manual Progression Rules:**
 ```yaml
-# ✅ Auto-progresses (single path)
+# All nodes require manual choice
 single_path_node:
-  next_allowed_nodes: [next_step]
+  next_allowed_nodes: [next_step]  # Manual: choose: next_step
 
-# ❌ Requires manual choice (multiple paths)  
+# Multiple options require manual choice  
 decision_node:
-  next_allowed_nodes: [option_a, option_b, option_c]
+  next_allowed_nodes: [option_a, option_b, option_c]  # Manual: choose: option_a
 
 # 🏁 Workflow completion (no paths)
 terminal_node:
-  next_allowed_nodes: []
+  next_allowed_nodes: []  # Workflow complete
 ```
 
-**Auto-Progression Indicators:**
+**Manual Progression Usage:**
 ```
-🤖 Auto-Progression Mode:
+**🎯 Available Next Steps:**
    • next_step: Continue to implementation phase
 
-⚡ Next Action: Call workflow_guidance (no context needed) - will auto-progress to next node
-🔧 Manual Override: Use context="choose: next_step" to proceed manually
+**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"
+**Example:** workflow_guidance(action="next", context="choose: next_step")
 ```
 
 ### Available Workflows
@@ -182,11 +178,6 @@ The system includes several pre-built workflows:
 - **Auto-Progression**: ✅ All phases auto-progress (linear workflow)
 - **Use Case**: Bug investigation, issue resolution, troubleshooting
 
-#### 4. **Auto-Progression Test Workflow** (`auto-progression-test.yaml`)
-- **Flow**: start → linear1 → linear2 → decision_point → [option_a|option_b] → final
-- **Auto-Progression**: ✅ Linear paths auto-progress, ❌ Decision point requires manual choice
-- **Use Case**: Testing and demonstrating auto-progression functionality
-
 ### Workflow Discovery Process
 
 **1. Discover Available Workflows:**
@@ -205,8 +196,8 @@ workflow_guidance(
 )
 ```
 
-**4. Auto-Progression Begins:**
-The workflow automatically progresses through linear paths while stopping at decision points.
+**4. Progression Begins:**
+The workflow automatically flows through linear paths.
 
 ### Creating Custom Workflows
 
@@ -400,31 +391,7 @@ export WORKFLOW_AUTO_APPROVE_PLANS=true
 }
 ```
 
-#### **WORKFLOW_AUTO_PROGRESSION_ENABLED** (default: `false`)
-Controls automatic progression through single-path workflow nodes:
 
-```bash
-# Enable automatic progression (Default behavior)
-export WORKFLOW_AUTO_PROGRESSION_ENABLED=true
-
-# Disable automatic progression (Require manual confirmation for all transitions)
-export WORKFLOW_AUTO_PROGRESSION_ENABLED=false
-```
-
-**MCP Configuration:**
-```json
-{
-  "mcpServers": {
-    "workflow-commander": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
-      "env": {
-        "WORKFLOW_AUTO_PROGRESSION_ENABLED": "false"
-      }
-    }
-  }
-}
-```
 
 #### **WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
 Enables local state file synchronization:
@@ -468,12 +435,11 @@ uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workfl
 
 ## Technical Details
 
-### How Auto-Progression Works
+### How Progression Works
 
 **Schema Analysis:**
 - The system analyzes each workflow node's `next_allowed_nodes`
-- Single-path nodes (1 next node) → Auto-progression enabled
-- Multi-path nodes (2+ next nodes) → Manual choice required  
+ 
 - Terminal nodes (0 next nodes) → Workflow completion
 
 **Transition Engine:**
@@ -498,15 +464,15 @@ uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workfl
   "status": "RUNNING",
   "node_history": ["analyze", "blueprint"],
   "execution_context": {},
-  "log_entries": ["🤖 Auto-transitioned: analyze → blueprint"]
+  "log_entries": ["🔄 Transitioned: analyze → blueprint"]
 }
 ```
 
-**Auto-Progression Logging:**
+**Progression Logging:**
 ```
-[11:07:13] 🤖 Auto-transitioned: analyze → blueprint
-[11:07:13] 🤖 Auto-transitioned: blueprint → construct  
-[11:07:13] ⏸️ Stopped at decision point: construct (manual choice required)
+[11:07:13] 🔄 Transitioned: analyze → blueprint
+[11:07:13] 🔄 Transitioned: blueprint → construct  
+[11:07:13] 📍 Current: construct (manual choice required)
 ```
 
 ### Required Project Files
@@ -613,33 +579,33 @@ analyze ──🤖──→ design ──🤖──→ complexity ──👤─�
 → Solution: Use exact option names from available next steps
 ```
 
-### Auto-Progression Issues
+### Progression Issues
 
-**Auto-Progression Not Working:**
-- Check if `WORKFLOW_AUTO_PROGRESSION_ENABLED=true` is set
-- Verify node has exactly one `next_allowed_node`
-- Ensure no `next_allowed_workflows` defined
-- Confirm workflow definition is valid
+**Choice Not Working:**
+- Verify context uses correct format: `context="choose: <option_name>"`
+- Check that option name exactly matches available transitions
+- Ensure workflow definition is valid
+- Confirm node allows the specified transition
 
-**Auto-Progression Disabled Message:**
+**Invalid Choice Error:**
 ```
-⚠️ Auto-Progression Disabled: Single-path node requires manual confirmation
-→ Solution: Set WORKFLOW_AUTO_PROGRESSION_ENABLED=true to enable automatic progression
-→ Alternative: Use manual choices with context="choose: <option_name>"
+❌ Invalid choice: wrong_option
+→ Solution: Use exact option names from available next steps
+→ Format: workflow_guidance(action="next", context="choose: <exact_option_name>")
 ```
 
-**Stopping at Wrong Nodes:**
+**Stuck at Node:**
 - Verify workflow YAML structure
 - Check `next_allowed_nodes` configuration  
-- Test with auto-progression test workflow
+- Ensure available transitions are properly defined
 
 ### Getting Help
 
 1. **Check Workflow State**: Use `workflow_state(operation="get")` for current status
-2. **Validate Workflow**: Use auto-progression test workflow to verify functionality  
-3. **Review Logs**: Check auto-progression transition logs for debugging
+2. **Validate Workflow**: Test workflow functionality with manual progression
+3. **Review Logs**: Check transition logs for debugging
 4. **Test Discovery**: Ensure workflow discovery process works correctly
 
 ## Acknowledgments
 
-This project was inspired by workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've evolved these ideas into a dynamic, YAML-driven MCP server with intelligent auto-progression capabilities.
+This project was inspired by workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've evolved these ideas into a dynamic, YAML-driven MCP server with structured workflow guidance and manual progression control.

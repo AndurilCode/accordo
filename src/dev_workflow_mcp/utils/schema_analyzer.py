@@ -37,48 +37,6 @@ def analyze_node_from_schema(
     }
 
 
-def should_auto_progress(node: WorkflowNode) -> bool:
-    """Check if node should automatically progress to next node.
-
-    Auto-progression occurs when:
-    - Auto-progression is enabled in configuration 
-    - Node has exactly one next_allowed_node
-    - Node has no next_allowed_workflows
-
-    Args:
-        node: The workflow node to check
-
-    Returns:
-        bool: True if node should auto-progress
-    """
-    from ..models.config import WorkflowConfig
-    
-    # Check if auto-progression is globally enabled
-    config = WorkflowConfig()
-    if not config.auto_progression_enabled:
-        return False
-    
-    next_nodes = node.next_allowed_nodes or []
-    next_workflows = node.next_allowed_workflows or []
-
-    # Auto-progress only if there's exactly one path forward and no workflow transitions
-    return len(next_nodes) == 1 and len(next_workflows) == 0
-
-
-def get_auto_transition_target(node: WorkflowNode) -> str | None:
-    """Get the automatic transition target for single-path nodes.
-
-    Args:
-        node: The workflow node to check
-
-    Returns:
-        str | None: Target node name for auto-progression, or None if not applicable
-    """
-    if should_auto_progress(node):
-        return node.next_allowed_nodes[0]
-    return None
-
-
 def get_available_transitions(
     node: WorkflowNode, workflow: WorkflowDefinition
 ) -> list[dict[str, Any]]:

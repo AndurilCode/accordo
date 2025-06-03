@@ -86,13 +86,6 @@ class WorkflowConfig(BaseModel):
         ),
         description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format. (from WORKFLOW_LOCAL_STATE_FILE_FORMAT env var)",
     )
-    auto_progression_enabled: bool = Field(
-        default_factory=lambda: os.getenv(
-            "WORKFLOW_AUTO_PROGRESSION_ENABLED", "false"
-        ).lower()
-        == "true",
-        description="Enable automatic progression through single-path workflow nodes. When disabled, all transitions require manual confirmation. (from WORKFLOW_AUTO_PROGRESSION_ENABLED env var)",
-    )
 
     @field_validator("local_state_file_format")
     @classmethod

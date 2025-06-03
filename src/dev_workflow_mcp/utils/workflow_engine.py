@@ -5,7 +5,6 @@ from typing import Any
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
 from ..utils.yaml_loader import WorkflowLoader
-from .schema_analyzer import get_auto_transition_target, should_auto_progress
 
 
 class WorkflowEngineError(Exception):
@@ -356,81 +355,6 @@ class WorkflowEngine:
         ]
 
         return is_terminal or is_completed_status
-
-    def can_auto_progress(
-        self, state: DynamicWorkflowState, workflow_def: WorkflowDefinition
-    ) -> bool:
-        """Check if current node can automatically progress to next node.
-
-        Args:
-            state: Current workflow state
-            workflow_def: Workflow definition
-
-        Returns:
-            bool: True if node can auto-progress
-        """
-        current_node = workflow_def.workflow.get_node(state.current_node)
-        if not current_node:
-            return False
-
-        return should_auto_progress(current_node)
-
-    def execute_auto_transition(
-        self,
-        state: DynamicWorkflowState,
-        workflow_def: WorkflowDefinition,
-        max_auto_depth: int = 5,
-    ) -> tuple[bool, str, list[str]]:
-        """Execute automatic transition for single-path nodes.
-
-        SAFETY: This method makes only ONE transition per call to ensure controlled progression.
-
-        Args:
-            state: Current workflow state
-            workflow_def: Workflow definition
-            max_auto_depth: Maximum number of automatic transitions to prevent loops (unused for single-step)
-
-        Returns:
-            tuple[bool, str, list[str]]: (success, final_node, transition_log)
-        """
-        transition_log = []
-
-        # Get current node
-        current_node = workflow_def.workflow.get_node(state.current_node)
-        if not current_node:
-            return False, state.current_node, transition_log
-
-        # Check if we can auto-progress
-        if not should_auto_progress(current_node):
-            # No auto-progression possible from current node
-            return True, state.current_node, transition_log
-
-        # Get the target node
-        target_node = get_auto_transition_target(current_node)
-        if not target_node:
-            return True, state.current_node, transition_log
-
-        # Validate the transition is allowed
-        is_valid, reason = self.validate_transition(
-            state, workflow_def, target_node
-        )
-        if not is_valid:
-            transition_log.append(f"❌ Auto-transition failed: {reason}")
-            return False, state.current_node, transition_log
-
-        # Execute exactly ONE transition
-        success = self.execute_transition(state, workflow_def, target_node)
-        if not success:
-            transition_log.append(
-                f"❌ Failed to execute auto-transition to {target_node}"
-            )
-            return False, state.current_node, transition_log
-
-        transition_log.append(
-            f"🤖 Auto-transitioned: {state.node_history[-1]} → {target_node}"
-        )
-
-        return True, state.current_node, transition_log
 
     def _prepare_inputs(
         self, task_description: str, workflow_def: WorkflowDefinition
