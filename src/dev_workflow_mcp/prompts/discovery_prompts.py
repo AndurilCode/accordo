@@ -247,7 +247,7 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
             },
             "complete_example": {
                 "title": "Complete Workflow Example",
-                "yaml_content": '''name: Custom Task Workflow
+                "yaml_content": """name: Custom Task Workflow
 description: Dynamically created workflow for specific task requirements
 
 inputs:
@@ -349,7 +349,7 @@ workflow:
         quality_confirmed: "Quality standards met and verified"
         deliverables_ready: "Documentation and deliverables prepared"
       next_allowed_nodes: []
-''',
+""",
             },
             "creation_instructions": {
                 "title": "🎯 **WORKFLOW CREATION GUIDANCE**",
