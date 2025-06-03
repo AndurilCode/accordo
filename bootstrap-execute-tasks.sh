@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Bootstrap Execute-Tasks Configuration Script
-# Deploys execute-tasks guidelines to multiple AI assistants
+# Deploys dynamic workflow system guidelines to multiple AI assistants
 # Usage: ./bootstrap-execute-tasks.sh [cursor|copilot|claude|all]
 
 set -euo pipefail
@@ -22,16 +22,53 @@ alwaysApply: true
 
 ### When to Use Workflow Tools
 - **Simple tasks**: Handle directly without tools (e.g., basic calculations, straightforward code edits, simple explanations)
-- **Complex tasks**: Always use `init_workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+- **Complex tasks**: Always use `workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+
+### Dynamic Workflow System
+The workflow system is now fully dynamic and schema-driven:
+
+1. **Workflow Discovery**: The system automatically discovers available workflows from `.workflow-commander/workflows/` directory
+2. **Agent Choice**: You choose which workflow to use based on the task requirements - no automated scoring
+3. **Schema-Driven Navigation**: Workflow transitions are determined by the YAML schema (`next_allowed_nodes` and `next_allowed_workflows`)
+4. **Context Parameters**: Control workflow execution using context like `context="choose: node_name"` or `context="workflow: Workflow Name"`
+
+### Workflow Discovery Process
+**⚠️ CRITICAL START POINT:** For complex tasks, ALWAYS begin with workflow discovery:
+
+1. **First Step - Discover Available Workflows:**
+   ```
+   workflow_discovery(task_description="Your task description")
+   ```
+   This shows all available YAML workflows and their capabilities.
+
+2. **Second Step - Start Selected Workflow:**
+   ```
+   workflow_guidance(action="start", context="workflow: <chosen_workflow_name>")
+   ```
+
+3. **Continue with Schema Navigation:**
+   Use `workflow_guidance` with `context="choose: <option>"` to navigate workflow nodes.
 
 ### Workflow Execution Process
-1. **Initialize**: When using `init_workflow_guidance`, carefully read the returned instructions and follow them precisely
-2. **Follow guidance**: Execute all instructions from tools ending with "_guidance" exactly as specified
-3. **Stay synchronized**: The workflow state file is your source of truth - keep it current throughout the process
+1. **Mandatory Discovery**: ALWAYS start with `workflow_discovery()` for complex tasks
+2. **Select Workflow**: Choose based on task requirements and workflow descriptions
+3. **Initialize Session**: Use `workflow_guidance(action="start", context="workflow: Name")`
+4. **Follow Schema**: Navigate using transitions defined in YAML schema
+5. **Agent-Driven Navigation**: Make routing decisions based on schema-presented options
+
+### Available Tools
+- `workflow_discovery`: Discover and view available YAML workflows (START HERE)
+- `workflow_guidance`: Main tool for dynamic workflow execution with agent-driven workflow selection
+- `workflow_state`: Tool for checking and updating workflow state
+- Context7: Use for up-to-date documentation about technologies
+- GitHub: Read files from other repositories when needed
 
 ### Key Principles
-- The response from workflow guidance tools contains your execution plan - treat it as authoritative
-- Don't skip steps or improvise when following workflow instructions
+- **Discovery-first approach**: ALWAYS start with `workflow_discovery()` for complex tasks
+- **No hardcoded routing**: All workflow behavior is determined by YAML schema definitions
+- **Agent-driven selection**: You choose workflows and transitions based on schema-presented options
+- **Schema as source of truth**: Workflow definitions in YAML files drive all behavior
+- **Legacy fallback preserved**: System falls back to legacy workflows when no YAML workflows are available
 - If uncertain whether a task is "simple," err on the side of using the workflow tool
 EOF
 
@@ -41,20 +78,53 @@ read -r -d '' CORE_CONTENT << 'EOF' || true
 
 ### When to Use Workflow Tools
 - **Simple tasks**: Handle directly without tools (e.g., basic calculations, straightforward code edits, simple explanations)
-- **Complex tasks**: Always use `init_workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+- **Complex tasks**: Always use `workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+
+### Dynamic Workflow System
+The workflow system is now fully dynamic and schema-driven:
+
+1. **Workflow Discovery**: The system automatically discovers available workflows from `.workflow-commander/workflows/` directory
+2. **Agent Choice**: You choose which workflow to use based on the task requirements - no automated scoring
+3. **Schema-Driven Navigation**: Workflow transitions are determined by the YAML schema (`next_allowed_nodes` and `next_allowed_workflows`)
+4. **Context Parameters**: Control workflow execution using context like `context="choose: node_name"` or `context="workflow: Workflow Name"`
+
+### Workflow Discovery Process
+**⚠️ CRITICAL START POINT:** For complex tasks, ALWAYS begin with workflow discovery:
+
+1. **First Step - Discover Available Workflows:**
+   ```
+   workflow_discovery(task_description="Your task description")
+   ```
+   This shows all available YAML workflows and their capabilities.
+
+2. **Second Step - Start Selected Workflow:**
+   ```
+   workflow_guidance(action="start", context="workflow: <chosen_workflow_name>")
+   ```
+
+3. **Continue with Schema Navigation:**
+   Use `workflow_guidance` with `context="choose: <option>"` to navigate workflow nodes.
 
 ### Workflow Execution Process
-1. **Initialize**: When using `init_workflow_guidance`, carefully read the returned instructions and follow them precisely
-2. **Follow guidance**: Execute all instructions from tools ending with "_guidance" exactly as specified
-3. **Stay synchronized**: The workflow state file is your source of truth - keep it current throughout the process
+1. **Mandatory Discovery**: ALWAYS start with `workflow_discovery()` for complex tasks
+2. **Select Workflow**: Choose based on task requirements and workflow descriptions
+3. **Initialize Session**: Use `workflow_guidance(action="start", context="workflow: Name")`
+4. **Follow Schema**: Navigate using transitions defined in YAML schema
+5. **Agent-Driven Navigation**: Make routing decisions based on schema-presented options
 
-### Tooling
-1. **Context7**: Use context7 tool when you need more info about latest documentation about specific technologies(for instance: python, node, typescript). Try to search when required.
-2. **GitHub**: Read files from other repositories using GitHub tools, when required.
+### Available Tools
+- `workflow_discovery`: Discover and view available YAML workflows (START HERE)
+- `workflow_guidance`: Main tool for dynamic workflow execution with agent-driven workflow selection
+- `workflow_state`: Tool for checking and updating workflow state
+- Context7: Use for up-to-date documentation about technologies
+- GitHub: Read files from other repositories when needed
 
 ### Key Principles
-- The response from workflow guidance tools contains your execution plan - treat it as authoritative
-- Don't skip steps or improvise when following workflow instructions
+- **Discovery-first approach**: ALWAYS start with `workflow_discovery()` for complex tasks
+- **No hardcoded routing**: All workflow behavior is determined by YAML schema definitions
+- **Agent-driven selection**: You choose workflows and transitions based on schema-presented options
+- **Schema as source of truth**: Workflow definitions in YAML files drive all behavior
+- **Legacy fallback preserved**: System falls back to legacy workflows when no YAML workflows are available
 - If uncertain whether a task is "simple," err on the side of using the workflow tool
 EOF
 
@@ -106,9 +176,12 @@ EXAMPLES:
     $0 copilot claude     # Deploy to Copilot and Claude
 
 DESCRIPTION:
-    This script deploys execute-tasks guidelines (embedded in the script)
+    This script deploys dynamic workflow system guidelines (embedded in the script)
     to the appropriate configuration files for different AI code assistants.
     It checks if content already exists and only appends if the content is missing.
+    
+    The guidelines describe the new schema-driven workflow system where agents
+    discover available workflows and make routing decisions based on YAML schemas.
     
     Cursor receives the full content including YAML frontmatter.
     GitHub Copilot and Claude receive only the core guidelines content.

@@ -50,7 +50,54 @@ python -m build
 python -m src.dev_workflow_mcp.server
 ```
 
+## Documentation Maintenance Plan
+
+### README.md Maintenance Responsibilities
+- **Primary Maintainer**: Project lead responsible for major structural updates
+- **Feature Owners**: Developers implementing new features must update relevant documentation sections
+- **Release Manager**: Updates version-specific information and examples before releases
+
+### Update Triggers
+Documentation should be updated when:
+1. **New Features**: Any new workflow capabilities, tools, or auto-progression enhancements
+2. **API Changes**: Changes to workflow_guidance, workflow_state, or discovery tools
+3. **Workflow Updates**: New YAML workflows or changes to existing workflow definitions
+4. **Configuration Changes**: Environment variables, MCP setup, or installation procedures
+5. **Breaking Changes**: Any changes that affect existing user workflows or configurations
+
+### Maintenance Process
+1. **Feature Development**: Developer updates documentation as part of feature implementation
+2. **Review Process**: Documentation changes reviewed alongside code changes in PRs
+3. **Testing**: Validate all code examples and installation instructions work correctly
+4. **Release Updates**: Update changelog and version-specific information before releases
+
+### Key Sections Requiring Regular Updates
+- **Available Workflows**: Keep workflow descriptions current with actual YAML files
+- **Code Examples**: Ensure all examples work with current implementation
+- **Auto-Progression Features**: Update as auto-progression capabilities evolve
+- **Installation Instructions**: Verify setup procedures work across platforms
+- **Troubleshooting**: Add new issues and solutions as they're discovered
+
+### Quality Assurance
+- **Quarterly Reviews**: Comprehensive documentation review every quarter
+- **Link Validation**: Regular checks that all links and references are current
+- **Example Testing**: Periodic testing of all code examples in clean environments
+- **User Feedback**: Incorporate feedback from documentation users and community
+
+### Documentation Architecture Notes
+- **Modular Structure**: Each major feature has dedicated sections for easy updates
+- **Auto-Progression Focus**: Prominently features the key differentiating capability
+- **Discovery-First Approach**: Emphasizes the modern workflow discovery process
+- **YAML-Driven System**: Reflects the current pure YAML architecture without legacy references
+
 ## Changelog
+- [2025-06-03] Completely rewrote README to reflect modern dynamic YAML workflow system, removing all legacy references and highlighting auto-progression feature with comprehensive usage examples and troubleshooting guide
+- [2025-06-03] Implemented automatic workflow progression for linear paths, enabling workflows to automatically advance through single-path nodes while preserving manual control for decision points and terminal nodes
+- [2025-06-02] Fixed missing WorkflowLoadError class and updated discovery_prompts.py to work with pure discovery system by removing hardcoded scoring methods and enabling agent-driven workflow selection without automated scoring algorithms
+- [2025-06-02] Enhanced documentation.yaml and debugging.yaml workflows with highly authoritative guidance following same pattern as default-coding workflow, including mandatory progress logging in create_docs and develop_fix phases for comprehensive tracking and validation
+- [2025-06-02] Enhanced default-coding.yaml workflow with highly authoritative and specific execution guidance, including mandatory progress logging in construct phase requiring workflow_state tool calls after every major step to ensure proper tracking and validation
+- [2025-06-02] Updated bootstrap-execute-tasks.sh to deploy guidelines for the new dynamic workflow system, replacing hardcoded workflow instructions with schema-driven discovery and agent-controlled workflow selection documentation
+- [2025-06-02] Transformed hardcoded YAML workflow system into truly dynamic schema-driven architecture by eliminating all hardcoded routing logic, implementing pure schema analysis, and enabling agent-driven workflow selection while preserving legacy fallback compatibility
 - [2025-05-30] Implemented standardized task_description parameter format validation with "Action: Brief description" pattern across all 6 phase prompt tools, including comprehensive Field documentation and helpful error messages for non-conforming formats
 - Added WORKFLOW_AUTO_APPROVE_PLANS environment variable to enable automatic blueprint approval, allowing workflows to bypass manual user approval and transition directly from blueprint to construction phase when set to "true"
 - Enhanced all four core phase prompts (analyze, blueprint, construct, validate) with mandatory validation checklists, explicit anti-patterns, detailed examples, escalation triggers, and comprehensive verification procedures to provide clearer agent guidance and reduce workflow divergence

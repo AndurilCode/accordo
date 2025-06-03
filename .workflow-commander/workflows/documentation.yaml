@@ -1,0 +1,241 @@
+name: Documentation Workflow
+description: Specialized workflow for documentation creation, updates, and maintenance tasks
+
+inputs:
+  task_description:
+    type: string
+    description: Documentation task provided by the user
+    required: true
+  documentation_type:
+    type: string
+    description: Type of documentation (API, user guide, README, etc.)
+    required: false
+    default: "general"
+
+execution:
+  max_depth: 8
+  allow_backtracking: true
+
+workflow:
+  goal: Create or update documentation with proper structure, content, and validation
+
+  root: analyze_docs
+
+  tree:
+    # Analyze documentation requirements
+    analyze_docs:
+      goal: |
+        **MANDATORY ANALYZE_DOCS PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TYPE:** ${{ inputs.documentation_type }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. REVIEW EXISTING DOCUMENTATION** ⚠️ MANDATORY
+           - MUST examine current documentation structure and organization
+           - MUST understand existing style guides and formatting standards
+           - MUST identify what documentation already exists
+           - MUST assess quality and completeness of current docs
+
+        **2. IDENTIFY DOCUMENTATION GAPS** ⚠️ MANDATORY
+           - MUST analyze what documentation is missing or outdated
+           - MUST identify areas where users struggle or get confused
+           - MUST determine priority areas for documentation improvement
+           - MUST assess technical accuracy of existing content
+
+        **3. DEFINE SCOPE AND REQUIREMENTS** ⚠️ MANDATORY
+           - MUST clearly define boundaries of documentation task
+           - MUST identify target audience and their needs
+           - MUST determine format requirements (markdown, wiki, etc.)
+           - MUST understand integration points with existing docs
+
+        **4. ANALYZE TECHNICAL CONTENT** ⚠️ MANDATORY
+           - MUST examine relevant code and implementation details
+           - MUST understand technical concepts that need documentation
+           - MUST identify examples and use cases to include
+           - MUST verify current implementation against existing docs
+
+        **DO NOT:** Write any documentation content during analysis phase.
+        **FOCUS:** Understanding requirements and planning foundation only.
+      acceptance_criteria:
+        existing_docs_review: "Complete review of current documentation structure, content quality, and organization standards"
+        gap_analysis: "Detailed identification of documentation gaps, missing content, and priority improvement areas"
+        scope_definition: "Clear scope boundaries, target audience needs, and format requirements defined"
+        audience_identification: "Target audience profiles, use cases, and specific needs documented"
+        format_requirements: "Documentation format, style guide, and integration requirements specified"
+      next_allowed_nodes: [plan_docs]
+
+    # Plan documentation structure and content
+    plan_docs:
+      goal: |
+        **MANDATORY PLAN_DOCS PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TYPE:** ${{ inputs.documentation_type }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. CREATE COMPREHENSIVE OUTLINE** ⚠️ MANDATORY
+           - MUST develop detailed section-by-section outline
+           - MUST organize content in logical, user-friendly sequence
+           - MUST define headings, subheadings, and content hierarchy
+           - MUST plan content flow and navigation structure
+
+        **2. DEFINE CONTENT STRATEGY** ⚠️ MANDATORY
+           - MUST specify approach for each section (tutorials, reference, examples)
+           - MUST plan integration of code examples and demonstrations
+           - MUST determine visual elements needed (diagrams, screenshots)
+           - MUST define content depth and technical level for audience
+
+        **3. PLAN EXAMPLES AND ILLUSTRATIONS** ⚠️ MANDATORY
+           - MUST identify specific code examples needed for each section
+           - MUST plan diagrams, flowcharts, or visual aids required
+           - MUST design example scenarios and use cases
+           - MUST ensure examples cover common and edge cases
+
+        **4. ESTABLISH QUALITY CRITERIA** ⚠️ MANDATORY
+           - MUST define validation criteria for content accuracy
+           - MUST establish style and formatting standards
+           - MUST plan review and testing procedures
+           - MUST set completeness and usability benchmarks
+
+        **FORMAT:** Plan must be detailed enough for systematic content creation.
+      acceptance_criteria:
+        content_outline: "Detailed section-by-section outline with clear hierarchy and logical content flow"
+        content_strategy: "Comprehensive strategy covering approach, technical depth, and integration methods"
+        example_plan: "Specific plan for code examples, diagrams, use cases, and visual elements"
+        style_guide: "Documentation style guide, formatting standards, and consistency requirements"
+        validation_criteria: "Clear criteria for content accuracy, completeness, and quality validation"
+      next_allowed_nodes: [create_docs]
+
+    # Create documentation content
+    create_docs:
+      goal: |
+        **MANDATORY CREATE_DOCS PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TYPE:** ${{ inputs.documentation_type }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. EXECUTE CONTENT PLAN SYSTEMATICALLY** ⚠️ MANDATORY
+           - MUST create each section in planned sequence
+           - MUST complete each section fully before proceeding
+           - MUST follow approved outline and content strategy
+           - MUST maintain consistent style and formatting throughout
+
+        **2. MANDATORY PROGRESS LOGGING** ⚠️ CRITICAL
+           - MUST call workflow_state tool after EVERY major section completion
+           - MUST log: `workflow_state(operation="update", updates='{"log_entry": "Section X: [description] - [status]"}')`
+           - MUST capture validation results for each section
+           - MUST document any deviations from plan with rationale
+
+        **3. VERIFY CONTENT ACCURACY** ⚠️ MANDATORY
+           - MUST test all code examples and verify they work
+           - MUST validate technical accuracy against implementation
+           - MUST ensure examples cover specified use cases
+           - MUST check all links and references are correct
+
+        **4. MAINTAIN QUALITY STANDARDS** ⚠️ MANDATORY
+           - MUST follow established style guide consistently
+           - MUST ensure clear, concise, and accessible writing
+           - MUST validate formatting and presentation standards
+           - MUST review for completeness and usability
+
+        **ERROR HANDLING:** If any section fails validation, must fix before proceeding.
+
+        **PROGRESS TRACKING:** Must maintain detailed log of all content creation using workflow_state tool.
+      acceptance_criteria:
+        content_creation: "All planned sections and content created according to approved outline and strategy"
+        code_examples: "Relevant code examples and usage demonstrations included, tested, and verified"
+        formatting_consistency: "Consistent formatting and style maintained throughout all content"
+        accuracy_verification: "Technical accuracy verified against implementation with working examples"
+        completeness_check: "All required sections, information, and examples included per plan"
+        progress_logging: "Complete log of section creation maintained in workflow_state with validation results"
+      next_allowed_nodes: [review_docs]
+
+    # Review and validate documentation
+    review_docs:
+      goal: |
+        **MANDATORY REVIEW_DOCS PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TYPE:** ${{ inputs.documentation_type }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. COMPREHENSIVE CONTENT REVIEW** ⚠️ MANDATORY
+           - MUST review all content for clarity and accuracy
+           - MUST verify technical information is correct and current
+           - MUST ensure content serves target audience needs
+           - MUST check for gaps, inconsistencies, or errors
+
+        **2. VALIDATE ALL LINKS AND REFERENCES** ⚠️ MANDATORY
+           - MUST test every link to ensure it works correctly
+           - MUST verify all code references are accurate
+           - MUST check cross-references within documentation
+           - MUST validate external resource references
+
+        **3. TEST ALL EXAMPLES AND PROCEDURES** ⚠️ MANDATORY
+           - MUST execute every code example to verify functionality
+           - MUST follow step-by-step procedures to ensure accuracy
+           - MUST test examples in clean environment
+           - MUST verify examples work for target audience skill level
+
+        **4. USABILITY AND ACCESSIBILITY CHECK** ⚠️ MANDATORY
+           - MUST ensure documentation is easy to navigate
+           - MUST verify content is accessible to target audience
+           - MUST check that examples are clear and understandable
+           - MUST ensure comprehensive coverage of use cases
+
+        **QUALITY ASSURANCE:** All content must meet professional documentation standards.
+      acceptance_criteria:
+        content_review: "Documentation thoroughly reviewed for clarity, accuracy, and target audience appropriateness"
+        link_validation: "All links, references, and cross-references validated and confirmed working"
+        example_testing: "All code examples and procedures tested and verified in clean environment"
+        usability_check: "Documentation tested for usability, navigation, and comprehensive coverage"
+        final_formatting: "Final formatting, presentation, and accessibility standards met"
+      next_allowed_nodes: [finalize_docs]
+
+    # Finalize documentation
+    finalize_docs:
+      goal: |
+        **MANDATORY FINALIZE_DOCS PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TYPE:** ${{ inputs.documentation_type }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. INTEGRATE WITH PROJECT STRUCTURE** ⚠️ MANDATORY
+           - MUST properly integrate documentation into project organization
+           - MUST ensure documentation follows project conventions
+           - MUST update navigation and table of contents
+           - MUST verify documentation is discoverable
+
+        **2. UPDATE DOCUMENTATION INDEX** ⚠️ MANDATORY
+           - MUST update main documentation index or README
+           - MUST add appropriate links and navigation
+           - MUST ensure new content is properly categorized
+           - MUST maintain documentation hierarchy and organization
+
+        **3. ENSURE DISCOVERABILITY** ⚠️ MANDATORY
+           - MUST verify documentation is easily found by users
+           - MUST test search functionality if applicable
+           - MUST ensure proper tagging and categorization
+           - MUST validate accessibility from main project entry points
+
+        **4. DOCUMENT MAINTENANCE PLAN** ⚠️ MANDATORY
+           - MUST create plan for keeping documentation current
+           - MUST identify responsibility for ongoing updates
+           - MUST document process for future maintenance
+           - MUST provide summary of completed work
+
+        **FINAL STATUS:** Documentation successfully completed and integrated.
+      acceptance_criteria:
+        integration_complete: "Documentation fully integrated with project structure and conventions"
+        index_update: "Project documentation index updated with proper navigation and organization"
+        discoverability_check: "Documentation easily discoverable and accessible from project entry points"
+        maintenance_plan: "Comprehensive plan for ongoing documentation maintenance documented"
+        completion_summary: "Complete summary of documentation work performed and outcomes achieved" 

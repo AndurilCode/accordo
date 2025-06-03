@@ -42,8 +42,8 @@ def sample_workflow_state() -> WorkflowState:
             WorkflowItem(id=1, description="First task", status="pending"),
             WorkflowItem(id=2, description="Second task", status="completed"),
         ],
-        log="Test log entry",
-        archive_log="Archived log",
+        log=["Test log entry"],
+        archive_log=["Archived log"],
     )
 
 
