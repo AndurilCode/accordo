@@ -1,22 +1,32 @@
-# Development Workflow MCP Server
+# Workflow Commander MCP Server
 
-A fast, Rust-powered MCP (Model Context Protocol) server that provides structured workflow guidance for coding agents. This server helps prevent hallucinations and ensures consistent, methodical development by providing step-by-step **mandatory execution guidance** through defined phases.
+A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features intelligent **auto-progression** through linear workflow paths while preserving manual control for decision points.
 
 ## What This Does
 
-This server guides AI coding agents through a disciplined development process:
-- **ANALYZE** → **BLUEPRINT** → **CONSTRUCT** → **VALIDATE** phases
-- **Mandatory guidance** with authoritative instructions agents must follow exactly
-- **Error recovery** and built-in quality gates
-- **Multi-item processing** for complex projects
+This server guides AI agents through structured, schema-driven development workflows:
+- **📋 Dynamic YAML Workflows**: Custom workflows defined in YAML with schema-driven execution
+- **🤖 Auto-Progression**: Automatically advances through single-path nodes, stops at decision points  
+- **🔍 Discovery-First**: Automatically discovers and selects appropriate workflows based on task
+- **⚡ Real-time State**: Live workflow state tracking with comprehensive session management
+- **🎯 Mandatory Guidance**: Authoritative phase-by-phase instructions agents must follow
+
+## Key Features
+
+- **🚀 Auto-Progression**: Workflows automatically flow through linear paths until reaching decision points or completion
+- **📋 YAML-Driven**: Fully customizable workflows defined in YAML with schema validation
+- **🔍 Smart Discovery**: Automatic workflow discovery and selection based on task requirements  
+- **🎯 Guided Execution**: Phase-by-phase mandatory guidance with acceptance criteria
+- **📊 Real-time Tracking**: Live workflow state with detailed progress logging
+- **🔧 Decision Control**: Manual control preserved for branching decisions and complex choices
+- **🛡️ Error Recovery**: Built-in error handling and validation at each phase
+- **📝 Session Management**: Persistent workflow sessions with automatic state synchronization
 
 ## Prerequisites
 
-Before using this workflow server, ensure you have the following installed:
-
 ### Required: uv (Python Package Manager)
 
-This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management. Install uv first:
+Install [uv](https://docs.astral.sh/uv/) for fast Python package management:
 
 **On macOS and Linux:**
 ```bash
@@ -28,7 +38,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-**Alternative installation methods:**
+**Alternative methods:**
 ```bash
 # With pip
 pip install uv
@@ -38,15 +48,6 @@ pipx install uv
 
 # With Homebrew (macOS)
 brew install uv
-
-# With Pacman (Arch Linux)
-pacman -S uv
-```
-
-After installation, restart your terminal or add uv to your PATH:
-```bash
-# Add to ~/.bashrc, ~/.zshrc, etc.
-export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Verify installation:
@@ -54,17 +55,9 @@ Verify installation:
 uv --version
 ```
 
-### Optional: Node.js (for some MCP clients)
-
-Some MCP clients may require Node.js. Install from [nodejs.org](https://nodejs.org/) if needed.
-
 ## Quick Start
 
-**Get productive in 3 steps:**
-
 ### 1. Configure Your MCP Client
-
-Add this to your MCP client configuration file:
 
 **For Cursor** (`.cursor/mcp.json` or `%APPDATA%\Cursor\User\mcp.json`):
 ```json
@@ -91,74 +84,137 @@ Add this to your MCP client configuration file:
 }
 ```
 
-### 2. Configure AI Assistant Guidelines (Optional but Recommended)
+### 2. Discover and Start Workflows
 
-Run this one-liner in any project directory to set up execute-tasks guidelines:
+**Discovery-First Approach:**
+```
+# 1. Discover available workflows
+workflow_discovery(task_description="Add: user authentication to my API")
 
-```bash
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash
+# 2. Start selected workflow (agent chooses appropriate workflow)
+workflow_guidance(action="start", context="workflow: Default Coding Workflow\nyaml: <discovered_yaml_content>")
+
+# 3. Workflow auto-progresses through linear phases!
 ```
 
-This deploys configuration files that instruct AI assistants to:
-- Use workflow guidance tools for complex tasks
-- Follow mandatory execution instructions precisely  
-- Maintain proper workflow state synchronization
+### 3. Experience Auto-Progression
 
-### 3. Start Using
-
-Restart your MCP client and start a workflow:
-
+The workflow automatically flows through linear paths:
 ```
-# In your AI assistant
-init_workflow_guidance(task_description="Add user authentication to my API")
+Start → Auto-progress through single-path nodes → Stop at decision point → Manual choice → Auto-progress to completion
 ```
 
-The workflow will guide you through each phase automatically!
+**Example Auto-Progression Flow:**
+```
+analyze ──🤖──→ blueprint ──🤖──→ construct ──🤖──→ validate ──🤖──→ complete
+          auto      auto        auto         auto
+```
 
-## Features
+**Decision Point Example:**
+```
+decision_point ──👤──→ option_a ──🤖──→ final
+               │  manual
+               └──👤──→ option_b ──🤖──→ final
+                  manual    auto
+```
 
-- **🚀 Structured Workflow**: ANALYZE → BLUEPRINT → CONSTRUCT → VALIDATE phases
-- **⚡ Mandatory Guidance**: Authoritative instructions that agents must execute exactly
-- **🔗 Prompt Chaining**: Each guidance tool explicitly specifies the next tool to call
-- **🛡️ Error Recovery**: Built-in error handling and recovery guidance
-- **📝 Multi-Item Processing**: Supports iterating through multiple workflow items
-- **📋 Changelog Integration**: Automatically updates project changelog
-- **⚙️ Auto-Approval**: Optional automatic blueprint approval for streamlined workflows
-- **🔧 YAML Workflows**: Define custom workflows with YAML configuration files
-- **🎯 Dynamic Workflow Discovery**: Automatically selects appropriate workflows based on task descriptions
-- **🌟 Workflow Templates**: Create new workflows from templates (linear, branching, or custom)
-
-## YAML Workflow System
-
-The dev-workflow-mcp server now supports **dynamic YAML-defined workflows** alongside the traditional hardcoded workflow. This allows you to create custom workflows tailored to specific types of tasks.
+## Dynamic YAML Workflow System
 
 ### Overview
 
-YAML workflows provide:
-- **Flexible workflow definitions** with custom nodes and transitions
-- **Automatic workflow discovery** based on task descriptions
-- **Template system** for creating new workflows
-- **Backward compatibility** with existing sessions
-- **Dynamic state management** that adapts to any workflow structure
+The workflow system is **purely YAML-driven** with the following architecture:
 
-### Workflow Discovery
+- **🔍 Discovery-First**: Agent must discover workflows before starting
+- **🤖 Auto-Progression**: Automatically advances through linear workflow paths  
+- **📋 Schema-Driven**: All behavior determined by YAML workflow definitions
+- **🎯 Agent-Controlled**: Agent selects workflows based on task requirements
+- **📊 Dynamic State**: Real-time session management with persistent state
 
-The server automatically discovers and selects appropriate workflows from the `.workflow-commander/workflows` directory:
+### Auto-Progression Feature
 
-```bash
-# Example workflow discovery tools:
-workflow_discovery(task_description="Add user authentication")
-list_available_workflows()
-validate_workflow_file("path/to/workflow.yaml")
+**How Auto-Progression Works:**
+
+1. **Single-Path Nodes**: Nodes with exactly one `next_allowed_node` automatically progress
+2. **Decision Points**: Nodes with multiple `next_allowed_nodes` require manual choice
+3. **Terminal Nodes**: Nodes with no `next_allowed_nodes` end the workflow
+4. **Safety Limits**: Maximum auto-transition depth prevents infinite loops
+
+**Auto-Progression Rules:**
+```yaml
+# ✅ Auto-progresses (single path)
+single_path_node:
+  next_allowed_nodes: [next_step]
+
+# ❌ Requires manual choice (multiple paths)  
+decision_node:
+  next_allowed_nodes: [option_a, option_b, option_c]
+
+# 🏁 Workflow completion (no paths)
+terminal_node:
+  next_allowed_nodes: []
 ```
 
-### Creating YAML Workflows
+**Auto-Progression Indicators:**
+```
+🤖 Auto-Progression Mode:
+   • next_step: Continue to implementation phase
 
-#### Basic Structure
+⚡ Next Action: Call workflow_guidance (no context needed) - will auto-progress to next node
+🔧 Manual Override: Use context="choose: next_step" to proceed manually
+```
+
+### Available Workflows
+
+The system includes several pre-built workflows:
+
+#### 1. **Default Coding Workflow** (`default-coding.yaml`)
+- **Flow**: analyze → blueprint → construct → validate → complete
+- **Auto-Progression**: ✅ All phases auto-progress (linear workflow)
+- **Use Case**: Standard development tasks, feature implementation, bug fixes
+
+#### 2. **Documentation Workflow** (`documentation.yaml`)  
+- **Flow**: analyze_docs → plan_docs → create_docs → review_docs → finalize_docs
+- **Auto-Progression**: ✅ All phases auto-progress (linear workflow)
+- **Use Case**: Documentation creation, README updates, API documentation
+
+#### 3. **Debugging Workflow** (`debugging.yaml`)
+- **Flow**: investigate → analyze_root_cause → develop_fix → test_fix → validate_solution → finalize_bugfix  
+- **Auto-Progression**: ✅ All phases auto-progress (linear workflow)
+- **Use Case**: Bug investigation, issue resolution, troubleshooting
+
+#### 4. **Auto-Progression Test Workflow** (`auto-progression-test.yaml`)
+- **Flow**: start → linear1 → linear2 → decision_point → [option_a|option_b] → final
+- **Auto-Progression**: ✅ Linear paths auto-progress, ❌ Decision point requires manual choice
+- **Use Case**: Testing and demonstrating auto-progression functionality
+
+### Workflow Discovery Process
+
+**1. Discover Available Workflows:**
+```python
+workflow_discovery(task_description="Add: user authentication system")
+```
+
+**2. Agent Examines Options:**
+The system shows available workflows with their capabilities and suitability for the task.
+
+**3. Start Selected Workflow:**
+```python
+workflow_guidance(
+    action="start", 
+    context="workflow: Default Coding Workflow\nyaml: <complete_yaml_content>"
+)
+```
+
+**4. Auto-Progression Begins:**
+The workflow automatically progresses through linear paths while stopping at decision points.
+
+### Creating Custom Workflows
+
+#### Basic YAML Structure
 
 ```yaml
 name: My Custom Workflow
-description: Workflow for specific task types
+description: Workflow description
 
 inputs:
   task_description:
@@ -172,216 +228,169 @@ execution:
 
 workflow:
   goal: Overall workflow objective
-  root: start_node  # Starting node
+  root: start_node
   
   tree:
     start_node:
       goal: |
-        What this node should accomplish.
+        What this node accomplishes.
         Use ${{ inputs.task_description }} for dynamic content.
       acceptance_criteria:
-        first_check: "Description of completion requirement"
-        second_check: "Another requirement"
-      next_allowed_nodes: [next_node]
+        completion_check: "What constitutes completion"
+      next_allowed_nodes: [next_node]  # Auto-progresses
     
-    next_node:
-      goal: "Goal for the next step"
-      acceptance_criteria:
-        completion: "What constitutes completion"
-      next_allowed_nodes: []  # Terminal node
+    decision_node:
+      goal: "Make a choice between options"
+      next_allowed_nodes: [option_a, option_b]  # Requires manual choice
+      
+    terminal_node:
+      goal: "Final step"
+      next_allowed_nodes: []  # Workflow ends
 ```
 
-#### Available Default Workflows
+#### Auto-Progression Design Guidelines
 
-The server includes several pre-built workflows:
-
-1. **Default Coding Workflow** (`default-coding.yaml`)
-   - Standard development workflow (analyze → blueprint → construct → validate → complete)
-   - Equivalent to the traditional hardcoded workflow
-
-2. **Documentation Workflow** (`documentation.yaml`)
-   - Specialized for documentation tasks (analyze_docs → plan_docs → create_docs → review_docs → finalize_docs)
-
-3. **Debugging Workflow** (`debugging.yaml`)
-   - Focused on bug fixing (investigate → analyze_root_cause → develop_fix → test_fix → validate_solution → finalize_bugfix)
-
-### Workflow Templates
-
-Create new workflows using the template system:
-
-#### Using the Template Generator
-
-```python
-from dev_workflow_mcp.utils.template_generator import create_workflow_template
-
-# Create a linear workflow
-create_workflow_template(
-    workflow_name="My Linear Workflow",
-    description="Simple step-by-step workflow",
-    workflow_type="linear"  # Creates: analyze → plan → execute → validate
-)
-
-# Create a branching workflow
-create_workflow_template(
-    workflow_name="Decision Tree Workflow", 
-    description="Workflow with decision points",
-    workflow_type="branching"  # Creates workflow with multiple paths
-)
-
-# Create from custom template
-create_workflow_template(
-    workflow_name="Custom Workflow",
-    description="Workflow based on template",
-    workflow_type="custom"  # Uses the base template
-)
+**For Linear Workflows:**
+```yaml
+# Each node has exactly one next_allowed_node
+phase1: { next_allowed_nodes: [phase2] }
+phase2: { next_allowed_nodes: [phase3] } 
+phase3: { next_allowed_nodes: [complete] }
+complete: { next_allowed_nodes: [] }
 ```
 
-#### Manual Template Customization
+**For Decision Workflows:**
+```yaml
+# Mix linear and decision nodes
+start: { next_allowed_nodes: [analyze] }      # Auto-progresses
+analyze: { next_allowed_nodes: [decision] }   # Auto-progresses  
+decision: { next_allowed_nodes: [a, b, c] }   # Manual choice required
+option_a: { next_allowed_nodes: [final] }     # Auto-progresses
+final: { next_allowed_nodes: [] }             # Terminal
+```
 
-1. Copy the template: `src/dev_workflow_mcp/templates/workflow_template.yaml`
-2. Customize the workflow definition
-3. Save to `.workflow-commander/workflows/your-workflow.yaml`
-4. Test with `validate_workflow_file("your-workflow.yaml")`
+**Best Practices:**
+- Use single `next_allowed_node` for automatic progression
+- Use multiple `next_allowed_nodes` only for genuine decision points
+- Keep decision points focused and clearly documented
+- Test auto-progression flows with the test workflow
 
 ### Workflow Directory Structure
 
 ```
 .workflow-commander/
-├── workflows/                    # Custom workflow definitions
-│   ├── default-coding.yaml      # Standard coding workflow
+├── workflows/                    # YAML workflow definitions
+│   ├── default-coding.yaml      # Standard coding workflow  
 │   ├── documentation.yaml       # Documentation workflow
 │   ├── debugging.yaml           # Debugging workflow
+│   ├── auto-progression-test.yaml # Auto-progression testing
 │   └── your-custom.yaml         # Your custom workflows
-├── workflow_state.json          # Current workflow state
+├── workflow_state.json          # Current session state (auto-managed)
 └── project_config.md            # Project configuration
 ```
 
-### Dynamic vs Legacy Workflows
+## Usage Guide
 
-The server automatically chooses the appropriate system:
+### Core Tools
 
-- **Dynamic YAML Workflows**: Used when YAML workflows are available and match the task
-- **Legacy Hardcoded Workflow**: Used for existing sessions or when no suitable YAML workflow is found
-- **Seamless Integration**: Both systems work with the same `workflow_guidance` tools
+The server provides two primary tools:
 
-### YAML Workflow Features
+#### **workflow_guidance** - Main Workflow Control
+```python
+# Start workflow (discovery-first required)
+workflow_guidance(action="start", task_description="Add: feature name")
 
-#### Input Variables
-Reference workflow inputs in node goals:
-```yaml
-goal: |
-  Process the task: ${{ inputs.task_description }}
-  Using configuration: ${{ inputs.config_path }}
+# Navigate workflow (when at decision points)  
+workflow_guidance(action="next", context="choose: option_name")
+
+# Auto-progression (no context needed for linear paths)
+workflow_guidance(action="next")  # Automatically progresses if possible
 ```
 
-#### Acceptance Criteria
-Define measurable completion requirements:
-```yaml
-acceptance_criteria:
-  code_complete: "All code changes implemented"
-  tests_pass: "Test suite passes with 100% success rate"
-  docs_updated: "Documentation updated with changes"
+#### **workflow_state** - State Management
+```python
+# Get current state
+workflow_state(operation="get")
+
+# Update state with log entries
+workflow_state(operation="update", updates='{"log_entry": "Progress update"}')
+
+# Reset workflow
+workflow_state(operation="reset")
 ```
 
-#### Node Transitions
-Control workflow flow with next_allowed_nodes:
-```yaml
-# Linear progression
-next_allowed_nodes: [next_step]
+### Workflow Process
 
-# Branching/decision point
-next_allowed_nodes: [option_a, option_b, option_c]
-
-# Terminal node (no transitions)
-next_allowed_nodes: []
+**1. Discovery Phase:**
+```
+workflow_discovery(task_description="Add: user authentication")
+→ Shows available workflows and their capabilities
 ```
 
-#### Decision Nodes vs Action Nodes
-- **Decision Nodes**: Have multiple next_allowed_nodes, require user choice
-- **Action Nodes**: Have single or no next_allowed_nodes, focus on execution
+**2. Initialization:**
+```
+workflow_guidance(action="start", context="workflow: Name\nyaml: <content>")  
+→ Starts workflow and auto-progresses through initial linear nodes
+```
 
-### Best Practices
+**3. Auto-Progression:**
+```
+workflow_guidance(action="next")
+→ Automatically advances through single-path nodes
+→ Stops at decision points requiring manual choice
+```
 
-1. **Node Design**
-   - Each node should have a single, clear responsibility
-   - Goals should be specific and actionable
-   - Acceptance criteria should be measurable
+**4. Decision Points:**
+```
+workflow_guidance(action="next", context="choose: option_name")
+→ Makes manual choice at decision points
+→ Resumes auto-progression after choice
+```
 
-2. **Workflow Flow**
-   - Use decision nodes for branching logic
-   - Use terminal nodes (no next_allowed_nodes) for endpoints
-   - Plan for error recovery and alternative paths
+**5. Completion:**
+```
+→ Workflow automatically reaches terminal node
+→ Shows completion status and summary
+```
 
-3. **Input Design**
-   - Include task_description as a standard input
-   - Add workflow-specific inputs as needed
-   - Provide sensible defaults for optional inputs
+### Auto-Progression Examples
 
-4. **Testing**
-   - Validate workflows with `validate_workflow_file`
-   - Test with realistic task descriptions
-   - Verify all node transitions work correctly
+**Linear Workflow (All Auto-Progress):**
+```
+User: workflow_guidance(action="start", ...)
+→ 🤖 Auto-progressed: analyze → blueprint → construct → validate → complete
+→ ✅ Workflow completed automatically
+```
+
+**Decision Workflow (Mixed Auto/Manual):**
+```
+User: workflow_guidance(action="start", ...)  
+→ 🤖 Auto-progressed: start → linear1 → linear2 → decision_point
+→ ⏸️ Stopped at decision point (choose: option_a or option_b)
+
+User: workflow_guidance(action="next", context="choose: option_a")
+→ 🤖 Auto-progressed: option_a → final  
+→ ✅ Workflow completed
+```
 
 ## Advanced Configuration
 
-### MCP Client Setup Details
-
-#### Cursor Configuration Locations
-
-- **Windows**: `%APPDATA%\Cursor\User\mcp.json`
-- **macOS**: `~/Library/Application Support/Cursor/User/mcp.json` 
-- **Linux**: `~/.config/Cursor/User/mcp.json`
-
-**Alternative locations:**
-- **Project-specific**: `.cursor/mcp.json` in your project directory
-- **Global**: `~/.cursor/mcp.json` for access across all projects
-
-**Setup Steps:**
-1. Create the configuration file at the appropriate location for your OS
-2. Add the JSON configuration above
-3. Restart Cursor to load the server
-4. Access MCP settings: `Cmd/Ctrl + Shift + J` → Navigate to "MCP" tab
-5. Verify the workflow-commander server appears and shows a green status
-
-#### Claude Desktop Configuration Locations
-
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-**Setup Steps:**
-1. Ensure you have [Claude Desktop](https://claude.ai/download) installed
-2. Create or edit the configuration file at the appropriate location
-3. Add the workflow-commander server configuration (see Quick Start section)
-4. Restart Claude Desktop
-5. Test the connection by asking Claude: "What workflow guidance tools are available?"
-
 ### Environment Variables
 
-#### Auto-Approval Configuration
+#### **WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
+Controls automatic plan approval in workflows:
 
-**For true Vibe Coders: WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
-
-Controls whether blueprint plans are automatically approved without user interaction:
-
-- **`false`** (default): Blueprint plans require manual user approval before proceeding to implementation
-- **`true`**: Blueprint plans are automatically approved and the workflow proceeds directly to the construction phase
-
-**Usage:**
 ```bash
-# Enable auto-approval for automated workflows
+# Enable automatic plan approval  
 export WORKFLOW_AUTO_APPROVE_PLANS=true
-
-# Or set when starting your MCP client
-WORKFLOW_AUTO_APPROVE_PLANS=true cursor
 ```
 
-**MCP Config:**
+**MCP Configuration:**
 ```json
 {
   "mcpServers": {
     "workflow-commander": {
-      "command": "uvx", 
+      "command": "uvx",
       "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
       "env": {
         "WORKFLOW_AUTO_APPROVE_PLANS": "true"
@@ -391,299 +400,212 @@ WORKFLOW_AUTO_APPROVE_PLANS=true cursor
 }
 ```
 
-**When to use auto-approval:**
-- ✅ Automated CI/CD workflows
-- ✅ Batch processing multiple items
-- ✅ Development environments with trusted input
-- ❌ Production deployments requiring human oversight
-- ❌ Complex or critical changes needing review
+#### **WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
+Enables local state file synchronization:
 
-**Example with auto-approval enabled:**
-```
-🤖 BLUEPRINT AUTO-APPROVED - PROCEEDING TO CONSTRUCTION
-
-✅ AUTO-APPROVAL ACTIVATED:
-- Environment Variable: WORKFLOW_AUTO_APPROVE_PLANS=true
-- Phase → CONSTRUCT (auto-transitioned)
-- Plan automatically approved without user interaction
-
-🔨 CONSTRUCT PHASE ACTIVE:
-Continue with implementation - no user approval needed!
-```
-
-#### Local State File Configuration
-
-**WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
-
-Controls whether workflow state is synchronized to a local `workflow_state.md` file alongside the in-memory state:
-
-- **`false`** (default): Workflow state is maintained only in MCP server memory
-- **`true`**: Workflow state is maintained in BOTH MCP server memory AND a local `workflow_state.md` file
-
-**Usage:**
 ```bash
-# Enable local state file synchronization
+# Enable local state file backup
 export WORKFLOW_LOCAL_STATE_FILE=true
-
-# Or set when starting your MCP client
-WORKFLOW_LOCAL_STATE_FILE=true cursor
+export WORKFLOW_LOCAL_STATE_FILE_FORMAT=MD  # or JSON
 ```
 
-**MCP Config:**
-```json
-{
-  "mcpServers": {
-    "workflow-commander": {
-      "command": "uvx", 
-      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
-      "env": {
-        "WORKFLOW_LOCAL_STATE_FILE": "true"
-      }
-    }
-  }
-}
-```
+### MCP Client Configuration Details
 
-**When to use local state files:**
-- ✅ Offline state persistence and backup
-- ✅ Manual state inspection and debugging
-- ✅ Integration with file-based tools
-- ✅ Collaboration workflows requiring shared state files
-- ❌ Environments with restricted file system access
-- ❌ High-frequency workflows where file I/O overhead matters
+#### Cursor Configuration
+- **Windows**: `%APPDATA%\Cursor\User\mcp.json`
+- **macOS**: `~/Library/Application Support/Cursor/User/mcp.json`
+- **Linux**: `~/.config/Cursor/User/mcp.json`
+- **Project**: `.cursor/mcp.json` in project directory
 
-**How dual storage works:**
-- MCP server maintains authoritative state in memory
-- Agent receives mandatory file write instructions when state changes
-- Both memory and file state are kept synchronized
-- File operations are enforced through guidance prompts (MCP server cannot directly write files)
-
-#### Local State File Format Configuration
-
-**WORKFLOW_LOCAL_STATE_FILE_FORMAT** (default: `MD`)
-
-Controls the output format for local state files when `WORKFLOW_LOCAL_STATE_FILE=true`:
-
-- **`MD`** (default): Export workflow state as markdown (`workflow_state.md`)
-- **`JSON`**: Export workflow state as structured JSON (`workflow_state.json`)
-
-**Usage:**
-```bash
-# Use markdown format (default)
-export WORKFLOW_LOCAL_STATE_FILE_FORMAT=MD
-
-# Use JSON format for structured data
-export WORKFLOW_LOCAL_STATE_FILE_FORMAT=JSON
-
-# Combined usage with local state file enabled
-export WORKFLOW_LOCAL_STATE_FILE=true
-export WORKFLOW_LOCAL_STATE_FILE_FORMAT=JSON
-```
-
-**MCP Config:**
-```json
-{
-  "mcpServers": {
-    "workflow-commander": {
-      "command": "uvx", 
-      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
-      "env": {
-        "WORKFLOW_LOCAL_STATE_FILE": "true",
-        "WORKFLOW_LOCAL_STATE_FILE_FORMAT": "JSON"
-      }
-    }
-  }
-}
-```
-
-**Format comparison:**
-- **Markdown (MD)**: Human-readable, includes workflow rules and templates, suitable for manual editing
-- **JSON**: Structured data, machine-readable, ideal for automation and integration with other tools
-
-**When to use JSON format:**
-- ✅ Automated workflow processing
-- ✅ Integration with monitoring systems
-- ✅ Data analysis and reporting
-- ✅ API-driven workflow management
-- ❌ Manual inspection and editing
-- ❌ Documentation purposes
+#### Claude Desktop Configuration  
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ## Installation Options
 
 ### Option 1: MCP Client Configuration (Recommended)
+Use the uvx-based configuration shown in Quick Start. Automatically handles dependencies and updates.
 
-Use the uvx-based configuration shown in the Quick Start section above. This method automatically handles dependencies and updates.
-
-### Option 2: Local Development Installation
-
+### Option 2: Local Development
 ```bash
-# Clone the repository
+# Clone and install
 git clone <repository-url>
-cd dev-workflow-mcp
-
-# Install dependencies
+cd workflow-commander
 uv sync
-
-# Or with pip
-pip install -e .
 ```
 
 ### Option 3: Direct Installation
-
 ```bash
-# Install directly from GitHub
 uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp
 ```
 
-## Usage Guide
-
-### Available Guidance Tools
-
-The server provides the following workflow guidance tools that provide **mandatory execution instructions**:
-
-#### Phase Guidance
-- `workflow_guidance` - Consolidated smart workflow guidance with action-based approach (start, plan, build, revise, next)
-- `workflow_state` - Smart workflow state management (get, update, reset operations)
-
-#### Management Guidance
-- `complete_workflow_guidance` - Complete current workflow item with mandatory steps
-- `iterate_next_item_guidance` - Move to next workflow item with mandatory steps
-- `finalize_workflow_guidance` - Finalize entire workflow with mandatory steps
-- `error_recovery_guidance` - Handle errors and recovery with mandatory steps
-- `fix_validation_issues_guidance` - Fix validation problems with mandatory steps
-- `escalate_to_user_guidance` - Escalate critical issues with mandatory steps
-- `changelog_update_guidance` - Update project changelog with mandatory steps
-
-#### Project Setup Guidance
-- `check_project_config_guidance` - Verify project configuration with mandatory steps
-- `create_project_config_guidance` - Create project config template with mandatory steps
-
-#### Transition Guidance
-- `update_workflow_state_guidance` - Update workflow state with mandatory steps
-- `get_workflow_state_markdown` - Get current workflow state for debugging/display
-
-### Workflow Process
-
-1. **Initialize**: Start with `workflow_guidance(action="start", task_description="Your task")`
-2. **Analyze**: Agent analyzes requirements without coding
-3. **Blueprint**: Agent creates detailed implementation plan
-4. **Construct**: Agent implements following the approved plan
-5. **Validate**: Agent tests and validates the implementation
-6. **Complete**: Agent finalizes and moves to next item (if any)
-
-### Example Workflow
-
-```python
-# In your MCP client (e.g., Cursor or Claude Desktop)
-
-# 1. Start a new workflow
-# Call: workflow_guidance
-# Parameters: action="start", task_description="Add user authentication to the API"
-
-# 2. The agent will be guided through each phase:
-# - workflow_guidance(action="start"): Initialize and analyze requirements
-# - workflow_guidance(action="plan"): Create implementation plan  
-# - workflow_guidance(action="build"): Implement and validate the changes
-# - complete_workflow_guidance: Finalize and update changelog
-
-# 3. Each step automatically updates and shows the current workflow state
-# 4. If there are more items, the workflow continues automatically
-```
-
-### Bootstrap Configuration Details
-
-The bootstrap script deploys execute-tasks configuration files for:
-- **Cursor**: `.cursor/rules/execute-tasks.mdc` (with YAML frontmatter)
-- **GitHub Copilot**: `.github/copilot-instructions.md`
-- **Claude**: `./CLAUDE.md`
-
-**Manual Options:**
-
-```bash
-# Deploy to specific assistants only
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s copilot
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s claude
-
-# Deploy to multiple specific assistants
-curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash -s cursor copilot
-```
-
-The script will:
-- Skip files that already contain execute-tasks content
-- Create necessary directories automatically
-- Deploy content with appropriate formatting for each assistant
-
 ## Technical Details
 
-### How It Works
+### How Auto-Progression Works
 
-The workflow system uses **centralized session management** that automatically handles all state tracking:
+**Schema Analysis:**
+- The system analyzes each workflow node's `next_allowed_nodes`
+- Single-path nodes (1 next node) → Auto-progression enabled
+- Multi-path nodes (2+ next nodes) → Manual choice required  
+- Terminal nodes (0 next nodes) → Workflow completion
 
-- **No Manual File Editing**: All workflow state is managed automatically in-memory via MCP server sessions
-- **Real-time State Updates**: Each guidance tool updates and returns the current state
-- **Complete Visibility**: You always see the updated workflow state after each action
-- **Automatic Logging**: All actions and transitions are logged with timestamps
+**Transition Engine:**
+- Validates all transitions against workflow schema
+- Executes automatic transitions for single-path nodes
+- Maintains comprehensive transition logs
+- Prevents infinite loops with depth limits
 
-### Required Files
+**Session Management:**
+- Real-time workflow state tracking
+- Automatic state synchronization  
+- Persistent session management across MCP calls
+- Dynamic workflow definition caching
 
-The workflow requires one configuration file in your project root:
+### Workflow State Structure
+
+**Dynamic Session State:**
+```json
+{
+  "workflow_name": "Default Coding Workflow",
+  "current_node": "construct", 
+  "status": "RUNNING",
+  "node_history": ["analyze", "blueprint"],
+  "execution_context": {},
+  "log_entries": ["🤖 Auto-transitioned: analyze → blueprint"]
+}
+```
+
+**Auto-Progression Logging:**
+```
+[11:07:13] 🤖 Auto-transitioned: analyze → blueprint
+[11:07:13] 🤖 Auto-transitioned: blueprint → construct  
+[11:07:13] ⏸️ Stopped at decision point: construct (manual choice required)
+```
+
+### Required Project Files
 
 #### project_config.md
-Contains project configuration including:
-- Project structure and information
-- Dependencies and versions
-- Test commands and build processes
-- Project changelog
+Single configuration file containing:
+- Project structure and organization
+- Dependencies and build information  
+- Test commands and quality processes
+- Project changelog and version history
 
-*Note: Workflow state is now managed purely through the MCP server session system - no workflow files are created*
+*All workflow state is managed automatically through MCP server sessions*
 
-### Centralized State Management
+## Bootstrap Configuration (Optional)
 
-Each guidance tool provides real-time state updates and clear next steps:
-
-**✅ STATE UPDATED AUTOMATICALLY:**
-- Phase → ANALYZE
-- Status → RUNNING
-- Analysis phase initiated
-
-**📋 CURRENT WORKFLOW STATE:**
-```markdown
-# Workflow State
-_Last updated: 2024-12-19_
-
-## State
-Phase: ANALYZE
-Status: RUNNING
-CurrentItem: Add user authentication to the API
-
-## Plan
-<!-- The AI fills this in during the BLUEPRINT phase -->
-
-## Items
-| id | description | status |
-|----|-------------|--------|
-| 1 | Add user authentication to the API | pending |
-
-## Log
-[2024-12-19 14:30:15] 🚀 WORKFLOW INITIALIZED: Add user authentication to the API
-[2024-12-19 14:30:16] 📊 ANALYZE PHASE STARTED: Add user authentication to the API
-```
-
-**🔄 NEXT STEP:**
-Call: `workflow_guidance`
-Parameters: action="plan", task_description="Add user authentication to the API", context="..."
-
-### Running the Server (Local Development)
+Deploy AI assistant guidelines:
 
 ```bash
-# Run the MCP server
-python -m src.dev_workflow_mcp.server
-
-# Or using the main function
-python src/dev_workflow_mcp/server.py
+# Deploy workflow guidelines to AI assistants
+curl -s https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/bootstrap-execute-tasks.sh | bash
 ```
+
+Creates configuration files for:
+- **Cursor**: `.cursor/rules/execute-tasks.mdc`
+- **GitHub Copilot**: `.github/copilot-instructions.md`  
+- **Claude**: `./CLAUDE.md`
+
+## Examples
+
+### Complete Workflow Example
+
+**1. Start with Discovery:**
+```
+workflow_discovery(task_description="Add: OAuth authentication")
+→ Recommends Default Coding Workflow for implementation tasks
+```
+
+**2. Initialize Workflow:**
+```  
+workflow_guidance(action="start", context="workflow: Default Coding Workflow\nyaml: <yaml_content>")
+→ 🤖 Auto-progressed to: CONSTRUCT
+→ Started at analyze, automatically progressed through blueprint to construct
+```
+
+**3. Continue Through Auto-Progression:**
+```
+workflow_guidance(action="next")
+→ 🤖 Auto-progressed to: VALIDATE  
+→ Implementation complete, moved to validation phase
+```
+
+**4. Final Completion:**
+```
+workflow_guidance(action="next")
+→ 🤖 Auto-progressed to: COMPLETE
+→ ✅ Workflow completed successfully
+```
+
+### Custom Decision Workflow Example
+
+**YAML Definition:**
+```yaml
+name: Feature Development Workflow
+workflow:
+  root: analyze
+  tree:
+    analyze: { next_allowed_nodes: [design] }      # Auto-progresses
+    design: { next_allowed_nodes: [complexity] }   # Auto-progresses  
+    complexity:                                     # Decision point
+      next_allowed_nodes: [simple_impl, complex_impl]
+    simple_impl: { next_allowed_nodes: [test] }    # Auto-progresses
+    complex_impl: { next_allowed_nodes: [review] } # Auto-progresses
+    test: { next_allowed_nodes: [deploy] }         # Auto-progresses
+    review: { next_allowed_nodes: [test] }         # Auto-progresses
+    deploy: { next_allowed_nodes: [] }             # Terminal
+```
+
+**Execution Flow:**
+```
+analyze ──🤖──→ design ──🤖──→ complexity ──👤──→ simple_impl ──🤖──→ test ──🤖──→ deploy
+                                     │                                    
+                                     └──👤──→ complex_impl ──🤖──→ review ──🤖──┘
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**1. Discovery Required Error:**
+```
+❌ Workflow Discovery Required
+→ Solution: Start with workflow_discovery() before using workflow_guidance
+```
+
+**2. Missing YAML Content:**
+```  
+❌ Workflow YAML Required
+→ Solution: Include complete YAML content in context when starting workflows
+```
+
+**3. Invalid Choice Error:**
+```
+❌ Invalid choice: wrong_option
+→ Solution: Use exact option names from available next steps
+```
+
+### Auto-Progression Issues
+
+**Auto-Progression Not Working:**
+- Check node has exactly one `next_allowed_node`
+- Verify no `next_allowed_workflows` defined
+- Ensure workflow definition is valid
+
+**Stopping at Wrong Nodes:**
+- Verify workflow YAML structure
+- Check `next_allowed_nodes` configuration
+- Test with auto-progression test workflow
+
+### Getting Help
+
+1. **Check Workflow State**: Use `workflow_state(operation="get")` for current status
+2. **Validate Workflow**: Use auto-progression test workflow to verify functionality  
+3. **Review Logs**: Check auto-progression transition logs for debugging
+4. **Test Discovery**: Ensure workflow discovery process works correctly
 
 ## Acknowledgments
 
-This project was inspired by the workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've adapted and extended these ideas to create a more structured, MCP-based approach to development workflow guidance.
+This project was inspired by workflow concepts from [@kleosr/cursorkleosr](https://github.com/kleosr/cursorkleosr). We've evolved these ideas into a dynamic, YAML-driven MCP server with intelligent auto-progression capabilities.
