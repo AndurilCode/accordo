@@ -788,7 +788,7 @@ def format_enhanced_node_status(
         Enhanced formatted status string with authoritative guidance
     """
     from ..utils.session_manager import export_session_to_markdown
-    from .schema_analyzer import should_auto_progress
+    from ..utils.schema_analyzer import should_auto_progress
 
     analysis = analyze_node_from_schema(node, workflow)
     transitions = get_available_transitions(node, workflow)
