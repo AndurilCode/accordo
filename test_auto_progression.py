@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test script for auto-progression functionality."""
 
+import os
 from src.dev_workflow_mcp.utils.schema_analyzer import (
     get_auto_transition_target,
     should_auto_progress,
@@ -10,6 +11,9 @@ from src.dev_workflow_mcp.utils.yaml_loader import WorkflowLoader
 
 def test_auto_progression():
     """Test auto-progression detection on all nodes."""
+    # Enable auto-progression for this test
+    os.environ['WORKFLOW_AUTO_PROGRESSION_ENABLED'] = 'true'
+    
     loader = WorkflowLoader()
     workflow = loader.load_workflow('.workflow-commander/workflows/auto-progression-test.yaml')
     
@@ -45,6 +49,10 @@ def test_auto_progression():
         print("🎉 ALL TESTS PASSED! Auto-progression detection working correctly.")
     else:
         print("❌ SOME TESTS FAILED! Check implementation.")
+    
+    # Clean up environment variable
+    if 'WORKFLOW_AUTO_PROGRESSION_ENABLED' in os.environ:
+        del os.environ['WORKFLOW_AUTO_PROGRESSION_ENABLED']
     
     return all_passed
 

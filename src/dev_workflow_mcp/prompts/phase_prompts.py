@@ -418,7 +418,11 @@ def format_enhanced_node_status(
     if transitions:
         # Check if this node can auto-progress
         can_auto_progress = should_auto_progress(node)
-
+        
+        # Check if auto-progression is globally disabled
+        from ..models.config import WorkflowConfig
+        config = WorkflowConfig()
+        
         if can_auto_progress:
             options_text = "**🤖 Auto-Progression Mode:**\n"
             options_text += (
@@ -430,6 +434,12 @@ def format_enhanced_node_status(
             options_text = "**🎯 Available Next Steps:**\n"
             for transition in transitions:
                 options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
+            
+            # Check if single path but auto-progression is disabled
+            if len(transitions) == 1 and not config.auto_progression_enabled:
+                options_text += '\n**⚠️ Auto-Progression Disabled:** Single-path node requires manual confirmation\n'
+                options_text += '**ℹ️ To Enable:** Set WORKFLOW_AUTO_PROGRESSION_ENABLED=true environment variable\n'
+            
             options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
             options_text += '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
     else:
