@@ -179,18 +179,17 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                 "message": f"Creating custom workflow for: **{task_description}**",
                 "workflow_requirements": {
                     "task_analysis": [
-                        "1. **Break down the task** into distinct phases or steps",
-                        "2. **Identify decision points** where different paths might be needed",
-                        "3. **Determine dependencies** between different phases",
-                        "4. **Consider validation points** and quality gates",
-                        "5. **Plan for error handling** and alternative paths",
+                        "• Break down the task into logical phases or steps",
+                        "• Consider where decision points or alternative paths might be useful",
+                        "• Think about dependencies between different phases",
+                        "• Include validation or quality checks where appropriate",
                     ],
                     "workflow_design_principles": [
-                        "• **Atomic phases**: Each node should represent a single, clear objective",
-                        "• **Clear transitions**: Define specific conditions for moving between nodes",
-                        "• **Validation focus**: Include acceptance criteria for each phase",
-                        "• **Flexibility**: Allow for backtracking and alternative paths when needed",
-                        "• **Progress tracking**: Enable detailed progress monitoring",
+                        "• **Clear objectives**: Each node should have a focused purpose",
+                        "• **Logical flow**: Organize nodes in a sensible sequence",
+                        "• **Appropriate granularity**: Balance detail with practical execution",
+                        "• **Quality focus**: Include validation where it adds value",
+                        "• **Agent autonomy**: Trust the agent to execute effectively within the framework",
                     ],
                 },
                 "yaml_structure_specification": {
@@ -217,65 +216,33 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                         ],
                     },
                 },
-                "goal_formatting_requirements": {
-                    "structure": [
-                        "1. **Start with phase title**: `**MANDATORY [PHASE_NAME] PHASE - FOLLOW EXACTLY:**`",
-                        "2. **Include task reference**: `**TASK:** ${{ inputs.task_description }}`",
-                        "3. **Add execution steps**: `**🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**`",
-                        "4. **List numbered steps**: Each step with ⚠️ MANDATORY markers",
-                        "5. **Include guidance**: DO NOT and FOCUS sections for clarity",
+                "goal_formatting_guidelines": {
+                    "approach": "Goals should provide clear direction while allowing agent flexibility in execution",
+                    "suggested_structure": [
+                        "• **Phase purpose**: Brief description of what this phase accomplishes",
+                        "• **Key activities**: Main activities or areas of focus (not rigid steps)",
+                        "• **Task reference**: You can include `${{ inputs.task_description }}` to reference the user's task",
+                        "• **Guidance**: Optional guidance on approach or important considerations",
                     ],
-                    "step_formatting": [
-                        "• Use **bold headers** for each main step",
-                        "• Include ⚠️ MANDATORY markers for critical steps",
-                        "• Provide specific, actionable instructions",
-                        "• Include verification or validation requirements",
-                        "• Add context about why each step is important",
+                    "formatting_options": [
+                        "• Use markdown formatting for readability",
+                        "• Organize information logically (lists, headers, etc.)",
+                        "• Include context and rationale where helpful",
+                        "• Focus on outcomes rather than rigid procedures",
                     ],
-                    "mandatory_elements": [
-                        "🔨 REQUIRED EXECUTION STEPS marker",
-                        "⚠️ MANDATORY markers for critical steps",
-                        "Clear DO NOT and FOCUS guidance",
-                        "Specific, actionable instructions",
-                        "Progress tracking requirements where applicable",
-                    ],
+                    "flexibility_note": "The goal should guide the agent toward success while respecting their judgment and expertise",
                 },
                 "acceptance_criteria_structure": {
-                    "format": "Each criterion should be a key-value pair",
-                    "key_naming": "Use descriptive, snake_case keys",
-                    "value_format": "Clear, measurable success conditions",
+                    "purpose": "Define success conditions for the phase (optional but recommended)",
+                    "format": "Key-value pairs where keys are descriptive and values define success",
+                    "key_naming": "Use clear, descriptive names (snake_case preferred)",
+                    "value_format": "Describe what constitutes successful completion",
                     "examples": {
-                        "task_analysis": "Complete breakdown of task into actionable requirements with scope boundaries defined",
-                        "implementation_quality": "Code follows project standards with comprehensive error handling and validation",
-                        "documentation_completeness": "All changes documented with examples and integration instructions provided",
+                        "requirements_understood": "Task requirements clearly understood and documented",
+                        "solution_implemented": "Working solution that addresses the core requirements",
+                        "quality_verified": "Solution tested and meets quality standards",
                     },
-                },
-            },
-            "workflow_templates": {
-                "simple_linear": {
-                    "description": "Simple sequential workflow with 2-3 phases",
-                    "use_case": "Straightforward tasks with clear sequential steps",
-                    "example_nodes": ["analyze", "implement", "validate"],
-                },
-                "analysis_planning_construction": {
-                    "description": "Standard development workflow pattern",
-                    "use_case": "Most coding and development tasks",
-                    "example_nodes": ["analyze", "blueprint", "construct", "validate"],
-                },
-                "investigation_resolution": {
-                    "description": "Problem-solving and debugging workflow",
-                    "use_case": "Debugging, troubleshooting, research tasks",
-                    "example_nodes": ["investigate", "analyze_root_cause", "develop_solution", "test_solution"],
-                },
-                "iterative_refinement": {
-                    "description": "Workflow with revision and improvement cycles",
-                    "use_case": "Creative tasks, documentation, complex problem solving",
-                    "example_nodes": ["initial_draft", "review_feedback", "refine", "finalize"],
-                },
-                "branching_decision": {
-                    "description": "Workflow with decision points and alternative paths",
-                    "use_case": "Tasks requiring different approaches based on conditions",
-                    "example_nodes": ["assess", "choose_approach", "path_a", "path_b", "converge"],
+                    "note": "Keep criteria focused on outcomes that matter for the specific task",
                 },
             },
             "complete_example": {
@@ -301,172 +268,121 @@ workflow:
   tree:
     analyze:
       goal: |
-        **MANDATORY ANALYZE PHASE - FOLLOW EXACTLY:**
+        **Analysis Phase**
 
-        **TASK:** ${{ inputs.task_description }}
+        **Task:** ${{ inputs.task_description }}
 
-        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+        **Objective:** Understand the requirements and context for this task.
 
-        **1. UNDERSTAND REQUIREMENTS** ⚠️ MANDATORY
-           - MUST read and comprehend the complete task description
-           - MUST identify all explicit and implicit requirements
-           - MUST note any constraints or limitations
-           - MUST clarify any ambiguous aspects
+        **Key Activities:**
+        • Review and understand the task requirements
+        • Examine relevant existing systems, code, or documentation  
+        • Identify dependencies, constraints, and scope boundaries
+        • Clarify any ambiguous aspects of the requirements
 
-        **2. GATHER CONTEXT** ⚠️ MANDATORY
-           - MUST examine relevant existing systems, code, or documentation
-           - MUST understand the current state and environment
-           - MUST identify dependencies and integration points
-           - MUST assess available resources and tools
-
-        **3. DEFINE SCOPE** ⚠️ MANDATORY
-           - MUST clearly define what is included and excluded from the task
-           - MUST identify potential risks and challenges
-           - MUST estimate complexity and effort required
-           - MUST document any assumptions being made
-
-        **DO NOT:** Start implementation or make changes during analysis.
-        **FOCUS:** Complete understanding and documentation of requirements.
+        **Approach:** Focus on gaining a complete understanding before moving to planning.
       acceptance_criteria:
-        requirement_analysis: "Complete understanding of task requirements with all ambiguities resolved"
-        context_gathering: "Thorough examination of existing systems and relevant documentation"
-        scope_definition: "Clear scope boundaries defined with risks and assumptions documented"
+        requirements_understood: "Task requirements clearly understood and documented"
+        context_assessed: "Relevant systems and dependencies identified"
+        scope_defined: "Clear scope boundaries established"
       next_allowed_nodes: [plan]
 
     plan:
       goal: |
-        **MANDATORY PLAN PHASE - FOLLOW EXACTLY:**
+        **Planning Phase**
 
-        **TASK:** ${{ inputs.task_description }}
+        **Task:** ${{ inputs.task_description }}
 
-        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+        **Objective:** Create a solid plan for implementing the solution.
 
-        **1. DESIGN APPROACH** ⚠️ MANDATORY
-           - MUST define the overall strategy and methodology
-           - MUST break down the work into manageable steps
-           - MUST identify required tools, technologies, or resources
-           - MUST plan for quality assurance and validation
+        **Key Activities:**
+        • Design the overall approach and strategy
+        • Break down the work into manageable steps
+        • Identify required tools, technologies, or resources
+        • Plan for quality assurance and testing
 
-        **2. CREATE IMPLEMENTATION PLAN** ⚠️ MANDATORY
-           - MUST outline specific steps in logical sequence
-           - MUST define success criteria for each step
-           - MUST identify potential obstacles and mitigation strategies
-           - MUST plan for testing and validation throughout
-
-        **3. VALIDATE PLAN** ⚠️ MANDATORY
-           - MUST review plan for completeness and feasibility
-           - MUST ensure plan addresses all identified requirements
-           - MUST verify resource availability and timeline reasonableness
-           - MUST confirm plan aligns with overall objectives
-
-        **PLANNING DEPTH:** Plan must be detailed enough for systematic execution.
+        **Outcome:** A clear, actionable plan ready for execution.
       acceptance_criteria:
-        approach_design: "Comprehensive strategy defined with methodology and resource requirements"
-        implementation_plan: "Detailed step-by-step plan with success criteria and risk mitigation"
-        plan_validation: "Plan reviewed and confirmed to address all requirements effectively"
+        approach_designed: "Clear strategy and methodology defined"
+        plan_created: "Detailed implementation plan with logical steps"
+        resources_identified: "Required tools and resources identified"
       next_allowed_nodes: [execute]
 
     execute:
       goal: |
-        **MANDATORY EXECUTE PHASE - FOLLOW EXACTLY:**
+        **Implementation Phase**
 
-        **TASK:** ${{ inputs.task_description }}
+        **Task:** ${{ inputs.task_description }}
 
-        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+        **Objective:** Execute the plan and build the solution.
 
-        **1. IMPLEMENT PLAN SYSTEMATICALLY** ⚠️ MANDATORY
-           - MUST follow the planned sequence of steps exactly
-           - MUST complete each step fully before proceeding
-           - MUST validate completion of each step against success criteria
-           - MUST document progress and any deviations from plan
+        **Key Activities:**
+        • Implement the solution according to the plan
+        • Follow quality standards and best practices
+        • Test and validate work as you progress
+        • Document important decisions and progress
 
-        **2. MAINTAIN QUALITY STANDARDS** ⚠️ MANDATORY
-           - MUST ensure all work meets defined quality criteria
-           - MUST perform validation and testing as planned
-           - MUST address any issues or defects immediately
-           - MUST follow best practices and established standards
-
-        **3. TRACK PROGRESS** ⚠️ MANDATORY
-           - MUST update workflow_state after each major step completion
-           - MUST log significant decisions and their rationale
-           - MUST document any challenges encountered and solutions applied
-           - MUST maintain clear record of what has been accomplished
-
-        **EXECUTION DISCIPLINE:** Strict adherence to plan with systematic progress tracking.
+        **Focus:** Deliver a working solution that meets the requirements.
       acceptance_criteria:
-        plan_execution: "All planned steps executed systematically with full completion verification"
-        quality_maintenance: "All work meets defined quality standards with validation completed"
-        progress_tracking: "Complete progress log maintained with all major steps documented"
+        solution_implemented: "Working solution built according to plan"
+        quality_maintained: "Solution follows standards and best practices"
+        progress_documented: "Key decisions and progress documented"
       next_allowed_nodes: [validate]
 
     validate:
       goal: |
-        **MANDATORY VALIDATE PHASE - FOLLOW EXACTLY:**
+        **Validation Phase**
 
-        **TASK:** ${{ inputs.task_description }}
+        **Task:** ${{ inputs.task_description }}
 
-        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+        **Objective:** Verify the solution meets all requirements and is ready for use.
 
-        **1. VERIFY REQUIREMENTS FULFILLMENT** ⚠️ MANDATORY
-           - MUST confirm all original requirements have been met
-           - MUST test functionality against acceptance criteria
-           - MUST verify no requirements have been missed or inadequately addressed
-           - MUST document evidence of requirement satisfaction
+        **Key Activities:**
+        • Test the solution thoroughly against requirements
+        • Verify quality standards are met
+        • Prepare documentation and deliverables
+        • Ensure the solution is complete and ready
 
-        **2. CONDUCT QUALITY VERIFICATION** ⚠️ MANDATORY
-           - MUST perform comprehensive testing of all deliverables
-           - MUST verify adherence to quality standards and best practices
-           - MUST check for any defects, errors, or omissions
-           - MUST ensure robustness and reliability of solution
-
-        **3. PREPARE FINAL DELIVERABLES** ⚠️ MANDATORY
-           - MUST organize all outputs in clear, accessible format
-           - MUST provide documentation and usage instructions
-           - MUST include any necessary maintenance or support information
-           - MUST ensure deliverables are ready for handover or deployment
-
-        **VALIDATION THOROUGHNESS:** Comprehensive verification with complete documentation.
+        **Outcome:** Verified, documented solution ready for delivery.
       acceptance_criteria:
-        requirement_verification: "All requirements verified as fulfilled with documented evidence"
-        quality_verification: "Comprehensive quality checks completed with all standards met"
-        deliverable_preparation: "Final deliverables organized and documented for handover"
+        requirements_verified: "Solution verified against all requirements"
+        quality_confirmed: "Quality standards met and verified"
+        deliverables_ready: "Documentation and deliverables prepared"
       next_allowed_nodes: []
 ''',
             },
             "creation_instructions": {
-                "title": "🎯 **WORKFLOW CREATION INSTRUCTIONS**",
+                "title": "🎯 **WORKFLOW CREATION GUIDANCE**",
+                "approach": "Create a workflow that provides structure while respecting agent autonomy",
                 "steps": [
-                    "1. **Analyze your specific task** to identify the unique phases needed",
-                    "2. **Choose appropriate template** from the provided examples as starting point",
-                    "3. **Customize node structure** to match your task's specific requirements",
-                    "4. **Write detailed goals** following the formatting requirements with mandatory steps",
-                    "5. **Define acceptance criteria** with specific, measurable success conditions",
-                    "6. **Set up transitions** between nodes using next_allowed_nodes",
-                    "7. **Validate YAML syntax** and structure completeness",
-                    "8. **Start workflow** using: `workflow_guidance(action='start', context='workflow: <name>\\nyaml: <yaml_content>')`",
+                    "1. **Analyze the task** to identify logical phases or steps",
+                    "2. **Consider templates** provided as inspiration (adapt freely)",
+                    "3. **Design node structure** that makes sense for your specific task",
+                    "4. **Write clear goals** that guide without over-constraining",
+                    "5. **Add acceptance criteria** to define success (optional but helpful)",
+                    "6. **Set up logical transitions** between nodes",
+                    "7. **Validate YAML format** for technical correctness",
+                    "8. **Start workflow** with the complete YAML content",
                 ],
-                "key_considerations": [
-                    "• **Task-specific adaptation**: Modify templates to fit your exact needs",
-                    "• **Clear phase separation**: Each node should have a distinct, focused purpose",
-                    "• **Actionable instructions**: Goals should provide specific, executable steps",
-                    "• **Quality gates**: Include validation and verification at appropriate points",
-                    "• **Progress tracking**: Plan for monitoring and logging throughout execution",
+                "design_philosophy": [
+                    "• **Agent expertise**: Trust the agent to execute effectively within the framework",
+                    "• **Outcome focus**: Emphasize what needs to be achieved, not how",
+                    "• **Logical structure**: Organize work in a way that makes sense",
+                    "• **Appropriate detail**: Balance guidance with flexibility",
+                    "• **Quality awareness**: Include validation where it adds value",
                 ],
-                "validation_checklist": [
-                    "✓ All required YAML fields present (name, description, workflow)",
-                    "✓ Root node specified and exists in tree",
-                    "✓ All nodes have goals and acceptance_criteria",
-                    "✓ next_allowed_nodes reference valid nodes (or [] for terminal)",
-                    "✓ Goals follow formatting requirements with mandatory steps",
-                    "✓ Acceptance criteria are specific and measurable",
-                    "✓ Workflow covers all aspects of the task",
-                    "✓ YAML syntax is valid and properly formatted",
+                "technical_requirements": [
+                    "✓ Required YAML fields: name, description, workflow (with goal, root, tree)",
+                    "✓ Root node must exist in the tree",
+                    "✓ All nodes need goals and next_allowed_nodes ([] for terminal nodes)",
+                    "✓ Valid YAML syntax and proper indentation",
+                    "✓ Logical workflow structure with clear transitions",
                 ],
             },
             "next_action": {
                 "message": "After creating your custom workflow YAML, start it with:",
                 "command_template": "workflow_guidance(action='start', context='workflow: <workflow_name>\\nyaml: <complete_yaml_content>')",
-                "reminder": "Ensure the YAML content is complete and properly formatted before starting the workflow.",
+                "freedom_note": "Feel free to adapt the examples and guidance to fit your specific needs. The goal is a workflow that makes sense for your task.",
             },
         }
 
