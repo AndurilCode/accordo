@@ -91,6 +91,7 @@ Documentation should be updated when:
 - **YAML-Driven System**: Reflects the current pure YAML architecture without legacy references
 
 ## Changelog
+- [2025-01-09] Added WORKFLOW_AUTO_PROGRESSION_ENABLED environment variable to control automatic workflow progression, allowing users to disable auto-progression and require manual confirmation for all transitions when set to "false" (default: "false")
 - [2025-06-03] Completely rewrote README to reflect modern dynamic YAML workflow system, removing all legacy references and highlighting auto-progression feature with comprehensive usage examples and troubleshooting guide
 - [2025-06-03] Implemented automatic workflow progression for linear paths, enabling workflows to automatically advance through single-path nodes while preserving manual control for decision points and terminal nodes
 - [2025-06-02] Fixed missing WorkflowLoadError class and updated discovery_prompts.py to work with pure discovery system by removing hardcoded scoring methods and enabling agent-driven workflow selection without automated scoring algorithms
