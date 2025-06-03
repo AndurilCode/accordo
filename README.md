@@ -400,6 +400,32 @@ export WORKFLOW_AUTO_APPROVE_PLANS=true
 }
 ```
 
+#### **WORKFLOW_AUTO_PROGRESSION_ENABLED** (default: `false`)
+Controls automatic progression through single-path workflow nodes:
+
+```bash
+# Enable automatic progression (Default behavior)
+export WORKFLOW_AUTO_PROGRESSION_ENABLED=true
+
+# Disable automatic progression (Require manual confirmation for all transitions)
+export WORKFLOW_AUTO_PROGRESSION_ENABLED=false
+```
+
+**MCP Configuration:**
+```json
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
+      "env": {
+        "WORKFLOW_AUTO_PROGRESSION_ENABLED": "false"
+      }
+    }
+  }
+}
+```
+
 #### **WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
 Enables local state file synchronization:
 
@@ -590,13 +616,21 @@ analyze ──🤖──→ design ──🤖──→ complexity ──👤─�
 ### Auto-Progression Issues
 
 **Auto-Progression Not Working:**
-- Check node has exactly one `next_allowed_node`
-- Verify no `next_allowed_workflows` defined
-- Ensure workflow definition is valid
+- Check if `WORKFLOW_AUTO_PROGRESSION_ENABLED=true` is set
+- Verify node has exactly one `next_allowed_node`
+- Ensure no `next_allowed_workflows` defined
+- Confirm workflow definition is valid
+
+**Auto-Progression Disabled Message:**
+```
+⚠️ Auto-Progression Disabled: Single-path node requires manual confirmation
+→ Solution: Set WORKFLOW_AUTO_PROGRESSION_ENABLED=true to enable automatic progression
+→ Alternative: Use manual choices with context="choose: <option_name>"
+```
 
 **Stopping at Wrong Nodes:**
 - Verify workflow YAML structure
-- Check `next_allowed_nodes` configuration
+- Check `next_allowed_nodes` configuration  
 - Test with auto-progression test workflow
 
 ### Getting Help

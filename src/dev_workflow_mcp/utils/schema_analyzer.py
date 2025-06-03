@@ -41,6 +41,7 @@ def should_auto_progress(node: WorkflowNode) -> bool:
     """Check if node should automatically progress to next node.
 
     Auto-progression occurs when:
+    - Auto-progression is enabled in configuration 
     - Node has exactly one next_allowed_node
     - Node has no next_allowed_workflows
 
@@ -50,6 +51,13 @@ def should_auto_progress(node: WorkflowNode) -> bool:
     Returns:
         bool: True if node should auto-progress
     """
+    from ..models.config import WorkflowConfig
+    
+    # Check if auto-progression is globally enabled
+    config = WorkflowConfig()
+    if not config.auto_progression_enabled:
+        return False
+    
     next_nodes = node.next_allowed_nodes or []
     next_workflows = node.next_allowed_workflows or []
 
