@@ -383,58 +383,52 @@ class WorkflowEngine:
     ) -> tuple[bool, str, list[str]]:
         """Execute automatic transition for single-path nodes.
 
+        SAFETY: This method makes only ONE transition per call to ensure controlled progression.
+
         Args:
             state: Current workflow state
             workflow_def: Workflow definition
-            max_auto_depth: Maximum number of automatic transitions to prevent loops
+            max_auto_depth: Maximum number of automatic transitions to prevent loops (unused for single-step)
 
         Returns:
             tuple[bool, str, list[str]]: (success, final_node, transition_log)
         """
         transition_log = []
-        transitions_made = 0
 
-        while transitions_made < max_auto_depth:
-            current_node = workflow_def.workflow.get_node(state.current_node)
-            if not current_node:
-                return False, state.current_node, transition_log
+        # Get current node
+        current_node = workflow_def.workflow.get_node(state.current_node)
+        if not current_node:
+            return False, state.current_node, transition_log
 
-            # Check if we can auto-progress
-            if not should_auto_progress(current_node):
-                # No more auto-progression possible
-                break
+        # Check if we can auto-progress
+        if not should_auto_progress(current_node):
+            # No auto-progression possible from current node
+            return True, state.current_node, transition_log
 
-            # Get the target node
-            target_node = get_auto_transition_target(current_node)
-            if not target_node:
-                break
+        # Get the target node
+        target_node = get_auto_transition_target(current_node)
+        if not target_node:
+            return True, state.current_node, transition_log
 
-            # Validate the transition is allowed
-            is_valid, reason = self.validate_transition(
-                state, workflow_def, target_node
-            )
-            if not is_valid:
-                transition_log.append(f"❌ Auto-transition failed: {reason}")
-                return False, state.current_node, transition_log
+        # Validate the transition is allowed
+        is_valid, reason = self.validate_transition(
+            state, workflow_def, target_node
+        )
+        if not is_valid:
+            transition_log.append(f"❌ Auto-transition failed: {reason}")
+            return False, state.current_node, transition_log
 
-            # Execute the transition
-            success = self.execute_transition(state, workflow_def, target_node)
-            if not success:
-                transition_log.append(
-                    f"❌ Failed to execute auto-transition to {target_node}"
-                )
-                return False, state.current_node, transition_log
-
+        # Execute exactly ONE transition
+        success = self.execute_transition(state, workflow_def, target_node)
+        if not success:
             transition_log.append(
-                f"🤖 Auto-transitioned: {state.node_history[-1]} → {target_node}"
+                f"❌ Failed to execute auto-transition to {target_node}"
             )
-            transitions_made += 1
+            return False, state.current_node, transition_log
 
-        # Check if we hit the depth limit
-        if transitions_made >= max_auto_depth:
-            transition_log.append(
-                f"⚠️ Reached max auto-transition depth ({max_auto_depth})"
-            )
+        transition_log.append(
+            f"🤖 Auto-transitioned: {state.node_history[-1]} → {target_node}"
+        )
 
         return True, state.current_node, transition_log
 
