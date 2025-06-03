@@ -8,9 +8,7 @@ import pytest
 
 from src.dev_workflow_mcp.models.workflow_state import (
     WorkflowItem,
-    WorkflowPhase,
     WorkflowState,
-    WorkflowStatus,
 )
 
 
@@ -34,8 +32,8 @@ def temp_project_config_file(temp_dir: Path) -> Path:
 def sample_workflow_state() -> WorkflowState:
     """Create a sample WorkflowState for testing."""
     return WorkflowState(
-        phase=WorkflowPhase.INIT,
-        status=WorkflowStatus.READY,
+        phase="INIT",
+        status="READY",
         current_item="Test task",
         plan="Test plan",
         items=[
