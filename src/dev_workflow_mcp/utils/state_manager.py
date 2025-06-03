@@ -1,13 +1,11 @@
 """State manager for workflow state operations - now purely session-based."""
 
 from ..models.config import WorkflowConfig
-from ..models.workflow_state import WorkflowPhase, WorkflowStatus
 from .path_utils import get_workflow_state_path
 from .session_manager import (
     add_log_to_session,
     export_session,
-    get_or_create_session,
-    update_session_state,
+    get_or_create_dynamic_session,
 )
 
 
@@ -74,38 +72,25 @@ class StateManager:
 
     def create_initial_state(self, task_description: str) -> None:
         """Create initial workflow state (creates session)."""
-        get_or_create_session(self.client_id, task_description)
+        # Try to create a dynamic session, but don't fail if no workflows available
+        get_or_create_dynamic_session(self.client_id, task_description)
 
     def read_state(self) -> str | None:
         """Read the current workflow state as markdown."""
-        # Ensure session exists before exporting
-        get_or_create_session(self.client_id, "Default task")
+        # Try to get existing session state
         return export_session(self.client_id, "MD")
 
     def update_state_section(
         self, phase: str, status: str, current_item: str | None = None
     ) -> bool:
         """Update the State section of the workflow (updates session)."""
-        try:
-            phase_enum = WorkflowPhase(phase)
-            status_enum = WorkflowStatus(status)
-
-            # Ensure session exists before updating
-            get_or_create_session(self.client_id, current_item or "Default task")
-
-            return update_session_state(
-                client_id=self.client_id,
-                phase=phase_enum,
-                status=status_enum,
-                current_item=current_item,
-            )
-        except ValueError:
-            return False
+        # Legacy method - no longer supported with YAML-only workflows
+        # Return False to indicate operation not supported
+        return False
 
     def append_to_log(self, entry: str) -> bool:
         """Append an entry to the Log section (updates session)."""
-        # Ensure session exists before adding log
-        get_or_create_session(self.client_id, "Default task")
+        # Only works if there's an existing dynamic session
         return add_log_to_session(self.client_id, entry)
 
     def get_client_id(self) -> str:

@@ -100,8 +100,8 @@ class TestWorkflowState:
         assert state.current_item is None
         assert state.plan == ""
         assert state.items == []
-        assert state.log == ""
-        assert state.archive_log == ""
+        assert state.log == []
+        assert state.archive_log == []
         assert isinstance(state.last_updated, datetime)
 
     def test_creation_with_all_fields(self):
@@ -113,16 +113,16 @@ class TestWorkflowState:
             current_item="Current task",
             plan="Test plan",
             items=items,
-            log="Test log",
-            archive_log="Archive log",
+            log=["Test log"],
+            archive_log=["Archive log"],
         )
         assert state.phase == WorkflowPhase.BLUEPRINT
         assert state.status == WorkflowStatus.RUNNING
         assert state.current_item == "Current task"
         assert state.plan == "Test plan"
         assert len(state.items) == 1
-        assert state.log == "Test log"
-        assert state.archive_log == "Archive log"
+        assert state.log == ["Test log"]
+        assert state.archive_log == ["Archive log"]
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry(self, mock_datetime):
@@ -134,7 +134,7 @@ class TestWorkflowState:
 
         state.add_log_entry("Test entry")
 
-        assert state.log == "\n[12:34:56] Test entry"
+        assert state.log == ["[12:34:56] Test entry"]
         mock_datetime.now.assert_called_once()
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
@@ -147,7 +147,7 @@ class TestWorkflowState:
         state.add_log_entry("First entry")
         state.add_log_entry("Second entry")
 
-        expected_log = "\n[12:34:56] First entry\n[12:35:00] Second entry"
+        expected_log = ["[12:34:56] First entry", "[12:35:00] Second entry"]
         assert state.log == expected_log
 
     def test_rotate_log_when_over_5000_chars(self):
@@ -156,25 +156,25 @@ class TestWorkflowState:
 
         # Create a log entry that's over 5000 characters
         long_entry = "x" * 5001
-        state.log = long_entry
+        state.log = [long_entry]
 
         state.rotate_log()
 
-        assert state.archive_log == long_entry
-        assert state.log == ""
+        assert state.archive_log == [long_entry]
+        assert state.log == []
 
     def test_rotate_log_with_existing_archive(self):
         """Test log rotation when archive already has content."""
         state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
 
-        state.archive_log = "Existing archive"
-        state.log = "Current log"
+        state.archive_log = ["Existing archive"]
+        state.log = ["Current log"]
 
         state.rotate_log()
 
-        expected_archive = "Existing archive\n\n--- LOG ROTATION ---\n\nCurrent log"
+        expected_archive = ["Existing archive", "--- LOG ROTATION ---", "Current log"]
         assert state.archive_log == expected_archive
-        assert state.log == ""
+        assert state.log == []
 
     @patch("src.dev_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry_triggers_rotation(self, mock_datetime):
@@ -184,15 +184,15 @@ class TestWorkflowState:
         state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
 
         # Set log to be just under 5000 chars
-        state.log = "x" * 4990
+        state.log = ["x" * 4990]
 
         # Add entry that pushes it over 5000
         state.add_log_entry("This will trigger rotation")
 
         # Log should be rotated (moved to archive) and log should be cleared
         assert "x" * 4990 in state.archive_log
-        assert "\n[12:34:56] This will trigger rotation" in state.archive_log
-        assert state.log == ""
+        assert "[12:34:56] This will trigger rotation" in state.archive_log
+        assert state.log == []
 
     def test_get_next_pending_item_with_pending_items(self):
         """Test getting next pending item when pending items exist."""
@@ -295,8 +295,8 @@ class TestWorkflowState:
             current_item="Current task",
             plan="Test plan",
             items=items,
-            log="Test log",
-            archive_log="Archive log",
+            log=["Test log"],
+            archive_log=["Archive log"],
         )
 
         data = state.model_dump()
@@ -307,8 +307,8 @@ class TestWorkflowState:
         assert data["plan"] == "Test plan"
         assert len(data["items"]) == 1
         assert data["items"][0]["id"] == 1
-        assert data["log"] == "Test log"
-        assert data["archive_log"] == "Archive log"
+        assert data["log"] == ["Test log"]
+        assert data["archive_log"] == ["Archive log"]
         assert "last_updated" in data
 
 
@@ -336,8 +336,8 @@ class TestWorkflowStateJsonExport:
             client_id="test-client",
             current_item="Test task",
             plan="Test plan",
-            log="Test log",
-            archive_log="Test archive",
+            log=["Test log"],
+            archive_log=["Test archive"],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -421,15 +421,15 @@ class TestWorkflowStateJsonExport:
             phase=WorkflowPhase.CONSTRUCT,
             status=WorkflowStatus.RUNNING,
             plan="Detailed implementation plan",
-            log="Implementation log entry",
-            archive_log="Previous log entries",
+            log=["Implementation log entry"],
+            archive_log=["Previous log entries"],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
 
         assert data["plan"] == "Detailed implementation plan"
-        assert data["log"] == "Implementation log entry"
-        assert data["archive_log"] == "Previous log entries"
+        assert data["log"] == ["Implementation log entry"]
+        assert data["archive_log"] == ["Previous log entries"]
 
     def test_to_json_empty_values_as_null(self):
         """Test to_json represents empty strings as null."""
@@ -437,8 +437,8 @@ class TestWorkflowStateJsonExport:
             phase=WorkflowPhase.INIT,
             status=WorkflowStatus.READY,
             plan="",
-            log="",
-            archive_log="",
+            log=[],
+            archive_log=[],
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -541,8 +541,8 @@ class TestWorkflowStateJsonExport:
             current_item="Final validation task",
             plan="Complex multi-step plan with detailed instructions",
             items=items,
-            log="Detailed log with multiple entries and timestamps",
-            archive_log="Historical log data from previous phases",
+            log=["Detailed log with multiple entries and timestamps"],
+            archive_log=["Historical log data from previous phases"],
         )
 
         json_str = state.to_json()
@@ -557,5 +557,252 @@ class TestWorkflowStateJsonExport:
         assert len(data["items"]) == 3
         assert data["items"][2]["description"] == "Complex task 3"
         assert data["items"][2]["status"] == "in-progress"
-        assert data["log"] == "Detailed log with multiple entries and timestamps"
-        assert data["archive_log"] == "Historical log data from previous phases"
+        assert data["log"] == ["Detailed log with multiple entries and timestamps"]
+        assert data["archive_log"] == ["Historical log data from previous phases"]
+
+
+class TestDynamicWorkflowStateProgress:
+    """Test DynamicWorkflowState progress tracking functionality."""
+
+    @pytest.fixture
+    def mock_workflow_def(self):
+        """Create a mock WorkflowDefinition for testing."""
+        from unittest.mock import Mock
+
+        from src.dev_workflow_mcp.models.yaml_workflow import (
+            WorkflowDefinition,
+            WorkflowNode,
+            WorkflowTree,
+        )
+
+        # Create mock nodes
+        analyze_node = Mock(spec=WorkflowNode)
+        analyze_node.goal = "Analyze the requirements and understand the codebase"
+        analyze_node.acceptance_criteria = {
+            "requirements_analysis": "Clear breakdown of task requirements",
+            "codebase_exploration": "Understanding of current architecture",
+        }
+        analyze_node.next_allowed_nodes = ["blueprint"]
+
+        blueprint_node = Mock(spec=WorkflowNode)
+        blueprint_node.goal = "Create implementation plan and design"
+        blueprint_node.acceptance_criteria = {
+            "solution_architecture": "Complete technical approach documented",
+            "implementation_plan": "Detailed step-by-step plan created",
+        }
+        blueprint_node.next_allowed_nodes = ["construct"]
+
+        construct_node = Mock(spec=WorkflowNode)
+        construct_node.goal = "Implement the planned solution"
+        construct_node.acceptance_criteria = {
+            "step_execution": "All planned steps executed",
+            "quality_validation": "Code follows project standards",
+        }
+        construct_node.next_allowed_nodes = ["validate"]
+
+        # Create mock workflow tree
+        workflow_tree = Mock(spec=WorkflowTree)
+        workflow_tree.get_node = Mock(
+            side_effect=lambda name: {
+                "analyze": analyze_node,
+                "blueprint": blueprint_node,
+                "construct": construct_node,
+            }.get(name)
+        )
+        workflow_tree.tree = {
+            "analyze": analyze_node,
+            "blueprint": blueprint_node,
+            "construct": construct_node,
+        }
+
+        # Create mock workflow definition
+        workflow_def = Mock(spec=WorkflowDefinition)
+        workflow_def.name = "Test Workflow"
+        workflow_def.description = "Test workflow for progress tracking"
+        workflow_def.workflow = workflow_tree
+
+        return workflow_def
+
+    @pytest.fixture
+    def dynamic_state_with_progress(self, mock_workflow_def):
+        """Create a DynamicWorkflowState with completed nodes and outputs."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="construct",
+            status="RUNNING",
+            node_history=["analyze", "blueprint"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {
+                        "requirements_analysis": "Successfully analyzed task requirements and identified scope",
+                        "codebase_exploration": "Explored existing codebase and understood architecture patterns",
+                    },
+                    "goal_achieved": True,
+                    "additional_info": "Found relevant patterns in existing code",
+                },
+                "blueprint": {
+                    "completed_criteria": {
+                        "solution_architecture": "Designed comprehensive solution with clear architecture",
+                        "implementation_plan": "Created detailed 5-step implementation plan",
+                    },
+                    "goal_achieved": True,
+                    "risk_assessment": "Low risk implementation with clear rollback plan",
+                },
+            },
+        )
+        return state
+
+    def test_to_markdown_includes_completed_nodes_progress(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that to_markdown includes completed nodes progress section."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check that completed nodes progress section exists
+        assert "## Completed Nodes Progress" in markdown
+
+        # Check that completed nodes are listed
+        assert "### 🎯 analyze" in markdown
+        assert "### 🎯 blueprint" in markdown
+
+        # Check that goals are included
+        assert "Analyze the requirements and understand the codebase" in markdown
+        assert "Create implementation plan and design" in markdown
+
+    def test_to_markdown_shows_acceptance_criteria_satisfaction(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that markdown shows which acceptance criteria were satisfied."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check acceptance criteria satisfaction for analyze node
+        assert (
+            "✅ **requirements_analysis**: Successfully analyzed task requirements and identified scope"
+            in markdown
+        )
+        assert (
+            "✅ **codebase_exploration**: Explored existing codebase and understood architecture patterns"
+            in markdown
+        )
+
+        # Check acceptance criteria satisfaction for blueprint node
+        assert (
+            "✅ **solution_architecture**: Designed comprehensive solution with clear architecture"
+            in markdown
+        )
+        assert (
+            "✅ **implementation_plan**: Created detailed 5-step implementation plan"
+            in markdown
+        )
+
+    def test_to_markdown_shows_additional_outputs(
+        self, dynamic_state_with_progress, mock_workflow_def
+    ):
+        """Test that markdown shows additional outputs from completed nodes."""
+        markdown = dynamic_state_with_progress.to_markdown(mock_workflow_def)
+
+        # Check additional outputs are shown
+        assert "**Additional Outputs:**" in markdown
+        assert (
+            "**additional_info**: Found relevant patterns in existing code" in markdown
+        )
+        assert (
+            "**risk_assessment**: Low risk implementation with clear rollback plan"
+            in markdown
+        )
+
+    def test_to_markdown_handles_missing_evidence(self, mock_workflow_def):
+        """Test that markdown handles cases where acceptance criteria evidence is missing."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {
+                        "requirements_analysis": "Analysis completed"
+                        # Missing codebase_exploration evidence
+                    },
+                    "goal_achieved": True,
+                }
+            },
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Check that missing evidence is indicated
+        assert "✅ **requirements_analysis**: Analysis completed" in markdown
+        assert (
+            "❓ **codebase_exploration**: Understanding of current architecture (no evidence recorded)"
+            in markdown
+        )
+
+    def test_to_markdown_handles_no_completed_nodes(self, mock_workflow_def):
+        """Test that markdown handles cases with no completed nodes."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="analyze",
+            status="RUNNING",
+            node_history=[],
+            node_outputs={},
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Should not include completed nodes progress section when no nodes completed
+        assert "## Completed Nodes Progress" not in markdown
+
+    def test_to_markdown_handles_completed_nodes_without_outputs(
+        self, mock_workflow_def
+    ):
+        """Test that markdown handles completed nodes that have no recorded outputs."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={},  # No outputs recorded
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Should show basic completion status
+        assert "## Completed Nodes Progress" in markdown
+        assert "✅ **analyze**: Completed (no detailed output recorded)" in markdown
+
+    def test_to_markdown_truncates_long_values(self, mock_workflow_def):
+        """Test that markdown truncates long values for readability."""
+        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+
+        long_value = (
+            "This is a very long value that should be truncated " * 10
+        )  # > 100 chars
+
+        state = DynamicWorkflowState(
+            workflow_name="Test Workflow",
+            current_node="blueprint",
+            status="RUNNING",
+            node_history=["analyze"],
+            node_outputs={
+                "analyze": {
+                    "completed_criteria": {"requirements_analysis": long_value},
+                    "long_output": long_value,
+                }
+            },
+        )
+
+        markdown = state.to_markdown(mock_workflow_def)
+
+        # Check that long values are truncated
+        assert "..." in markdown
+        # The full long value should not appear in the markdown
+        assert long_value not in markdown

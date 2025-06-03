@@ -1,0 +1,83 @@
+name: Custom Workflow Template
+description: Template for creating custom workflows - replace this description with your workflow's purpose
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+  # Add more inputs as needed
+  # custom_parameter:
+  #   type: string
+  #   description: Description of your custom parameter
+  #   required: false
+  #   default: "default_value"
+
+execution:
+  max_depth: 8
+  allow_backtracking: true
+
+workflow:
+  goal: Define the overall goal of your workflow here
+
+  # Specify the starting node of your workflow
+  root: start_node
+
+  tree:
+    # Define your workflow nodes here
+    # Each node should have a goal, acceptance_criteria, and next_allowed_nodes
+    
+    start_node:
+      goal: |
+        Define what this node should accomplish.
+        Use ${{ inputs.task_description }} to reference workflow inputs.
+        Be specific about what actions should be taken.
+      acceptance_criteria:
+        # Define criteria that must be met to complete this node
+        first_criterion: "Description of what constitutes completion for this criterion"
+        second_criterion: "Another completion criterion"
+        # Add more criteria as needed
+      next_allowed_nodes: [second_node, alternative_node]  # List nodes that can follow this one
+
+    second_node:
+      goal: |
+        Define the goal for the second step in your workflow.
+        Each node should have a clear, actionable goal.
+      acceptance_criteria:
+        completion_check: "What needs to be done to consider this node complete"
+        quality_gate: "Quality standards that must be met"
+      next_allowed_nodes: [final_node]
+
+    alternative_node:
+      goal: |
+        This represents an alternative path in your workflow.
+        Useful for handling different scenarios or conditions.
+      acceptance_criteria:
+        alternative_completion: "Criteria specific to this alternative path"
+      next_allowed_nodes: [final_node]
+
+    final_node:
+      goal: |
+        Define the final step of your workflow.
+        This should wrap up and finalize the work.
+      acceptance_criteria:
+        final_validation: "Final checks before workflow completion"
+        documentation: "Any documentation or reporting requirements"
+      # No next_allowed_nodes means this is a terminal node
+
+# Template Usage Instructions:
+# 1. Copy this template to create a new workflow
+# 2. Update the name and description
+# 3. Define your specific inputs and their types
+# 4. Set the root node to your starting point
+# 5. Define your workflow nodes with goals and acceptance criteria
+# 6. Set up the flow between nodes using next_allowed_nodes
+# 7. Test your workflow with the validation tools
+
+# Node Design Guidelines:
+# - Each node should have a single, clear responsibility
+# - Goals should be specific and actionable
+# - Acceptance criteria should be measurable
+# - Use decision nodes (with multiple next_allowed_nodes) for branching
+# - Use terminal nodes (no next_allowed_nodes) for workflow endings
+# - Reference inputs using ${{ inputs.parameter_name }} syntax 

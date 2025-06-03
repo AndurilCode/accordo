@@ -1,0 +1,104 @@
+name: Auto-Progression Test Workflow
+description: Test workflow with linear progression paths and decision points to validate auto-progression functionality
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+
+execution:
+  max_depth: 5
+  allow_backtracking: true
+
+workflow:
+  goal: Test automatic workflow progression for linear paths while preserving manual control for decision points
+
+  root: start
+
+  tree:
+    start:
+      goal: |
+        **AUTO-PROGRESSION TEST START**
+        
+        This is the starting node that should automatically progress to 'linear1'.
+        
+        **Test Objective:** Verify automatic progression through linear workflow paths.
+      next_allowed_nodes:
+        - linear1
+
+    linear1:
+      goal: |
+        **LINEAR NODE 1**
+        
+        This node should automatically progress to 'linear2' since it has only one next node.
+        
+        **Auto-progression expected:** Yes (single path)
+      next_allowed_nodes:
+        - linear2
+
+    linear2:
+      goal: |
+        **LINEAR NODE 2**
+        
+        This node should automatically progress to 'decision_point' since it has only one next node.
+        
+        **Auto-progression expected:** Yes (single path)
+      next_allowed_nodes:
+        - decision_point
+
+    decision_point:
+      goal: |
+        **DECISION POINT**
+        
+        This node should NOT auto-progress because it has multiple next nodes.
+        Agent must manually choose between 'option_a' and 'option_b'.
+        
+        **Auto-progression expected:** No (multiple paths require manual choice)
+      acceptance_criteria:
+        choice_required: "Must manually select one of the available options"
+        no_auto_progression: "System should wait for manual choice selection"
+      next_allowed_nodes:
+        - option_a
+        - option_b
+
+    option_a:
+      goal: |
+        **OPTION A SELECTED**
+        
+        This node should automatically progress to 'final' since it has only one next node.
+        
+        **Auto-progression expected:** Yes (single path to completion)
+      next_allowed_nodes:
+        - final
+
+    option_b:
+      goal: |
+        **OPTION B SELECTED**
+        
+        This node should automatically progress to 'final' since it has only one next node.
+        
+        **Auto-progression expected:** Yes (single path to completion)
+      next_allowed_nodes:
+        - final
+
+    final:
+      goal: |
+        **AUTO-PROGRESSION TEST COMPLETE**
+        
+        This is the terminal node with no next nodes.
+        Workflow execution should complete here.
+        
+        **Expected behavior:**
+        - No auto-progression (terminal node)
+        - Display "workflow complete" status
+        - Show completion summary
+        
+        **Test Results:**
+        - Linear progression: start → linear1 → linear2 → decision_point (automatic)
+        - Decision point: Required manual choice between option_a/option_b
+        - Final progression: option_a/option_b → final (automatic)
+        - Completion: Workflow ends at terminal node
+      acceptance_criteria:
+        test_completed: "Auto-progression functionality tested successfully"
+        workflow_complete: "Reached terminal node and workflow completion confirmed" 

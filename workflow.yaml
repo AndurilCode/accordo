@@ -1,0 +1,85 @@
+name: Execute Coding Task
+description: This is a sample workflow
+
+inputs: # Inputs to the workflow. It can be a list of inputs or a single input.
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+
+  # Execution flow configuration
+execution:
+  max_depth: 5
+  allow_backtracking: true
+
+workflow:
+  goal: Decision tree for task execution with nodes, decisions, and leaf conclusions # This is the goal of the workflow. It should be a description of the workflow.
+
+  # Root node of the decision tree
+  root: plan
+
+  # Define all nodes in the decision tree
+  tree:
+    # Node - This is a node because it has children nodes. (next_allowed_nodes, next_allowed_workflows)
+    plan:
+      goal: | # workflow input variables are wrapped in ${{ }}
+        Analyze the task to determine execution approach for ${{ inputs.task_description }} 
+      acceptance_criteria: #Requirements to consider the task of this node as completed
+        analysis_result: "Analysis result" # Example of a requirement
+        blueprint: "Blueprint result" # Example of a requirement
+      next_allowed_nodes: # In the prompt should be stated this list, to let decide the next node
+        [document, clarify, code, debug]
+      next_allowed_workflows: [] # External workflows can be called from here. It works in the same way as the next_allowed_nodes.
+
+    # Node - This is a node because it has children nodes. (next_allowed_nodes, next_allowed_workflows)
+    code:
+      goal: |
+        Analyze the task to determine execution approach for ${{ inputs.task_description }}
+      acceptance_criteria:
+        changes_made: "Provide a list of changes made"
+      next_allowed_nodes: [validate]
+
+    # Node - This is a node because it has children nodes. (next_allowed_nodes, next_allowed_workflows)
+    validate:
+      goal: |
+        Handle testing and validation tasks
+      acceptance_criteria:
+        unit_test_results: "Provide test results"
+        linting_results: "Provide linting results"
+        code_coverage: "Provide code coverage results"
+      next_allowed_nodes: [end]
+
+    # Node - This is a node because it has children nodes. (next_allowed_nodes, next_allowed_workflows)
+    document:
+      goal: |
+        Handle documentation tasks
+      acceptance_criteria:
+        documentation_updates: "Provide documentation updates"
+      next_allowed_nodes: [end]
+
+    # Node - This is a node because it has children nodes. (next_allowed_nodes, next_allowed_workflows)
+    debug:
+      goal: |
+        Execute debugging and bug fixing workflow
+      acceptance_criteria:
+        problem_analysis: "Analysis of the bug or issue identified"
+        root_cause: "Root cause of the problem"
+        fix_implementation: "Description of the fix implemented"
+        summary: "Summary of the debugging process and resolution"
+      next_allowed_nodes: [validate]
+
+    # Leaf node - This is a leaf node because it has no children nodes.
+    clarify:
+      goal: |
+        Request clarification for unclear or complex tasks
+      acceptance_criteria:
+        task_analysis: "Analysis of what was unclear about the task"
+        clarifying_questions: "Specific questions that need to be answered"
+        suggested_approach: "Suggested approach once clarification is provided"
+
+    # Leaf node - This is a leaf node because it has no children nodes.
+    end:
+      goal: |
+        Provide a summary of the workflow execution
+      acceptance_criteria:
+        summary: "Summary of the workflow execution"

@@ -1,0 +1,288 @@
+name: Debugging Workflow
+description: Specialized workflow for debugging, troubleshooting, and bug fixing tasks
+
+inputs:
+  task_description:
+    type: string
+    description: Bug report or debugging task description
+    required: true
+  bug_severity:
+    type: string
+    description: Severity level of the bug (critical, high, medium, low)
+    required: false
+    default: "medium"
+  reproduction_steps:
+    type: string
+    description: Steps to reproduce the issue
+    required: false
+
+execution:
+  max_depth: 10
+  allow_backtracking: true
+
+workflow:
+  goal: Identify, analyze, and fix bugs with thorough testing and validation
+
+  root: investigate
+
+  tree:
+    # Investigation phase - understand the problem
+    investigate:
+      goal: |
+        **MANDATORY INVESTIGATE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. REPRODUCE THE ISSUE** ⚠️ MANDATORY
+           - MUST follow provided reproduction steps if available
+           - MUST systematically test different scenarios to trigger bug
+           - MUST document exact conditions that cause the issue
+           - MUST verify bug exists and is reproducible
+
+        **2. ANALYZE BUG SYMPTOMS** ⚠️ MANDATORY
+           - MUST gather detailed error messages and stack traces
+           - MUST document all visible symptoms and manifestations
+           - MUST identify affected functionality and user impact
+           - MUST note any patterns or consistency in bug occurrence
+
+        **3. COLLECT DIAGNOSTIC INFORMATION** ⚠️ MANDATORY
+           - MUST gather relevant log files and error outputs
+           - MUST check system logs and application logs
+           - MUST document environment details (OS, versions, dependencies)
+           - MUST collect any relevant debugging information
+
+        **4. ASSESS IMPACT AND SCOPE** ⚠️ MANDATORY
+           - MUST determine which users and functionality are affected
+           - MUST assess severity and urgency of the issue
+           - MUST identify any workarounds or mitigations available
+           - MUST understand business impact and priority level
+
+        **DO NOT:** Attempt to fix the issue during investigation phase.
+        **FOCUS:** Understanding and documenting the problem thoroughly.
+      acceptance_criteria:
+        issue_reproduction: "Successfully reproduced the bug with documented steps and conditions"
+        symptom_analysis: "Detailed analysis of bug symptoms, error messages, and manifestations"
+        diagnostic_data: "Comprehensive collection of logs, error messages, and diagnostic information"
+        impact_assessment: "Clear assessment of bug impact, affected functionality, and severity"
+        environment_check: "Verification and documentation of environment factors and dependencies"
+      next_allowed_nodes: [analyze_root_cause]
+
+    # Root cause analysis
+    analyze_root_cause:
+      goal: |
+        **MANDATORY ANALYZE_ROOT_CAUSE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. EXAMINE RELEVANT CODE SECTIONS** ⚠️ MANDATORY
+           - MUST analyze code areas related to bug symptoms
+           - MUST review recent changes that might have introduced the bug
+           - MUST examine logic flows and data handling in affected areas
+           - MUST identify potential code paths leading to the issue
+
+        **2. TRACE EXECUTION PATHS** ⚠️ MANDATORY
+           - MUST trace code execution from entry point to bug manifestation
+           - MUST identify decision points and branching logic
+           - MUST understand data flow and transformations
+           - MUST map execution path that leads to the problematic behavior
+
+        **3. IDENTIFY ROOT CAUSE** ⚠️ MANDATORY
+           - MUST pinpoint the exact source of the bug
+           - MUST differentiate between root cause and symptoms
+           - MUST understand why the bug occurs under specific conditions
+           - MUST verify root cause explains all observed symptoms
+
+        **4. ANALYZE CONTRIBUTING FACTORS** ⚠️ MANDATORY
+           - MUST identify any environmental or configuration factors
+           - MUST understand dependencies that contribute to the issue
+           - MUST identify any timing or race condition factors
+           - MUST document all conditions necessary for bug to occur
+
+        **ANALYSIS DEPTH:** Root cause analysis must be thorough and definitive.
+      acceptance_criteria:
+        code_analysis: "Detailed analysis of relevant code sections, logic flows, and recent changes"
+        execution_tracing: "Complete trace of execution paths from entry point to bug manifestation"
+        root_cause_identification: "Clear identification and verification of the root cause"
+        contributing_factors: "Comprehensive identification of environmental and dependency factors"
+        fix_strategy: "Well-defined strategy for fixing root cause without introducing side effects"
+      next_allowed_nodes: [develop_fix]
+
+    # Develop fix
+    develop_fix:
+      goal: |
+        **MANDATORY DEVELOP_FIX PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. IMPLEMENT TARGETED FIX** ⚠️ MANDATORY
+           - MUST create fix that directly addresses identified root cause
+           - MUST implement changes with minimal impact on surrounding code
+           - MUST ensure fix follows project coding standards and patterns
+           - MUST avoid over-engineering or unnecessary complexity
+
+        **2. MANDATORY PROGRESS LOGGING** ⚠️ CRITICAL
+           - MUST call workflow_state tool after EVERY major fix implementation step
+           - MUST log: `workflow_state(operation="update", updates='{"log_entry": "Fix Step X: [description] - [status]"}')`
+           - MUST capture testing results for each fix component
+           - MUST document any approach changes or complications
+
+        **3. HANDLE EDGE CASES** ⚠️ MANDATORY
+           - MUST consider and address related edge cases
+           - MUST ensure fix works under all conditions that trigger the bug
+           - MUST verify fix doesn't break other functionality
+           - MUST test fix with various input scenarios and boundary conditions
+
+        **4. MAINTAIN CODE QUALITY** ⚠️ MANDATORY
+           - MUST ensure fix follows project coding standards
+           - MUST add appropriate comments explaining the fix
+           - MUST update relevant documentation if needed
+           - MUST ensure fix is maintainable and understandable
+
+        **ERROR HANDLING:** If fix doesn't resolve issue, must analyze and revise approach.
+
+        **PROGRESS TRACKING:** Must maintain detailed log of all fix development using workflow_state tool.
+      acceptance_criteria:
+        fix_implementation: "Targeted fix implemented that directly addresses root cause with minimal code impact"
+        edge_case_handling: "Comprehensive consideration and handling of related edge cases and boundary conditions"
+        code_quality: "Fix maintains high code quality standards and follows project conventions"
+        regression_prevention: "Fix designed and verified to prevent regression of the issue"
+        documentation_update: "Code comments, documentation, and explanations updated appropriately"
+        progress_logging: "Complete log of fix development maintained in workflow_state with testing results"
+      next_allowed_nodes: [test_fix]
+
+    # Test the fix
+    test_fix:
+      goal: |
+        **MANDATORY TEST_FIX PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. VERIFY FIX EFFECTIVENESS** ⚠️ MANDATORY
+           - MUST test that original bug reproduction steps no longer trigger issue
+           - MUST verify fix resolves all documented symptoms
+           - MUST test fix under all conditions that previously caused the bug
+           - MUST confirm fix addresses the root cause completely
+
+        **2. COMPREHENSIVE EDGE CASE TESTING** ⚠️ MANDATORY
+           - MUST test all identified edge cases and boundary conditions
+           - MUST verify fix works with various input scenarios
+           - MUST test error handling and exception cases
+           - MUST ensure fix is robust under stress conditions
+
+        **3. REGRESSION TESTING** ⚠️ MANDATORY
+           - MUST run existing test suite to ensure no new issues introduced
+           - MUST test related functionality that could be affected by fix
+           - MUST verify previously working features still work correctly
+           - MUST check for any unintended side effects
+
+        **4. INTEGRATION AND PERFORMANCE TESTING** ⚠️ MANDATORY
+           - MUST test integration with other system components
+           - MUST verify fix doesn't impact system performance negatively
+           - MUST test under realistic load and usage conditions
+           - MUST ensure fix works in all supported environments
+
+        **TESTING RIGOR:** Testing must be comprehensive and systematic.
+      acceptance_criteria:
+        fix_verification: "Verified that fix completely resolves original issue under all reproduction conditions"
+        edge_case_testing: "Comprehensive testing of edge cases, boundary conditions, and error scenarios"
+        regression_testing: "Complete regression testing confirms no new issues introduced"
+        integration_testing: "Integration testing confirms compatibility with other system components"
+        performance_impact: "Performance impact assessed and confirmed to be acceptable"
+      next_allowed_nodes: [validate_solution]
+
+    # Validate the solution
+    validate_solution:
+      goal: |
+        **MANDATORY VALIDATE_SOLUTION PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. RUN COMPLETE TEST SUITE** ⚠️ MANDATORY
+           - MUST execute full automated test suite with fix in place
+           - MUST ensure all tests pass without exceptions
+           - MUST verify no test degradation or failures introduced
+           - MUST run tests in all supported environments
+
+        **2. VERIFY QUALITY STANDARDS** ⚠️ MANDATORY
+           - MUST run linting checks: `ruff check .`
+           - MUST verify code formatting: `ruff format --check .`
+           - MUST run type checking if applicable: `mypy src/`
+           - MUST ensure all quality gates pass
+
+        **3. DOCUMENT COMPLETE SOLUTION** ⚠️ MANDATORY
+           - MUST document original bug and its symptoms
+           - MUST document root cause analysis and findings
+           - MUST document fix implementation and rationale
+           - MUST document testing performed and results
+
+        **4. PREPARE FOR DEPLOYMENT** ⚠️ MANDATORY
+           - MUST ensure solution is ready for production deployment
+           - MUST verify all necessary approvals and reviews completed
+           - MUST prepare deployment notes and rollback plans
+           - MUST create monitoring plan for post-deployment
+
+        **VALIDATION COMPLETENESS:** Solution must be production-ready and fully validated.
+      acceptance_criteria:
+        full_test_suite: "Complete test suite passes with fix in place across all environments"
+        quality_verification: "All code quality standards maintained with linting, formatting, and type checks passing"
+        solution_documentation: "Comprehensive documentation of bug, root cause, fix, and testing completed"
+        deployment_readiness: "Solution is production-ready with proper approvals and deployment plans"
+        monitoring_plan: "Plan for monitoring fix effectiveness in production environment"
+      next_allowed_nodes: [finalize_bugfix]
+
+    # Finalize bug fix
+    finalize_bugfix:
+      goal: |
+        **MANDATORY FINALIZE_BUGFIX PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **SEVERITY:** ${{ inputs.bug_severity }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. CLOSE ISSUE PROPERLY** ⚠️ MANDATORY
+           - MUST update original issue tracker with complete resolution details
+           - MUST document fix implementation and testing performed
+           - MUST provide clear closure notes for future reference
+           - MUST ensure all stakeholders are notified of resolution
+
+        **2. CREATE COMPREHENSIVE FIX SUMMARY** ⚠️ MANDATORY
+           - MUST provide detailed summary of investigation findings
+           - MUST document root cause analysis and fix rationale
+           - MUST include testing results and validation performed
+           - MUST note any lessons learned or process improvements
+
+        **3. SHARE KNOWLEDGE** ⚠️ MANDATORY
+           - MUST document solution for future reference and knowledge sharing
+           - MUST update relevant troubleshooting guides or documentation
+           - MUST share insights with team members if applicable
+           - MUST contribute to knowledge base or team learning
+
+        **4. PLAN FOLLOW-UP ACTIONS** ⚠️ MANDATORY
+           - MUST create plan for monitoring fix effectiveness in production
+           - MUST identify any additional preventive measures needed
+           - MUST document any process improvements or tooling needs
+           - MUST schedule follow-up review if necessary
+
+        **COMPLETION STATUS:** Bug fix process successfully completed with full documentation.
+      acceptance_criteria:
+        issue_closure: "Original issue properly documented, resolved, and closed with stakeholder notification"
+        fix_summary: "Comprehensive summary of investigation, root cause, fix, and validation documented"
+        knowledge_sharing: "Solution documented for future reference and team knowledge sharing"
+        process_completion: "All debugging process steps completed and documented thoroughly"
+        follow_up_plan: "Plan for monitoring, prevention, and any necessary follow-up actions documented" 

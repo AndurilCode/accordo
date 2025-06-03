@@ -1,0 +1,242 @@
+name: Default Coding Workflow
+description: Standard development workflow for coding tasks with analysis, planning, construction, and validation phases
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+  project_config_path:
+    type: string
+    description: Path to project configuration file
+    required: false
+    default: ".workflow-commander/project_config.md"
+
+execution:
+  max_depth: 10
+  allow_backtracking: true
+
+workflow:
+  goal: Complete coding task with thorough analysis, planning, implementation, and validation
+
+  root: analyze
+
+  tree:
+    # Analysis phase - understand requirements and codebase
+    analyze:
+      goal: |
+        **MANDATORY ANALYZE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. READ PROJECT CONFIGURATION** ⚠️ MANDATORY
+           - MUST read `${{ inputs.project_config_path }}` completely
+           - MUST understand coding standards, dependencies, test commands
+           - MUST note project structure and constraints
+
+        **2. EXPLORE RELEVANT CODEBASE** ⚠️ MANDATORY  
+           - MUST use semantic search to find related code patterns
+           - MUST understand current architecture and design patterns
+           - MUST identify files that need modification
+           - MUST examine similar implementations for consistency
+
+        **3. BREAK DOWN REQUIREMENTS** ⚠️ MANDATORY
+           - MUST decompose task into specific, actionable requirements
+           - MUST identify scope boundaries and what's in/out of scope
+           - MUST note any ambiguities requiring clarification
+           - MUST identify potential risks and complexity factors
+
+        **4. DOCUMENT FINDINGS** ⚠️ MANDATORY
+           - MUST summarize understanding of task requirements
+           - MUST list all affected components and files
+           - MUST identify integration points and dependencies
+           - MUST note any constraints or special considerations
+
+        **DO NOT:** Write any code, create plans, or make changes during analysis.
+        **FOCUS:** Understanding only - comprehensive information gathering.
+      acceptance_criteria:
+        project_config_analysis: "Complete analysis of project configuration, dependencies, and coding standards documented"
+        codebase_exploration: "Thorough understanding of current architecture, patterns, and related implementations"
+        requirements_analysis: "Clear breakdown of task into specific, actionable requirements with scope boundaries"
+        documentation_review: "Review of relevant documentation, constraints, and integration points"
+        understanding_validation: "Can clearly explain task requirements and identify all affected components"
+      next_allowed_nodes: [blueprint]
+
+    # Blueprint phase - create implementation plan
+    blueprint:
+      goal: |
+        **MANDATORY BLUEPRINT PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. DESIGN SOLUTION ARCHITECTURE** ⚠️ MANDATORY
+           - MUST define overall technical approach and strategy
+           - MUST specify design patterns and architectural decisions
+           - MUST identify all files to create/modify with rationale
+           - MUST plan for error handling and edge cases
+
+        **2. CREATE STEP-BY-STEP PLAN** ⚠️ MANDATORY
+           - MUST break implementation into atomic, ordered steps
+           - MUST ensure each step is small, specific, and verifiable
+           - MUST include verification commands for each step
+           - MUST specify success criteria and validation methods
+
+        **3. DEFINE TESTING STRATEGY** ⚠️ MANDATORY
+           - MUST plan how each component will be tested
+           - MUST identify integration points requiring validation
+           - MUST specify acceptance criteria and quality gates
+           - MUST include regression testing considerations
+
+        **4. DOCUMENT COMPREHENSIVE PLAN** ⚠️ MANDATORY
+           - MUST create detailed implementation plan under ## Plan section
+           - MUST include risk assessment and mitigation strategies
+           - MUST specify quality assurance checkpoints
+           - MUST define rollback procedures if needed
+
+        **FORMAT:** Plan must be actionable and specific enough for systematic execution.
+
+        ASK FOR APPROVAL BEFORE PROCEEDING.
+        
+      acceptance_criteria:
+        solution_architecture: "Complete technical approach with design patterns, file changes, and architectural decisions documented"
+        step_breakdown: "Detailed, atomic implementation steps with specific verification commands and success criteria"
+        quality_plan: "Comprehensive testing strategy with integration points and acceptance criteria defined"
+        implementation_plan: "Complete plan documented under ## Plan section with risk assessment and quality gates"
+        plan_approval: "Plan is comprehensive, actionable, and ready for systematic execution"
+      next_allowed_nodes: [construct]
+
+    # Construction phase - implement the plan
+    construct:
+      goal: |
+        **MANDATORY CONSTRUCT PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. EXECUTE PLAN SYSTEMATICALLY** ⚠️ MANDATORY
+           - MUST implement each planned step in exact sequence
+           - MUST complete each step fully before proceeding to next
+           - MUST NOT skip, combine, or reorder steps
+           - MUST follow the approved implementation plan precisely
+
+        **2. MANDATORY PROGRESS LOGGING** ⚠️ CRITICAL
+           - MUST call workflow_state tool after EVERY major step
+           - MUST log: `workflow_state(operation="update", updates='{"log_entry": "Step X: [description] - [status]"}')`
+           - MUST capture verification results in each log entry
+           - MUST document any deviations from plan with rationale
+
+        **3. VERIFY EACH STEP** ⚠️ MANDATORY
+           - MUST run verification commands immediately after each change
+           - MUST test functionality works as expected
+           - MUST run linting/formatting checks and fix any issues
+           - MUST ensure code quality standards are maintained
+
+        **4. QUALITY VALIDATION** ⚠️ MANDATORY
+           - MUST ensure no new linting errors introduced
+           - MUST verify backwards compatibility maintained
+           - MUST check all imports resolve without circular dependencies
+           - MUST test integration points work correctly
+
+        **ERROR HANDLING:** If any step fails, must fix before proceeding. Use workflow_guidance with action="revise" if major issues occur.
+
+        **PROGRESS TRACKING:** Must maintain detailed log of all changes made using workflow_state tool.
+      acceptance_criteria:
+        step_execution: "All planned implementation steps executed exactly as specified with full completion of each step"
+        verification_results: "All verification commands executed successfully with results captured in workflow_state logs"
+        quality_validation: "Code follows project standards with no new linting errors and quality gates passed"
+        backwards_compatibility: "No breaking changes introduced unless explicitly specified in requirements"
+        integration_check: "All imports resolve correctly with no circular dependencies and integration points tested"
+        progress_logging: "Complete log of all changes maintained in workflow_state with detailed progress tracking"
+      next_allowed_nodes: [validate]
+
+    # Validation phase - comprehensive quality verification
+    validate:
+      goal: |
+        **MANDATORY VALIDATE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. COMPREHENSIVE FUNCTIONAL TESTING** ⚠️ MANDATORY
+           - MUST run complete test suite with all tests passing
+           - MUST test all implemented functionality thoroughly
+           - MUST verify edge cases and error conditions
+           - MUST ensure no regressions in existing functionality
+
+        **2. QUALITY VERIFICATION** ⚠️ MANDATORY
+           - MUST run linting checks with zero errors: `ruff check .`
+           - MUST verify code formatting: `ruff format --check .`
+           - MUST run type checking if applicable: `mypy src/`
+           - MUST ensure code follows project standards
+
+        **3. INTEGRATION TESTING** ⚠️ MANDATORY
+           - MUST verify backwards compatibility maintained
+           - MUST test all integration points work correctly
+           - MUST ensure imports resolve without circular dependencies
+           - MUST validate system works end-to-end
+
+        **4. REQUIREMENTS VERIFICATION** ⚠️ MANDATORY
+           - MUST verify all original requirements implemented
+           - MUST confirm task objectives achieved
+           - MUST validate all acceptance criteria satisfied
+           - MUST document any limitations or considerations
+
+        **5. DOCUMENTATION VALIDATION** ⚠️ MANDATORY
+           - MUST ensure code is properly documented
+           - MUST update relevant project documentation
+           - MUST verify examples and usage instructions accurate
+           - MUST check documentation completeness
+
+        **FINAL CHECK:** All implementation must be production-ready with comprehensive validation completed.
+      acceptance_criteria:
+        functional_testing: "Complete test suite passed with comprehensive edge case coverage and no regressions"
+        quality_verification: "All linting, formatting, and type checks passed with zero errors and warnings"
+        integration_testing: "Backwards compatibility verified and all integration points tested successfully"
+        requirements_verification: "All original requirements implemented and validated with task objectives achieved"
+        documentation_validation: "Code properly documented and project documentation updated with accurate examples"
+      next_allowed_nodes: [complete]
+
+    # Completion phase - finalize and summarize
+    complete:
+      goal: |
+        **MANDATORY COMPLETE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. UPDATE PROJECT CHANGELOG** ⚠️ MANDATORY
+           - MUST update project changelog with summary of changes
+           - MUST document new features, fixes, or improvements
+           - MUST include version information if applicable
+           - MUST ensure changelog follows project format
+
+        **2. FINAL VALIDATION** ⚠️ MANDATORY
+           - MUST verify all acceptance criteria met across all phases
+           - MUST confirm implementation is production-ready
+           - MUST ensure no outstanding issues or technical debt
+           - MUST validate system stability and performance
+
+        **3. WORKFLOW SUMMARY** ⚠️ MANDATORY
+           - MUST provide comprehensive summary of work performed
+           - MUST document outcomes and achievements
+           - MUST note any limitations or future considerations
+           - MUST confirm successful completion of all objectives
+
+        **4. MARK WORKFLOW COMPLETE** ⚠️ MANDATORY
+           - MUST call workflow_state to mark workflow as completed
+           - MUST ensure all session data properly finalized
+           - MUST confirm task requirements fully satisfied
+
+        **FINAL STATUS:** Task successfully completed with full validation and documentation.
+      acceptance_criteria:
+        changelog_update: "Project changelog updated with comprehensive summary of changes and improvements"
+        final_validation: "All acceptance criteria met and verified across all workflow phases"
+        workflow_summary: "Complete summary of work performed, outcomes achieved, and future considerations documented"
+        completion_status: "Workflow marked as completed with all objectives satisfied and requirements met" 

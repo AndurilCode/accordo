@@ -1,8 +1,5 @@
----
-description: 
-globs: 
-alwaysApply: true
----
+# GitHub Copilot Instructions
+
 ## Task Execution Guidelines
 
 ### When to Use Workflow Tools
@@ -17,39 +14,20 @@ The workflow system is now fully dynamic and schema-driven:
 3. **Schema-Driven Navigation**: Workflow transitions are determined by the YAML schema (`next_allowed_nodes` and `next_allowed_workflows`)
 4. **Context Parameters**: Control workflow execution using context like `context="choose: node_name"` or `context="workflow: Workflow Name"`
 
-### Workflow Discovery Process
-**⚠️ CRITICAL START POINT:** For complex tasks, ALWAYS begin with workflow discovery:
-
-1. **First Step - Discover Available Workflows:**
-   ```
-   workflow_discovery(task_description="Your task description")
-   ```
-   This shows all available YAML workflows and their capabilities.
-
-2. **Second Step - Start Selected Workflow:**
-   ```
-   workflow_guidance(action="start", context="workflow: <chosen_workflow_name>")
-   ```
-
-3. **Continue with Schema Navigation:**
-   Use `workflow_guidance` with `context="choose: <option>"` to navigate workflow nodes.
-
 ### Workflow Execution Process
-1. **Mandatory Discovery**: ALWAYS start with `workflow_discovery()` for complex tasks
-2. **Select Workflow**: Choose based on task requirements and workflow descriptions
-3. **Initialize Session**: Use `workflow_guidance(action="start", context="workflow: Name")`
-4. **Follow Schema**: Navigate using transitions defined in YAML schema
-5. **Agent-Driven Navigation**: Make routing decisions based on schema-presented options
+1. **Initialize**: When using `workflow_guidance`, the system will present available workflows for your selection
+2. **Choose Workflow**: Select the most appropriate workflow based on task description and workflow goals
+3. **Follow Schema**: Navigate through workflow nodes using the transitions defined in the YAML schema
+4. **Agent Decisions**: Make routing decisions based on schema-presented options rather than hardcoded logic
+5. **Stay Synchronized**: The workflow state file tracks your progress through the chosen workflow
 
 ### Available Tools
-- `workflow_discovery`: Discover and view available YAML workflows (START HERE)
 - `workflow_guidance`: Main tool for dynamic workflow execution with agent-driven workflow selection
 - `workflow_state`: Tool for checking and updating workflow state
 - Context7: Use for up-to-date documentation about technologies
 - GitHub: Read files from other repositories when needed
 
 ### Key Principles
-- **Discovery-first approach**: ALWAYS start with `workflow_discovery()` for complex tasks
 - **No hardcoded routing**: All workflow behavior is determined by YAML schema definitions
 - **Agent-driven selection**: You choose workflows and transitions based on schema-presented options
 - **Schema as source of truth**: Workflow definitions in YAML files drive all behavior
