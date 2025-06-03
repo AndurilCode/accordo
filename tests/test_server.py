@@ -25,6 +25,7 @@ class TestServerInitialization:
             "workflow_guidance",
             "workflow_state", 
             "workflow_discovery",
+            "workflow_creation_guidance",
         ]
 
         for tool_name in expected_tools:
@@ -36,8 +37,8 @@ class TestServerInitialization:
     async def test_tool_count(self):
         """Test that expected number of tools are registered."""
         tools = await mcp.get_tools()
-        # After legacy cleanup: 2 phase tools + 4 discovery tools = 6 essential tools
-        assert len(tools) == 6, f"Expected 6 tools, got {len(tools)}: {list(tools.keys())}"
+        # After legacy cleanup: 2 phase tools + 5 discovery tools = 7 essential tools
+        assert len(tools) == 7, f"Expected 7 tools, got {len(tools)}: {list(tools.keys())}"
 
 
 class TestMainFunction:
@@ -110,6 +111,26 @@ class TestToolExecution:
 
         # Test that the function exists and is callable
         assert callable(discovery_tool.fn)
+
+    @pytest.mark.asyncio
+    async def test_workflow_creation_guidance_tool_structure(self):
+        """Test workflow_creation_guidance tool is properly registered with correct structure."""
+        # Get the tool
+        tools = await mcp.get_tools()
+        assert "workflow_creation_guidance" in tools
+        creation_tool = tools["workflow_creation_guidance"]
+
+        # Verify tool structure
+        assert creation_tool.name == "workflow_creation_guidance"
+        assert "Guide agent through creating a custom YAML workflow" in creation_tool.description
+        assert creation_tool.parameters["type"] == "object"
+        assert "task_description" in creation_tool.parameters["properties"]
+        assert "workflow_type" in creation_tool.parameters["properties"]
+        assert "complexity_level" in creation_tool.parameters["properties"]
+        assert "task_description" in creation_tool.parameters["required"]
+
+        # Test that the function exists and is callable
+        assert callable(creation_tool.fn)
 
 
 class TestToolParameters:
