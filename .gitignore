@@ -188,3 +188,5 @@ dev_*.py
 dev_*.txt
 dev_*.log
 debug_*
+
+.workflow-commander/
