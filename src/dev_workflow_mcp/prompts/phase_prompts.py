@@ -32,6 +32,7 @@ from ..utils.session_manager import (
 )
 from ..utils.workflow_engine import WorkflowEngine
 from ..utils.yaml_loader import WorkflowLoader
+from .discovery_prompts import get_cached_workflow
 
 # =============================================================================
 # VALIDATION FUNCTIONS
@@ -604,68 +605,179 @@ Legacy workflows have been removed. Please start a new YAML workflow:
                 # MANDATORY DISCOVERY-FIRST ENFORCEMENT
 
                 if action.lower() == "start" and context and isinstance(context, str):
-                    # Parse and validate YAML context with enhanced handling
-                    workflow_name, yaml_content, error_msg = (
-                        parse_and_validate_yaml_context(context)
-                    )
-
-                    if error_msg:
-                        # Return formatted error with guidance
-                        return _format_yaml_error_guidance(error_msg, workflow_name)
-
-                    if workflow_name and yaml_content:
-                        # Load workflow from validated YAML string
-                        try:
-                            selected_workflow = loader.load_workflow_from_string(
-                                yaml_content, workflow_name
-                            )
-
-                            if selected_workflow:
-                                # Create dynamic session directly with selected workflow
+                    # First, try to extract workflow name from context
+                    workflow_name = None
+                    if context.startswith("workflow:"):
+                        workflow_name = context.split("workflow:", 1)[1].strip()
+                        # Remove any additional content after workflow name
+                        if "\n" in workflow_name:
+                            workflow_name = workflow_name.split("\n")[0].strip()
+                    
+                    if workflow_name:
+                        # Try to find workflow in cache first (server-side discovery)
+                        cached_workflow = get_cached_workflow(workflow_name)
+                        
+                        if cached_workflow:
+                            # Found in cache - use it directly
+                            try:
+                                # Create dynamic session directly with cached workflow
                                 session = create_dynamic_session(
-                                    client_id, task_description, selected_workflow
+                                    client_id, task_description, cached_workflow
                                 )
 
                                 # Store workflow definition in cache for later retrieval
                                 store_workflow_definition_in_cache(
-                                    client_id, selected_workflow
+                                    client_id, cached_workflow
                                 )
 
                                 # Get current node info
-                                current_node = selected_workflow.workflow.tree[
+                                current_node = cached_workflow.workflow.tree[
                                     session.current_node
                                 ]
                                 status = format_node_status(
-                                    current_node, selected_workflow
+                                    current_node, cached_workflow
                                 )
 
-                                return f"""🚀 **Workflow Started:** {selected_workflow.name}
+                                return f"""🚀 **Workflow Started:** {cached_workflow.name}
 
 **Task:** {task_description}
 
+**Source:** Server-side discovery cache
+
 {status}"""
-                            else:
+
+                            except Exception as e:
                                 return _format_yaml_error_guidance(
-                                    "Failed to load workflow from provided YAML - invalid structure",
+                                    f"Error starting cached workflow: {str(e)}",
                                     workflow_name,
                                 )
-
-                        except Exception as e:
-                            return _format_yaml_error_guidance(
-                                f"Error loading workflow from YAML: {str(e)}",
-                                workflow_name,
+                        else:
+                            # Not in cache - check if YAML content was provided as fallback
+                            workflow_name, yaml_content, error_msg = (
+                                parse_and_validate_yaml_context(context)
                             )
 
-                    elif workflow_name and not yaml_content:
-                        # Agent provided workflow name without YAML - instruct them to provide YAML
-                        return f"""❌ **Workflow YAML Required**
+                            if error_msg and "YAML content is missing" in error_msg:
+                                # Workflow name provided but not in cache and no YAML - need discovery
+                                return f"""❌ **Workflow Not Found:** {workflow_name}
 
-You specified workflow: **{workflow_name}**
+The workflow '{workflow_name}' was not found in the server cache.
 
-**🚨 AGENT ACTION REQUIRED:**
-The MCP server cannot access workflow files. Please provide the workflow YAML content directly.
+**🔍 SOLUTION OPTIONS:**
 
-{_format_yaml_error_guidance("YAML content missing", workflow_name)}"""
+1. **Run discovery first:** `workflow_discovery(task_description="{task_description}")`
+   - This will discover and cache available workflows
+   - Then retry with: `workflow_guidance(action="start", context="workflow: {workflow_name}")`
+
+2. **Provide YAML directly:** Use the format:
+   ```
+   workflow_guidance(action="start", context="workflow: {workflow_name}\\nyaml: <your_yaml_content>")
+   ```
+
+**Note:** Server-side discovery is preferred for better performance."""
+
+                            elif yaml_content:
+                                # YAML content provided as fallback - load it
+                                try:
+                                    selected_workflow = loader.load_workflow_from_string(
+                                        yaml_content, workflow_name
+                                    )
+
+                                    if selected_workflow:
+                                        # Create dynamic session directly with selected workflow
+                                        session = create_dynamic_session(
+                                            client_id, task_description, selected_workflow
+                                        )
+
+                                        # Store workflow definition in cache for later retrieval
+                                        store_workflow_definition_in_cache(
+                                            client_id, selected_workflow
+                                        )
+
+                                        # Get current node info
+                                        current_node = selected_workflow.workflow.tree[
+                                            session.current_node
+                                        ]
+                                        status = format_node_status(
+                                            current_node, selected_workflow
+                                        )
+
+                                        return f"""🚀 **Workflow Started:** {selected_workflow.name}
+
+**Task:** {task_description}
+
+**Source:** YAML fallback (custom workflow)
+
+{status}"""
+                                    else:
+                                        return _format_yaml_error_guidance(
+                                            "Failed to load workflow from provided YAML - invalid structure",
+                                            workflow_name,
+                                        )
+
+                                except Exception as e:
+                                    return _format_yaml_error_guidance(
+                                        f"Error loading workflow from YAML: {str(e)}",
+                                        workflow_name,
+                                    )
+                            else:
+                                return _format_yaml_error_guidance(error_msg, workflow_name)
+                    
+                    else:
+                        # No workflow name provided - parse as full YAML context
+                        workflow_name, yaml_content, error_msg = (
+                            parse_and_validate_yaml_context(context)
+                        )
+
+                        if error_msg:
+                            return _format_yaml_error_guidance(error_msg, workflow_name)
+
+                        if workflow_name and yaml_content:
+                            # Load workflow from validated YAML string
+                            try:
+                                selected_workflow = loader.load_workflow_from_string(
+                                    yaml_content, workflow_name
+                                )
+
+                                if selected_workflow:
+                                    # Create dynamic session directly with selected workflow
+                                    session = create_dynamic_session(
+                                        client_id, task_description, selected_workflow
+                                    )
+
+                                    # Store workflow definition in cache for later retrieval
+                                    store_workflow_definition_in_cache(
+                                        client_id, selected_workflow
+                                    )
+
+                                    # Get current node info
+                                    current_node = selected_workflow.workflow.tree[
+                                        session.current_node
+                                    ]
+                                    status = format_node_status(
+                                        current_node, selected_workflow
+                                    )
+
+                                    return f"""🚀 **Workflow Started:** {selected_workflow.name}
+
+**Task:** {task_description}
+
+**Source:** YAML content (custom workflow)
+
+{status}"""
+                                else:
+                                    return _format_yaml_error_guidance(
+                                        "Failed to load workflow from provided YAML - invalid structure",
+                                        workflow_name,
+                                    )
+
+                            except Exception as e:
+                                return _format_yaml_error_guidance(
+                                    f"Error loading workflow from YAML: {str(e)}",
+                                    workflow_name,
+                                )
+                        else:
+                            return _format_yaml_error_guidance("Invalid context format", workflow_name)
 
                 elif action.lower() == "start":
                     # No context provided - show discovery
@@ -674,9 +786,9 @@ The MCP server cannot access workflow files. Please provide the workflow YAML co
 **⚠️ AGENT ACTION REQUIRED:**
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content
+2. **Start workflow:** Use just the workflow name: `workflow_guidance(action="start", context="workflow: <name>")`
 
-**Legacy Fallback:** Call `workflow_guidance(action="start")` without context to use hardcoded legacy workflow."""
+**Note:** Server-side discovery enables efficient workflow lookup by name only."""
 
                 else:
                     # NO SESSION + NON-START ACTION = FORCE DISCOVERY FIRST
