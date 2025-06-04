@@ -268,11 +268,7 @@ class DynamicWorkflowState(BaseModel):
             items_table = "| id | description | status |\n|----|-------------|--------|\n<!-- No items yet -->"
 
         # Format plan (deprecated for YAML workflows)
-        plan = (
-            self.plan.strip()
-            if self.plan.strip()
-            else "*DEPRECATED: Plan section unused in YAML workflows. See 'Current Workflow' section above for goal and structure.*"
-        )
+        plan_section = "*DEPRECATED: Plan section unused in YAML workflows. See 'Current Workflow' section above for goal and structure.*"
 
         # Format log
         log_content = "\n".join(self.log) if self.log else "<!-- No log entries yet -->"
@@ -399,7 +395,7 @@ Status: {self.status}
 Current Item: {current_item}  
 {workflow_info}
 {completed_nodes_progress}## Plan
-{plan}
+{plan_section}
 
 ## Rules
 > **Dynamic workflow execution based on YAML definition**
