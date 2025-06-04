@@ -2,34 +2,88 @@
 
 ## Task Execution Guidelines
 
-### When to Use Workflow Tools
-- **Simple tasks**: Handle directly without tools (e.g., basic calculations, straightforward code edits, simple explanations)
-- **Complex tasks**: Always use `workflow_guidance` for multi-step problems, tasks requiring coordination across files, or when explicit planning would help
+### 🚨 MANDATORY WORKFLOW COMPLIANCE 🚨
+**Before starting ANY task, evaluate it using these criteria:**
 
-### Dynamic Workflow System
-The workflow system is now fully dynamic and schema-driven:
+#### Use Workflow Tools When:
+- Task involves multiple steps or phases
+- Task requires coordination across multiple files
+- Task involves creating, modifying, or analyzing code structures
+- Task requires planning, analysis, or systematic approach
+- Task involves debugging, testing, or validation
+- Task creates new features, components, or systems
+- **When in doubt, ALWAYS use workflows**
 
-1. **Workflow Discovery**: The system automatically discovers available workflows from `.workflow-commander/workflows/` directory
-2. **Agent Choice**: You choose which workflow to use based on the task requirements - no automated scoring
-3. **Schema-Driven Navigation**: Workflow transitions are determined by the YAML schema (`next_allowed_nodes` and `next_allowed_workflows`)
-4. **Context Parameters**: Control workflow execution using context like `context="choose: node_name"` or `context="workflow: Workflow Name"`
+#### Only Skip Workflows For:
+- Single mathematical calculations
+- One-line explanations or definitions
+- Direct copy/paste operations
+- Immediate answers to factual questions
 
-### Workflow Execution Process
-1. **Initialize**: When using `workflow_guidance`, the system will present available workflows for your selection
-2. **Choose Workflow**: Select the most appropriate workflow based on task description and workflow goals
-3. **Follow Schema**: Navigate through workflow nodes using the transitions defined in the YAML schema
-4. **Agent Decisions**: Make routing decisions based on schema-presented options rather than hardcoded logic
-5. **Stay Synchronized**: The workflow state file tracks your progress through the chosen workflow
+### 🔄 MANDATORY WORKFLOW ENTRY PROCESS
+**⚠️ NON-NEGOTIABLE:** For ALL qualifying tasks, you MUST follow this exact sequence:
 
-### Available Tools
-- `workflow_guidance`: Main tool for dynamic workflow execution with agent-driven workflow selection
-- `workflow_state`: Tool for checking and updating workflow state
-- Context7: Use for up-to-date documentation about technologies
-- GitHub: Read files from other repositories when needed
+#### STEP 1: DISCOVER (REQUIRED FIRST STEP)
+```
+workflow_discovery(task_description="[Exact user request]")
+```
+**Purpose:** View all available YAML workflows and their capabilities
+**Result:** List of workflows with descriptions and suitability assessment
 
-### Key Principles
-- **No hardcoded routing**: All workflow behavior is determined by YAML schema definitions
-- **Agent-driven selection**: You choose workflows and transitions based on schema-presented options
-- **Schema as source of truth**: Workflow definitions in YAML files drive all behavior
-- **Legacy fallback preserved**: System falls back to legacy workflows when no YAML workflows are available
-- If uncertain whether a task is "simple," err on the side of using the workflow tool
+#### STEP 2: CHOOSE AND START (REQUIRED SECOND STEP)
+```
+workflow_guidance(action="start", context="workflow: [Selected Workflow Name]")
+```
+**Purpose:** Initialize the selected workflow session
+**Result:** Workflow begins with first phase instructions
+
+#### STEP 3: FOLLOW SCHEMA (ONGOING)
+```
+workflow_guidance(action="next", context="choose: [option]")
+```
+**Purpose:** Navigate through workflow phases using YAML-defined transitions
+**Result:** Structured progression through the complete workflow
+
+### 🎯 Decision Framework
+**Use this exact decision tree for EVERY user request:**
+
+1. **Is this a single, immediate action?** 
+   - YES: Proceed directly (rare cases only)
+   - NO: Go to Step 2
+
+2. **Does the task involve ANY of these?**
+   - Multiple files or components? → USE WORKFLOW
+   - Planning or analysis phase? → USE WORKFLOW  
+   - Code creation or modification? → USE WORKFLOW
+   - Testing or validation? → USE WORKFLOW
+   - Debugging or troubleshooting? → USE WORKFLOW
+   - Documentation or explanation? → USE WORKFLOW
+
+3. **Still uncertain?** → USE WORKFLOW (default choice)
+
+### 🏗️ Dynamic Workflow System Architecture
+The workflow system operates on these principles:
+
+1. **Schema-Driven Navigation**: All workflow behavior defined by YAML schemas
+2. **Agent-Driven Selection**: You choose workflows based on task requirements  
+3. **Dynamic Discovery**: System discovers available workflows automatically
+4. **Context Parameters**: Control execution with `context="choose: node_name"`
+5. **No Hardcoded Routes**: All transitions defined in YAML `next_allowed_nodes`
+
+### 📋 Available Workflow Tools
+- `workflow_discovery` - **START HERE ALWAYS** - Discover available YAML workflows
+- `workflow_guidance` - Main execution engine for dynamic workflows
+- `workflow_state` - Check and update current workflow state
+- `workflow_creation_guidance` - Create custom workflows when existing ones don't fit
+
+### 📚 Supporting Tools
+- Context7: Real-time documentation lookup
+- GitHub: Repository file access
+- Standard coding tools: file operations, terminal, search, etc.
+
+### ⚡ Enforcement Rules
+1. **NEVER skip workflow discovery** for multi-step tasks
+2. **ALWAYS start with `workflow_discovery()`** before other workflow tools
+3. **NEVER use legacy approaches** when workflow tools are available
+4. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
+5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
