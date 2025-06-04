@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions
+# Claude AI Instructions
 
 ## Task Execution Guidelines
 

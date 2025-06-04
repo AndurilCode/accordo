@@ -1,7 +1,11 @@
 """Platform-specific configuration handlers."""
 
 from .base import BaseConfigHandler
-from .claude import ClaudeDesktopHandler, ClaudeCodeHandler, ClaudeHandler  # ClaudeHandler is backward compatibility alias
+from .claude import (  # ClaudeHandler is backward compatibility alias
+    ClaudeCodeHandler,
+    ClaudeDesktopHandler,
+    ClaudeHandler,
+)
 from .cursor import CursorHandler
 from .vscode import VSCodeHandler
 

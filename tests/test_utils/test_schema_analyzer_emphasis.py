@@ -1,7 +1,8 @@
 """Tests for schema analyzer emphasis enhancements."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 from src.dev_workflow_mcp.models.yaml_workflow import WorkflowDefinition, WorkflowNode
 from src.dev_workflow_mcp.utils.schema_analyzer import format_node_status
