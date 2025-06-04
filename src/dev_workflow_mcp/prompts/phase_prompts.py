@@ -5,6 +5,8 @@ No hardcoded logic - all behavior determined by workflow definitions.
 """
 
 import json
+from datetime import UTC, datetime
+from typing import Any
 
 import yaml
 from fastmcp import Context, FastMCP
@@ -333,6 +335,368 @@ def _validate_and_reformat_yaml(yaml_content: str) -> str | None:
 
 
 # =============================================================================
+# CONTEXT PARSING FUNCTIONS
+# =============================================================================
+
+
+def _parse_criteria_evidence_context(
+    context: str,
+) -> tuple[str | None, dict[str, str] | None]:
+    """Parse context to extract choice and criteria evidence.
+
+    Supports both legacy string format and new JSON dict format.
+
+    Args:
+        context: Context string from user input
+
+    Returns:
+        Tuple of (choice, criteria_evidence) where:
+        - choice: The chosen next node/workflow
+        - criteria_evidence: Dict of criterion -> evidence details
+
+    Examples:
+        Legacy format: "choose: blueprint"
+        New format: '{"choose": "blueprint", "criteria_evidence": {"analysis_complete": "Found the issue in _generate_node_completion_outputs"}}'
+    """
+    if not context or not isinstance(context, str):
+        return None, None
+
+    context = context.strip()
+
+    # Try to parse as JSON first (new format)
+    try:
+        if context.startswith("{") and context.endswith("}"):
+            context_dict = json.loads(context)
+
+            if isinstance(context_dict, dict):
+                choice = context_dict.get("choose")
+                criteria_evidence = context_dict.get("criteria_evidence", {})
+
+                # Validate criteria_evidence is a dict
+                if not isinstance(criteria_evidence, dict):
+                    criteria_evidence = {}
+
+                return choice, criteria_evidence
+    except (json.JSONDecodeError, ValueError):
+        # If JSON parsing fails, fall back to legacy format
+        pass
+
+    # Legacy string format parsing
+    choice = extract_choice_from_context(context)
+    return choice, None
+
+
+# =============================================================================
+# AUTOMATIC EVIDENCE EXTRACTION FUNCTIONS
+# =============================================================================
+
+
+def _extract_automatic_evidence_from_session(
+    session,
+    node_name: str,
+    acceptance_criteria: dict[str, str],
+) -> dict[str, str]:
+    """Automatically extract evidence of completed work from session activity.
+
+    This function analyzes recent session logs, execution context, and other
+    session data to intelligently extract evidence of actual agent work
+    rather than falling back to generic YAML descriptions.
+
+    Args:
+        session: Current workflow session state
+        node_name: Name of the node being completed
+        acceptance_criteria: Dict of criterion -> description from YAML
+
+    Returns:
+        Dict of criterion -> evidence extracted from session activity
+
+    Note:
+        This provides automatic evidence capture for backward compatibility
+        when agents use simple "choose: node" format instead of JSON context.
+    """
+    evidence = {}
+
+    # Get recent log entries (last 10-15 entries to capture current phase work)
+    recent_logs = session.log[-15:] if hasattr(session, "log") and session.log else []
+
+    # Extract evidence based on common patterns in session logs and context
+    for criterion, description in acceptance_criteria.items():
+        extracted_evidence = _extract_criterion_evidence(
+            criterion, description, recent_logs, session, node_name
+        )
+        if extracted_evidence:
+            evidence[criterion] = extracted_evidence
+
+    return evidence
+
+
+def _extract_criterion_evidence(
+    criterion: str,
+    description: str,
+    recent_logs: list[str],
+    session,
+    node_name: str,
+) -> str | None:
+    """Extract evidence for a specific criterion from session activity.
+
+    Args:
+        criterion: Name of the acceptance criterion
+        description: YAML description of the criterion
+        recent_logs: Recent log entries from the session
+        session: Current session state
+        node_name: Current node name
+
+    Returns:
+        Extracted evidence string or None if no meaningful evidence found
+    """
+    # Pattern 1: Look for specific criterion mentions in logs
+    for log_entry in reversed(recent_logs):  # Start with most recent
+        log_lower = log_entry.lower()
+        criterion_lower = criterion.lower()
+
+        # Direct criterion mentions
+        if criterion_lower in log_lower or any(
+            keyword in log_lower
+            for keyword in _get_criterion_keywords(criterion, description)
+        ):
+            # Extract meaningful context around the criterion mention
+            evidence = _extract_evidence_from_log_entry(
+                log_entry, criterion, description
+            )
+            if evidence:
+                return evidence
+
+    # Pattern 2: Extract from execution context if available
+    if hasattr(session, "execution_context") and session.execution_context:
+        context_evidence = _extract_evidence_from_execution_context(
+            session.execution_context, criterion, description
+        )
+        if context_evidence:
+            return context_evidence
+
+    # Pattern 3: Look for activity patterns that suggest criterion completion
+    activity_evidence = _extract_evidence_from_activity_patterns(
+        recent_logs, criterion, description, node_name
+    )
+    if activity_evidence:
+        return activity_evidence
+
+    # Pattern 4: Check for tool usage patterns that indicate work completion
+    tool_evidence = _extract_evidence_from_tool_patterns(
+        recent_logs, criterion, description
+    )
+    if tool_evidence:
+        return tool_evidence
+
+    return None
+
+
+def _get_criterion_keywords(criterion: str, description: str) -> list[str]:
+    """Get relevant keywords for a criterion to help with evidence extraction.
+
+    Args:
+        criterion: Criterion name
+        description: Criterion description
+
+    Returns:
+        List of keywords to look for in logs
+    """
+    # Extract keywords from criterion name and description
+    keywords = []
+
+    # Add criterion name variations
+    keywords.extend(
+        [
+            criterion.lower(),
+            criterion.replace("_", " ").lower(),
+            criterion.replace("_", "").lower(),
+        ]
+    )
+
+    # Extract key terms from description
+    description_words = description.lower().split()
+    important_words = [
+        word
+        for word in description_words
+        if len(word) > 3
+        and word
+        not in {
+            "must",
+            "the",
+            "and",
+            "or",
+            "with",
+            "for",
+            "this",
+            "that",
+            "from",
+            "into",
+            "have",
+            "been",
+        }
+    ]
+    keywords.extend(important_words[:5])  # Top 5 important words
+
+    return keywords
+
+
+def _extract_evidence_from_log_entry(
+    log_entry: str, criterion: str, description: str
+) -> str | None:
+    """Extract evidence from a specific log entry.
+
+    Args:
+        log_entry: Log entry text
+        criterion: Criterion name
+        description: Criterion description
+
+    Returns:
+        Extracted evidence or None
+    """
+    # Clean up timestamp and formatting from log entry
+    clean_entry = log_entry
+    if "] " in clean_entry:
+        clean_entry = clean_entry.split("] ", 1)[-1]
+
+    # Filter out non-meaningful log entries
+    if any(
+        filter_term in clean_entry.lower()
+        for filter_term in [
+            "transitioned from",
+            "transitioned to",
+            "workflow initialized",
+            "completed node:",
+            "criterion satisfied:",
+        ]
+    ):
+        return None
+
+    # Extract meaningful activity descriptions
+    if len(clean_entry.strip()) > 20:  # Ensure substantial content
+        return f"Session activity: {clean_entry.strip()}"
+
+    return None
+
+
+def _extract_evidence_from_execution_context(
+    execution_context: dict, criterion: str, description: str
+) -> str | None:
+    """Extract evidence from session execution context.
+
+    Args:
+        execution_context: Session execution context dict
+        criterion: Criterion name
+        description: Criterion description
+
+    Returns:
+        Extracted evidence or None
+    """
+    if not execution_context:
+        return None
+
+    # Look for relevant context entries
+    context_evidence = []
+    for key, value in execution_context.items():
+        key_lower = key.lower()
+        criterion_lower = criterion.lower()
+
+        if criterion_lower in key_lower or any(
+            keyword in key_lower
+            for keyword in _get_criterion_keywords(criterion, description)
+        ):
+            context_evidence.append(f"{key}: {value}")
+
+    if context_evidence:
+        return f"Execution context: {'; '.join(context_evidence)}"
+
+    return None
+
+
+def _extract_evidence_from_activity_patterns(
+    recent_logs: list[str], criterion: str, description: str, node_name: str
+) -> str | None:
+    """Extract evidence based on activity patterns in logs.
+
+    Args:
+        recent_logs: Recent log entries
+        criterion: Criterion name
+        description: Criterion description
+        node_name: Current node name
+
+    Returns:
+        Extracted evidence or None
+    """
+    # Count meaningful activities (non-system logs)
+    meaningful_activities = []
+    for log_entry in recent_logs:
+        clean_entry = log_entry
+        if "] " in clean_entry:
+            clean_entry = clean_entry.split("] ", 1)[-1]
+
+        # Skip system/transition logs
+        if (
+            not any(
+                system_term in clean_entry.lower()
+                for system_term in [
+                    "transitioned",
+                    "initialized",
+                    "completed node",
+                    "criterion satisfied",
+                ]
+            )
+            and len(clean_entry.strip()) > 15
+        ):
+            meaningful_activities.append(clean_entry.strip())
+
+    if meaningful_activities:
+        activity_count = len(meaningful_activities)
+        recent_activity = (
+            meaningful_activities[-1] if meaningful_activities else "various activities"
+        )
+        return f"Completed {activity_count} activities in {node_name} phase, including: {recent_activity}"
+
+    return None
+
+
+def _extract_evidence_from_tool_patterns(
+    recent_logs: list[str], criterion: str, description: str
+) -> str | None:
+    """Extract evidence based on tool usage patterns.
+
+    Args:
+        recent_logs: Recent log entries
+        criterion: Criterion name
+        description: Criterion description
+
+    Returns:
+        Extracted evidence or None
+    """
+    # Look for patterns indicating specific types of work
+    tool_patterns = {
+        "analysis": ["analyzed", "examined", "reviewed", "investigated"],
+        "implementation": ["implemented", "created", "built", "developed"],
+        "testing": ["tested", "verified", "validated", "checked"],
+        "documentation": ["documented", "recorded", "noted", "captured"],
+    }
+
+    detected_activities = []
+    for log_entry in recent_logs:
+        log_lower = log_entry.lower()
+        for activity_type, patterns in tool_patterns.items():
+            if any(pattern in log_lower for pattern in patterns):
+                detected_activities.append(activity_type)
+                break
+
+    if detected_activities:
+        unique_activities = list(
+            dict.fromkeys(detected_activities)
+        )  # Remove duplicates while preserving order
+        return f"Performed {', '.join(unique_activities)} work as evidenced by session activity"
+
+    return None
+
+
+# =============================================================================
 # FORMATTING FUNCTIONS
 # =============================================================================
 
@@ -423,9 +787,15 @@ def format_enhanced_node_status(
             options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
 
         options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += (
-            '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
-        )
+        options_text += '🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n'
+        
+        if len(transitions) == 1:
+            # Single option - provide specific example
+            example_node = transitions[0]['name']
+            options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+        else:
+            # Multiple options - provide generic example
+            options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
     else:
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
@@ -467,19 +837,38 @@ def _handle_dynamic_workflow(
         if not current_node:
             return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
-        # Handle choice selection
-        if context and isinstance(context, str) and "choose:" in context.lower():
-            choice = extract_choice_from_context(context)
+        # Handle choice selection with enhanced context parsing
+        if (
+            context
+            and isinstance(context, str)
+            and ("choose:" in context.lower() or context.strip().startswith("{"))
+        ):
+            choice, criteria_evidence = _parse_criteria_evidence_context(context)
 
             if choice and validate_transition(current_node, choice, workflow_def):
                 # Valid transition - update session
                 if choice in (current_node.next_allowed_nodes or []):
-                    # Node transition
-                    update_dynamic_session_node(session.client_id, choice, workflow_def)
+                    # Generate node completion outputs before transitioning
+                    # This ensures that the current node's work is properly documented
+                    completion_outputs = _generate_node_completion_outputs(
+                        session.current_node, current_node, session, criteria_evidence
+                    )
+
+                    # Node transition with completion outputs
+                    update_dynamic_session_node(
+                        session.client_id,
+                        choice,
+                        workflow_def,
+                        outputs=completion_outputs,
+                    )
                     session.current_node = choice
                     new_node = workflow_def.workflow.tree[choice]
 
-                    # Log the transition
+                    # Log the transition with completion details
+                    add_log_to_session(
+                        session.client_id,
+                        f"🔄 Transitioned from {session.node_history[-1] if session.node_history else 'start'} to {choice}",
+                    )
                     add_log_to_session(
                         session.client_id,
                         f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
@@ -516,6 +905,83 @@ def _handle_dynamic_workflow(
         return f"❌ **Dynamic workflow error:** {str(e)}"
 
 
+def _generate_node_completion_outputs(
+    node_name: str,
+    node_def: WorkflowNode,
+    session,
+    criteria_evidence: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Generate completion outputs for a workflow node.
+
+    This function creates structured completion evidence that can be used for
+    reporting and workflow analysis. It now supports actual agent-provided
+    evidence instead of just hardcoded generic strings.
+
+    Args:
+        node_name: Name of the completed node
+        node_def: The workflow node definition
+        session: Current workflow session
+        criteria_evidence: Optional dict of criterion -> evidence details provided by agent
+
+    Returns:
+        Dict containing completion outputs including evidence for acceptance criteria
+
+    Note:
+        Enhanced to capture actual agent work details instead of generic strings.
+        Falls back to descriptive evidence when agent doesn't provide specific details.
+    """
+    outputs = {
+        "goal_achieved": True,
+        "completion_timestamp": datetime.now(UTC).isoformat(),
+        "node_name": node_name,
+    }
+
+    # Generate evidence for acceptance criteria
+    if node_def.acceptance_criteria:
+        completed_criteria = {}
+
+        # Step 1: Try to use agent-provided evidence (JSON context format)
+        agent_provided_evidence = criteria_evidence or {}
+
+        # Step 2: For criteria without agent evidence, try automatic extraction
+        if not criteria_evidence or len(agent_provided_evidence) < len(
+            node_def.acceptance_criteria
+        ):
+            automatic_evidence = _extract_automatic_evidence_from_session(
+                session, node_name, node_def.acceptance_criteria
+            )
+            # Merge automatic evidence with agent-provided evidence (agent takes precedence)
+            for criterion, auto_evidence in automatic_evidence.items():
+                if criterion not in agent_provided_evidence:
+                    agent_provided_evidence[criterion] = auto_evidence
+
+        # Step 3: Generate final completed criteria with evidence or fallback
+        for criterion, description in node_def.acceptance_criteria.items():
+            if criterion in agent_provided_evidence:
+                # Use available evidence (either agent-provided or automatically extracted)
+                evidence = agent_provided_evidence[criterion].strip()
+                if evidence:
+                    completed_criteria[criterion] = evidence
+                else:
+                    # Fallback if evidence is empty
+                    completed_criteria[criterion] = (
+                        f"Criterion {criterion} completed (no details provided)"
+                    )
+            else:
+                # Final fallback - enhanced description instead of generic YAML text
+                completed_criteria[criterion] = (
+                    f"Criterion '{criterion}' satisfied - {description}"
+                )
+
+        outputs["completed_criteria"] = completed_criteria
+
+    # Add any additional context from session
+    if hasattr(session, "execution_context") and session.execution_context:
+        outputs["execution_context"] = dict(session.execution_context)
+
+    return outputs
+
+
 # =============================================================================
 # MAIN REGISTRATION FUNCTION
 # =============================================================================
@@ -545,7 +1011,10 @@ def register_phase_prompts(app: FastMCP, config=None):
         ),
         context: str = Field(
             default="",
-            description="Additional context for actions like 'plan' (requirements summary) or 'revise' (user feedback)",
+            description="🚨 MANDATORY CONTEXT FORMAT: When transitioning nodes, ALWAYS use JSON format with criteria evidence. "
+            "PREFERRED: JSON format: '{\"choose\": \"node_name\", \"criteria_evidence\": {\"criterion1\": \"detailed evidence\"}}' - "
+            "LEGACY: String format 'choose: node_name' (DISCOURAGED - provides poor work tracking). "
+            "REQUIREMENT: Include specific evidence of actual work completed, not generic confirmations.",
         ),
         options: str = Field(
             default="",
@@ -558,10 +1027,21 @@ def register_phase_prompts(app: FastMCP, config=None):
         Provides guidance based entirely on workflow schema structure.
         No hardcoded behavior - everything driven by YAML definitions.
 
+        🚨 CRITICAL AGENT REQUIREMENTS:
+        - **MANDATORY**: When transitioning nodes, ALWAYS provide criteria_evidence in JSON format
+        - **REQUIRED**: Use JSON context format: {"choose": "node_name", "criteria_evidence": {"criterion": "detailed evidence"}}
+        - **NEVER**: Use simple string format "choose: node_name" - this provides poor tracking
+        - **ALWAYS**: Include specific evidence of work completed for each acceptance criterion
+
         CRITICAL DISCOVERY-FIRST LOGIC:
         - If no session exists, FORCE discovery first regardless of action
         - Dynamic sessions continue with schema-driven workflow
         - Legacy only when YAML workflows unavailable
+
+        🎯 AGENT EXECUTION STANDARDS:
+        - Provide detailed evidence instead of generic confirmations
+        - Document actual work performed, not just criterion names
+        - Use JSON format for ALL node transitions to capture real work details
         """
         try:
             # Extract client_id from MCP Context with defensive handling

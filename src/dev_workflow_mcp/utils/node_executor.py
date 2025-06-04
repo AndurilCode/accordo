@@ -348,9 +348,18 @@ class NodeExecutor:
 
         for criterion, description in node.acceptance_criteria.items():
             if criterion in evidence and evidence[criterion].strip():
-                # Mark as satisfied
-                validated_evidence[criterion] = evidence[criterion]
-                state.add_log_entry(f"✅ CRITERION SATISFIED: {criterion}")
+                # Mark as satisfied with detailed evidence
+                evidence_text = evidence[criterion].strip()
+                validated_evidence[criterion] = evidence_text
+                # Log with truncated evidence for readability
+                log_evidence = (
+                    evidence_text
+                    if len(evidence_text) <= 100
+                    else evidence_text[:100] + "..."
+                )
+                state.add_log_entry(
+                    f"✅ CRITERION SATISFIED: {criterion} - {log_evidence}"
+                )
             else:
                 missing_criteria.append(f"{criterion}: {description}")
 

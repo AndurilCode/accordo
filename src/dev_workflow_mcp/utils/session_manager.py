@@ -237,9 +237,18 @@ def update_dynamic_session_node(
         if not session or not isinstance(session, DynamicWorkflowState):
             return False
 
-        # Complete current node if outputs provided
+        # Complete current node with outputs if provided
         if outputs:
             session.complete_current_node(outputs)
+        else:
+            # Even if no outputs provided, mark node as completed with basic tracking
+            # This ensures node_outputs has an entry for the completed node
+            basic_outputs = {
+                "goal_achieved": True,
+                "completion_method": "automatic_transition",
+                "completed_without_detailed_outputs": True
+            }
+            session.complete_current_node(basic_outputs)
 
         # Transition to new node
         success = session.transition_to_node(new_node, workflow_def)

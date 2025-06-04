@@ -162,19 +162,39 @@ class DynamicWorkflowState(BaseModel):
                     'completed_criteria' dict with evidence for acceptance criteria
                     and 'goal_achieved' boolean indicating goal completion.
         """
+        if not self.current_node:
+            # Edge case: No current node to complete
+            self.add_log_entry("⚠️ Warning: Attempted to complete node but no current_node set")
+            return
+            
         if outputs:
+            # Validate outputs structure for better debugging
+            if not isinstance(outputs, dict):
+                self.add_log_entry(f"⚠️ Warning: Node outputs for {self.current_node} are not a dict, converting")
+                outputs = {"raw_output": str(outputs)}
+                
             self.node_outputs[self.current_node] = outputs
             
             # Log detailed completion if criteria evidence provided
             criteria_evidence = outputs.get("completed_criteria", {})
             if criteria_evidence:
                 self.add_log_entry(f"✅ Completed node: {self.current_node} with {len(criteria_evidence)} criteria satisfied")
+                # Debug logging for troubleshooting
+                for criterion in criteria_evidence:
+                    self.add_log_entry(f"   📋 Criterion satisfied: {criterion}")
             else:
                 self.add_log_entry(f"✅ Completed node: {self.current_node} (no detailed criteria recorded)")
         else:
-            # Store empty outputs to track completion
-            self.node_outputs[self.current_node] = {}
-            self.add_log_entry(f"✅ Completed node: {self.current_node} (no outputs provided)")
+            # Store empty outputs to track completion - this was the bug!
+            # Before the fix, this case would result in empty node_outputs
+            self.node_outputs[self.current_node] = {
+                "completion_status": "completed_without_outputs",
+                "completion_timestamp": datetime.now(UTC).isoformat()
+            }
+            self.add_log_entry(f"✅ Completed node: {self.current_node} (no outputs provided, basic tracking added)")
+            
+        # Update last_updated timestamp
+        self.last_updated = datetime.now(UTC)
 
     def get_available_next_nodes(self, workflow_def: WorkflowDefinition) -> list[str]:
         """Get the list of nodes that can be transitioned to from current node.
