@@ -64,6 +64,8 @@ class TestMainFunction:
             repository_path=None,
             enable_local_state_file=False,
             local_state_file_format="MD",
+            session_retention_hours=168,
+            enable_session_archiving=True,
         )
 
         # Verify FastMCP was created
@@ -109,6 +111,8 @@ class TestMainFunction:
             repository_path="/test/path",
             enable_local_state_file=False,
             local_state_file_format="MD",
+            session_retention_hours=168,
+            enable_session_archiving=True,
         )
 
         # Verify other calls
@@ -142,6 +146,8 @@ class TestMainFunction:
             repository_path="/invalid/path",
             enable_local_state_file=False,
             local_state_file_format="MD",
+            session_retention_hours=168,
+            enable_session_archiving=True,
         )
         mock_print.assert_called_once_with(
             "Error: Repository path does not exist: /invalid/path"
