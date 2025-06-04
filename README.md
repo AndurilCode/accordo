@@ -33,11 +33,48 @@ This enables agents to create workflows for **any domain** - web development, da
 
 ## Quick Start
 
-### Prerequisites
+### Installing **workflow-commander CLI**
 
-Install [uv](https://docs.astral.sh/uv/) for Python package management
+The workflow-commander CLI provides easy configuration and management of MCP servers. Install it directly with:
 
-Configure your MCP client:
+```bash
+# Download and run the installation script
+curl -fsSL https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/install.sh | bash
+```
+
+The installer will:
+- ✅ Detect your environment (virtual env, available tools)
+- 🌍 **Global installation (recommended)**: Uses pipx for system-wide access
+- 📦 **Virtual environment**: Uses uv or pip if you're in a venv
+- 🔧 **Auto-setup**: Handles dependencies and PATH configuration
+
+#### CLI Usage
+
+```bash
+# Configure MCP servers interactively
+workflow-commander configure
+
+# Quick setup for specific platforms
+workflow-commander configure -p cursor -y
+workflow-commander configure -p claude-code -y
+
+# Deploy workflow guidelines to AI assistants
+workflow-commander bootstrap-rules              # All assistants
+workflow-commander bootstrap-rules cursor       # Cursor only
+workflow-commander bootstrap-rules --force all  # Overwrite existing
+
+# List supported platforms and manage servers
+workflow-commander list-platforms
+workflow-commander list-servers -p cursor
+workflow-commander validate -p cursor
+
+# Get help
+workflow-commander --help
+```
+
+### Manual MCP Configuration
+
+Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package management and configure your MCP client manually:
 
 **For Cursor** (`.cursor/mcp.json`):
 ```json
