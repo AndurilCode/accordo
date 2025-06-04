@@ -204,11 +204,12 @@ class TestServerIntegration:
         # Verify it returns discovery results instead of agent instructions
         assert isinstance(result, dict)
         assert "status" in result
-        # Should be either "workflows_discovered", "no_workflows_found", or "discovery_error"
+        # Should be either "workflows_discovered", "no_workflows_found", "discovery_error", or "session_conflict_detected"
         assert result["status"] in [
             "workflows_discovered",
             "no_workflows_found",
             "discovery_error",
+            "session_conflict_detected",
         ]
 
 

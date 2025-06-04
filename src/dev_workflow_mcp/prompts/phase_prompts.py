@@ -612,11 +612,11 @@ Legacy workflows have been removed. Please start a new YAML workflow:
                         # Remove any additional content after workflow name
                         if "\n" in workflow_name:
                             workflow_name = workflow_name.split("\n")[0].strip()
-                    
+
                     if workflow_name:
                         # Try to find workflow in cache first (server-side discovery)
                         cached_workflow = get_cached_workflow(workflow_name)
-                        
+
                         if cached_workflow:
                             # Found in cache - use it directly
                             try:
@@ -679,14 +679,18 @@ The workflow '{workflow_name}' was not found in the server cache.
                             elif yaml_content:
                                 # YAML content provided as fallback - load it
                                 try:
-                                    selected_workflow = loader.load_workflow_from_string(
-                                        yaml_content, workflow_name
+                                    selected_workflow = (
+                                        loader.load_workflow_from_string(
+                                            yaml_content, workflow_name
+                                        )
                                     )
 
                                     if selected_workflow:
                                         # Create dynamic session directly with selected workflow
                                         session = create_dynamic_session(
-                                            client_id, task_description, selected_workflow
+                                            client_id,
+                                            task_description,
+                                            selected_workflow,
                                         )
 
                                         # Store workflow definition in cache for later retrieval
@@ -721,8 +725,10 @@ The workflow '{workflow_name}' was not found in the server cache.
                                         workflow_name,
                                     )
                             else:
-                                return _format_yaml_error_guidance(error_msg, workflow_name)
-                    
+                                return _format_yaml_error_guidance(
+                                    error_msg, workflow_name
+                                )
+
                     else:
                         # No workflow name provided - parse as full YAML context
                         workflow_name, yaml_content, error_msg = (
@@ -777,7 +783,9 @@ The workflow '{workflow_name}' was not found in the server cache.
                                     workflow_name,
                                 )
                         else:
-                            return _format_yaml_error_guidance("Invalid context format", workflow_name)
+                            return _format_yaml_error_guidance(
+                                "Invalid context format", workflow_name
+                            )
 
                 elif action.lower() == "start":
                     # No context provided - show discovery

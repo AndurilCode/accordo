@@ -18,10 +18,10 @@ _discovered_workflows_cache = {}
 
 def get_cached_workflow(workflow_name: str):
     """Retrieve a workflow from the cache by name.
-    
+
     Args:
         workflow_name: Name of the workflow to retrieve
-        
+
     Returns:
         WorkflowDefinition or None if not found
     """
@@ -30,7 +30,7 @@ def get_cached_workflow(workflow_name: str):
 
 def cache_workflows(workflows: dict):
     """Cache discovered workflows for later lookup.
-    
+
     Args:
         workflows: Dictionary of workflow_name -> WorkflowDefinition
     """
@@ -159,7 +159,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
 
             # Cache the discovered workflows for later lookup
             cache_workflows(workflows)
-            
+
             # Format workflows for agent selection (without YAML content)
             workflow_choices = {}
             for name, workflow_def in workflows.items():
