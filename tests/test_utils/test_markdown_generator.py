@@ -7,9 +7,7 @@ import pytest
 
 from src.dev_workflow_mcp.models.workflow_state import (
     WorkflowItem,
-    WorkflowPhase,
     WorkflowState,
-    WorkflowStatus,
 )
 from src.dev_workflow_mcp.utils.markdown_generator import (
     export_session_report,
@@ -27,8 +25,8 @@ class TestMarkdownGenerator:
         """Create a mock WorkflowState for testing."""
         state = Mock(spec=WorkflowState)
         state.client_id = "test_client"
-        state.phase = WorkflowPhase.BLUEPRINT
-        state.status = WorkflowStatus.RUNNING
+        state.phase = "BLUEPRINT"
+        state.status = "RUNNING"
         state.current_item = "Test task"
         state.created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         state.last_updated = datetime(2024, 1, 1, 13, 30, 0, tzinfo=UTC)

@@ -1,34 +1,12 @@
 """Workflow state models and enums."""
 
-import contextlib
 import json
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator
 
 from .yaml_workflow import WorkflowDefinition
-
-
-class WorkflowPhase(str, Enum):
-    """Workflow phases."""
-
-    INIT = "INIT"
-    ANALYZE = "ANALYZE"
-    BLUEPRINT = "BLUEPRINT"
-    CONSTRUCT = "CONSTRUCT"
-    VALIDATE = "VALIDATE"
-
-
-class WorkflowStatus(str, Enum):
-    """Workflow status values."""
-
-    READY = "READY"
-    RUNNING = "RUNNING"
-    NEEDS_PLAN_APPROVAL = "NEEDS_PLAN_APPROVAL"
-    COMPLETED = "COMPLETED"
-    ERROR = "ERROR"
 
 
 class WorkflowItem(BaseModel):
@@ -373,8 +351,8 @@ class WorkflowState(BaseModel):
 
     # Workflow state
     last_updated: datetime = Field(default_factory=datetime.now)
-    phase: WorkflowPhase
-    status: WorkflowStatus
+    phase: str
+    status: str
     current_item: str | None = None
     plan: str = ""
     items: list[WorkflowItem] = Field(default_factory=list)
@@ -540,8 +518,8 @@ Action ▶
         # Fill in template
         return self.MARKDOWN_TEMPLATE.format(
             timestamp=timestamp,
-            phase=self.phase.value,
-            status=self.status.value,
+            phase=self.phase,
+            status=self.status,
             current_item=current_item,
             plan=plan,
             items_table=items_table,
@@ -591,8 +569,8 @@ Action ▶
         lines = content.split("\n")
 
         # Initialize with defaults
-        phase = WorkflowPhase.INIT
-        status = WorkflowStatus.READY
+        phase = "INIT"
+        status = "READY"
         current_item = None
         plan = ""
         items = []
@@ -642,12 +620,10 @@ Action ▶
             for line in content:
                 if line.startswith("Phase:"):
                     phase_str = line.split(":", 1)[1].strip()
-                    with contextlib.suppress(ValueError):
-                        context["phase"] = WorkflowPhase(phase_str)
+                    context["phase"] = phase_str
                 elif line.startswith("Status:"):
                     status_str = line.split(":", 1)[1].strip()
-                    with contextlib.suppress(ValueError):
-                        context["status"] = WorkflowStatus(status_str)
+                    context["status"] = status_str
                 elif line.startswith("CurrentItem:"):
                     current_item_str = line.split(":", 1)[1].strip()
                     context["current_item"] = (
