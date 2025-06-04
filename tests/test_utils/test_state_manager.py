@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from src.dev_workflow_mcp.utils import session_manager
 from src.dev_workflow_mcp.utils.state_manager import (
     StateManager,
@@ -146,7 +144,7 @@ class TestStateManagerCompatibility:
         """Clear session state before each test."""
         session_manager.client_sessions.clear()
 
-    def test_constructor_API_simplification(self):
+    def test_constructor_api_simplification(self):
         """Test that constructor API has been simplified to only require client_id."""
         # New simplified way: StateManager(client_id=client_id)
         manager = StateManager(client_id="new-client")

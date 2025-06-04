@@ -2,8 +2,6 @@
 
 import tempfile
 
-import pytest
-
 from src.dev_workflow_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
