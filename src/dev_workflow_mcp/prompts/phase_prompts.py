@@ -7,7 +7,7 @@ No hardcoded logic - all behavior determined by workflow definitions.
 import json
 
 import yaml
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from pydantic import Field
 
 from ..models.yaml_workflow import WorkflowDefinition, WorkflowNode
@@ -551,6 +551,7 @@ def register_phase_prompts(app: FastMCP, config=None):
             default="",
             description="Optional parameters like project_config_path for specific actions",
         ),
+        ctx: Context = None,
     ) -> str:
         """Pure schema-driven workflow guidance.
 
@@ -563,7 +564,26 @@ def register_phase_prompts(app: FastMCP, config=None):
         - Legacy only when YAML workflows unavailable
         """
         try:
-            client_id = "default"  # In real implementation, extract from Context
+            # Extract client_id from MCP Context with defensive handling
+            client_id = "default"  # consistent fallback for session continuity
+            
+            # Defensive Context handling to prevent hanging
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, 'client_id') and ctx.client_id:
+                        client_id = ctx.client_id
+                    # Note: Do NOT use request_id as fallback since it changes per request
+                    # and would break workflow session continuity
+                except AttributeError:
+                    # Context object exists but doesn't have expected attributes
+                    # This is unusual but could happen with different FastMCP versions
+                    pass
+            
+            # If we still have "default", this is expected behavior for:
+            # 1. Missing Context injection
+            # 2. Context without client_id
+            # 3. Empty/None client_id values
+            # All these cases should work fine with session continuity
 
             # Initialize workflow engine and loader
             engine = WorkflowEngine()
@@ -838,10 +858,24 @@ You called workflow_guidance with action="{action}" but there's no active workfl
             default="",
             description='JSON string with state updates for \'update\' operation. Example: \'{"phase": "CONSTRUCT", "status": "RUNNING"}\'',
         ),
+        ctx: Context = None,
     ) -> str:
         """Get or update workflow state."""
         try:
-            client_id = "default"  # In real implementation, extract from Context
+            # Extract client_id from MCP Context with defensive handling
+            client_id = "default"  # consistent fallback for session continuity
+            
+            # Defensive Context handling to prevent hanging
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, 'client_id') and ctx.client_id:
+                        client_id = ctx.client_id
+                    # Note: Do NOT use request_id as fallback since it changes per request
+                    # and would break workflow session continuity
+                except AttributeError:
+                    # Context object exists but doesn't have expected attributes
+                    # This is unusual but could happen with different FastMCP versions
+                    pass
 
             if operation == "get":
                 # Check session type first

@@ -35,11 +35,12 @@ def set_server_config(server_config) -> None:
         _server_config = server_config
 
 
-def _sync_session_to_file(client_id: str) -> bool:
+def _sync_session_to_file(client_id: str, session: DynamicWorkflowState | None = None) -> bool:
     """Automatically sync session to filesystem when enabled.
 
     Args:
         client_id: Client ID for session lookup
+        session: Optional session object to avoid lock re-acquisition
 
     Returns:
         bool: True if sync succeeded or was skipped, False on error
@@ -55,8 +56,9 @@ def _sync_session_to_file(client_id: str) -> bool:
         if not _server_config.ensure_sessions_dir():
             return False
 
-        # Get session content
-        session = get_session(client_id)
+        # Get session content - avoid lock re-acquisition if session provided
+        if session is None:
+            session = get_session(client_id)
         if not session:
             return False
 
@@ -143,8 +145,8 @@ def create_dynamic_session(
         # Store in global sessions
         client_sessions[client_id] = state
 
-        # Auto-sync to filesystem if enabled
-        _sync_session_to_file(client_id)
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, state)
 
         return state
 
@@ -164,8 +166,8 @@ def update_session(client_id: str, **kwargs) -> bool:
         # Update timestamp
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled
-        _sync_session_to_file(client_id)
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
 
         return True
 
@@ -204,9 +206,9 @@ def update_dynamic_session_node(
         if success and status:
             session.status = status
 
-        # Auto-sync to filesystem if enabled
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
         if success:
-            _sync_session_to_file(client_id)
+            _sync_session_to_file(client_id, session)
 
         return success
 
@@ -321,8 +323,8 @@ def add_log_to_session(client_id: str, entry: str) -> bool:
 
         session.add_log_entry(entry)
 
-        # Auto-sync to filesystem if enabled
-        _sync_session_to_file(client_id)
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
 
         return True
 
@@ -360,8 +362,8 @@ def add_item_to_session(client_id: str, description: str) -> bool:
         session.items.append(new_item)
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled
-        _sync_session_to_file(client_id)
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
 
         return True
 
@@ -376,8 +378,8 @@ def mark_item_completed_in_session(client_id: str, item_id: int) -> bool:
         result = session.mark_item_completed(item_id)
         if result:
             session.last_updated = datetime.now(UTC)
-            # Auto-sync to filesystem if enabled
-            _sync_session_to_file(client_id)
+            # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+            _sync_session_to_file(client_id, session)
 
         return result
 
