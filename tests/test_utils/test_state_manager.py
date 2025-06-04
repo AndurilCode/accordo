@@ -50,7 +50,7 @@ class TestStateManager:
     def test_update_state_section_legacy_not_supported(self):
         """Test that legacy state section updates are no longer supported."""
         manager = StateManager(client_id="test-update-client")
-        
+
         # Legacy update_state_section returns False (YAML-only architecture)
         result = manager.update_state_section("ANALYZE", "RUNNING", "New task")
         assert result is False
@@ -58,7 +58,7 @@ class TestStateManager:
     def test_update_state_section_no_current_item(self):
         """Test state section update with None current_item (not supported)."""
         manager = StateManager(client_id="test-null-client")
-        
+
         result = manager.update_state_section("ANALYZE", "RUNNING", None)
         assert result is False
 
@@ -89,7 +89,7 @@ class TestStateManager:
     def test_append_to_log_no_session(self):
         """Test log entry append when no session exists."""
         manager = StateManager(client_id="test-log-client")
-        
+
         # Should fail if no session exists
         result = manager.append_to_log("New log entry")
         assert result is False
@@ -129,7 +129,7 @@ class TestStateManager:
     def test_multiple_log_entries_no_session(self):
         """Test multiple log entries fail when no session exists."""
         manager = StateManager(client_id="test-multi-log-client")
-        
+
         # All log operations should fail without a session
         result1 = manager.append_to_log("First entry")
         result2 = manager.append_to_log("Second entry")
@@ -184,52 +184,72 @@ class TestGetFileOperationInstructions:
 
     # Skipping other file operation tests since they depend on legacy session creation
     # The functionality still works but requires proper YAML workflow sessions
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_md_format(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_json_format(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_case_insensitive_md(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_case_insensitive_json(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_invalid_format_defaults_to_md(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_no_format_defaults_to_md(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_json_structure_validation(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_md_structure_validation(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_format_consistency(self):
         """Skipped - requires YAML workflow sessions."""
         pass
 
-    @pytest.mark.skip(reason="Requires YAML workflow sessions - functionality tested in integration tests")
+    @pytest.mark.skip(
+        reason="Requires YAML workflow sessions - functionality tested in integration tests"
+    )
     def test_get_file_operation_instructions_format_consistency_md(self):
         """Skipped - requires YAML workflow sessions."""
         pass

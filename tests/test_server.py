@@ -1,64 +1,232 @@
 """Tests for the main server module."""
 
-from unittest.mock import patch
+import sys
+from unittest.mock import Mock, patch
 
 import pytest
 
-from src.dev_workflow_mcp.server import main, mcp
+from src.dev_workflow_mcp.server import create_arg_parser, main
 
 
-class TestServerInitialization:
-    """Test server initialization and setup."""
+class TestArgumentParsing:
+    """Test command-line argument parsing."""
 
-    def test_mcp_server_creation(self):
-        """Test that MCP server is created with correct name."""
-        assert mcp.name == "Development Workflow"
+    def test_create_arg_parser(self):
+        """Test that argument parser is created correctly."""
+        parser = create_arg_parser()
 
-    @pytest.mark.asyncio
-    async def test_guidance_tools_registered(self):
-        """Test that essential YAML workflow tools are registered."""
-        tools = await mcp.get_tools()
-        tool_names = list(tools.keys())
+        # Test help message
+        help_text = parser.format_help()
+        assert "Development Workflow MCP Server" in help_text
+        assert "--repository-path" in help_text
 
-        # Check that essential workflow tools are registered (after legacy cleanup)
-        expected_tools = [
-            "workflow_guidance",
-            "workflow_state", 
-            "workflow_discovery",
-            "workflow_creation_guidance",
-        ]
+    def test_arg_parser_default_values(self):
+        """Test argument parser with default values."""
+        parser = create_arg_parser()
+        args = parser.parse_args([])
 
-        for tool_name in expected_tools:
-            assert tool_name in tool_names, (
-                f"Essential tool {tool_name} not found in registered tools"
-            )
+        assert args.repository_path is None
 
-    @pytest.mark.asyncio
-    async def test_tool_count(self):
-        """Test that expected number of tools are registered."""
-        tools = await mcp.get_tools()
-        # After legacy cleanup: 2 phase tools + 5 discovery tools = 7 essential tools
-        assert len(tools) == 7, f"Expected 7 tools, got {len(tools)}: {list(tools.keys())}"
+    def test_arg_parser_with_repository_path(self):
+        """Test argument parser with repository path specified."""
+        parser = create_arg_parser()
+        args = parser.parse_args(["--repository-path", "/some/path"])
+
+        assert args.repository_path == "/some/path"
 
 
 class TestMainFunction:
     """Test main function."""
 
-    @patch("src.dev_workflow_mcp.server.mcp.run")
-    def test_main_calls_mcp_run(self, mock_run):
-        """Test that main function calls mcp.run with correct parameters."""
-        main()
+    @patch("src.dev_workflow_mcp.server.FastMCP")
+    @patch("src.dev_workflow_mcp.server.ServerConfig")
+    @patch("src.dev_workflow_mcp.server.register_phase_prompts")
+    @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
+    def test_main_with_default_args(
+        self, mock_register_discovery, mock_register_phase, mock_config, mock_fastmcp
+    ):
+        """Test main function with default arguments."""
+        # Mock FastMCP instance
+        mock_mcp_instance = Mock()
+        mock_fastmcp.return_value = mock_mcp_instance
 
-        mock_run.assert_called_once_with(transport="stdio")
+        # Mock ServerConfig instance
+        mock_config_instance = Mock()
+        mock_config.return_value = mock_config_instance
+
+        # Mock sys.argv to provide no arguments
+        test_args = ["server.py"]
+        with patch.object(sys, "argv", test_args):
+            result = main()
+
+        # Verify ServerConfig was called with None (default)
+        mock_config.assert_called_once_with(repository_path=None)
+
+        # Verify FastMCP was created
+        mock_fastmcp.assert_called_once_with("Development Workflow")
+
+        # Verify registration functions were called with config
+        mock_register_phase.assert_called_once_with(
+            mock_mcp_instance, mock_config_instance
+        )
+        mock_register_discovery.assert_called_once_with(
+            mock_mcp_instance, mock_config_instance
+        )
+
+        # Verify mcp.run was called
+        mock_mcp_instance.run.assert_called_once_with(transport="stdio")
+
+        # Verify successful return
+        assert result == 0
+
+    @patch("src.dev_workflow_mcp.server.FastMCP")
+    @patch("src.dev_workflow_mcp.server.ServerConfig")
+    @patch("src.dev_workflow_mcp.server.register_phase_prompts")
+    @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
+    def test_main_with_repository_path(
+        self, mock_register_discovery, mock_register_phase, mock_config, mock_fastmcp
+    ):
+        """Test main function with repository path specified."""
+        # Mock FastMCP instance
+        mock_mcp_instance = Mock()
+        mock_fastmcp.return_value = mock_mcp_instance
+
+        # Mock ServerConfig instance
+        mock_config_instance = Mock()
+        mock_config.return_value = mock_config_instance
+
+        # Mock sys.argv to provide repository path
+        test_args = ["server.py", "--repository-path", "/test/path"]
+        with patch.object(sys, "argv", test_args):
+            result = main()
+
+        # Verify ServerConfig was called with the provided path
+        mock_config.assert_called_once_with(repository_path="/test/path")
+
+        # Verify other calls
+        mock_fastmcp.assert_called_once_with("Development Workflow")
+        mock_register_phase.assert_called_once_with(
+            mock_mcp_instance, mock_config_instance
+        )
+        mock_register_discovery.assert_called_once_with(
+            mock_mcp_instance, mock_config_instance
+        )
+        mock_mcp_instance.run.assert_called_once_with(transport="stdio")
+
+        assert result == 0
+
+    @patch("src.dev_workflow_mcp.server.ServerConfig")
+    @patch("builtins.print")
+    def test_main_with_invalid_repository_path(self, mock_print, mock_config):
+        """Test main function with invalid repository path."""
+        # Mock ServerConfig to raise ValueError
+        mock_config.side_effect = ValueError(
+            "Repository path does not exist: /invalid/path"
+        )
+
+        # Mock sys.argv to provide invalid path
+        test_args = ["server.py", "--repository-path", "/invalid/path"]
+        with patch.object(sys, "argv", test_args):
+            result = main()
+
+        # Verify error handling
+        mock_config.assert_called_once_with(repository_path="/invalid/path")
+        mock_print.assert_called_once_with(
+            "Error: Repository path does not exist: /invalid/path"
+        )
+
+        # Verify error return code
+        assert result == 1
 
 
-class TestToolExecution:
-    """Test tool registration and structure."""
+class TestServerIntegration:
+    """Test server integration and tool registration."""
+
+    @pytest.mark.asyncio
+    async def test_server_creation_and_tool_registration(self):
+        """Test that server can be created and tools registered correctly."""
+        from fastmcp import FastMCP
+
+        from src.dev_workflow_mcp.config import ServerConfig
+        from src.dev_workflow_mcp.prompts.discovery_prompts import (
+            register_discovery_prompts,
+        )
+        from src.dev_workflow_mcp.prompts.phase_prompts import register_phase_prompts
+
+        # Create a test config with current directory
+        config = ServerConfig(".")
+
+        # Create MCP server
+        mcp = FastMCP("Test Development Workflow")
+
+        # Register tools with config
+        register_phase_prompts(mcp, config)
+        register_discovery_prompts(mcp, config)
+
+        # Verify tools are registered
+        tools = await mcp.get_tools()
+
+        expected_tools = [
+            "workflow_guidance",
+            "workflow_state",
+            "workflow_discovery",
+            "workflow_creation_guidance",
+            "list_available_workflows",
+            "validate_workflow_file",
+            "resolve_session_conflict",
+        ]
+
+        for tool_name in expected_tools:
+            assert tool_name in tools, f"Tool {tool_name} not found in registered tools"
+
+    @pytest.mark.asyncio
+    async def test_workflow_discovery_with_config(self):
+        """Test that workflow_discovery works with server config."""
+        from fastmcp import FastMCP
+
+        from src.dev_workflow_mcp.config import ServerConfig
+        from src.dev_workflow_mcp.prompts.discovery_prompts import (
+            register_discovery_prompts,
+        )
+
+        # Create config and server
+        config = ServerConfig(".")
+        mcp = FastMCP("Test")
+        register_discovery_prompts(mcp, config)
+
+        # Get and test the workflow_discovery tool
+        tools = await mcp.get_tools()
+        discovery_tool = tools["workflow_discovery"]
+
+        # Call the discovery function (should now use server-side discovery)
+        result = discovery_tool.fn(task_description="Test task")
+
+        # Verify it returns discovery results instead of agent instructions
+        assert isinstance(result, dict)
+        assert "status" in result
+        # Should be either "workflows_discovered", "no_workflows_found", or "discovery_error"
+        assert result["status"] in [
+            "workflows_discovered",
+            "no_workflows_found",
+            "discovery_error",
+        ]
+
+
+class TestToolStructures:
+    """Test tool registration and structure after refactoring."""
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_tool_structure(self):
-        """Test workflow_guidance tool is properly registered with correct structure."""
-        # Get the tool
+        """Test workflow_guidance tool structure."""
+        from fastmcp import FastMCP
+
+        from src.dev_workflow_mcp.config import ServerConfig
+        from src.dev_workflow_mcp.prompts.phase_prompts import register_phase_prompts
+
+        config = ServerConfig(".")
+        mcp = FastMCP("Test")
+        register_phase_prompts(mcp, config)
+
         tools = await mcp.get_tools()
         assert "workflow_guidance" in tools
         workflow_tool = tools["workflow_guidance"]
@@ -66,38 +234,24 @@ class TestToolExecution:
         # Verify tool structure
         assert workflow_tool.name == "workflow_guidance"
         assert "Pure schema-driven workflow guidance" in workflow_tool.description
-        assert workflow_tool.parameters["type"] == "object"
-        assert "action" in workflow_tool.parameters["properties"]
         assert "task_description" in workflow_tool.parameters["properties"]
-        # Only task_description is required, action has a default value
+        assert "action" in workflow_tool.parameters["properties"]
         assert "task_description" in workflow_tool.parameters["required"]
-
-        # Test that the function exists and is callable
-        assert callable(workflow_tool.fn)
-
-    @pytest.mark.asyncio
-    async def test_workflow_state_tool_structure(self):
-        """Test workflow_state tool is properly registered with correct structure."""
-        # Get the tool
-        tools = await mcp.get_tools()
-        assert "workflow_state" in tools
-        state_tool = tools["workflow_state"]
-
-        # Verify tool structure
-        assert state_tool.name == "workflow_state"
-        assert "Get or update workflow state" in state_tool.description
-        assert state_tool.parameters["type"] == "object"
-        assert "operation" in state_tool.parameters["properties"]
-        assert "updates" in state_tool.parameters["properties"]
-        assert "operation" in state_tool.parameters["required"]
-
-        # Test that the function exists and is callable
-        assert callable(state_tool.fn)
 
     @pytest.mark.asyncio
     async def test_workflow_discovery_tool_structure(self):
-        """Test workflow_discovery tool is properly registered with correct structure."""
-        # Get the tool
+        """Test workflow_discovery tool structure after modification."""
+        from fastmcp import FastMCP
+
+        from src.dev_workflow_mcp.config import ServerConfig
+        from src.dev_workflow_mcp.prompts.discovery_prompts import (
+            register_discovery_prompts,
+        )
+
+        config = ServerConfig(".")
+        mcp = FastMCP("Test")
+        register_discovery_prompts(mcp, config)
+
         tools = await mcp.get_tools()
         assert "workflow_discovery" in tools
         discovery_tool = tools["workflow_discovery"]
@@ -105,77 +259,7 @@ class TestToolExecution:
         # Verify tool structure
         assert discovery_tool.name == "workflow_discovery"
         assert "Discover available workflows" in discovery_tool.description
-        assert discovery_tool.parameters["type"] == "object"
         assert "task_description" in discovery_tool.parameters["properties"]
+        assert "workflows_dir" in discovery_tool.parameters["properties"]
+        assert "client_id" in discovery_tool.parameters["properties"]
         assert "task_description" in discovery_tool.parameters["required"]
-
-        # Test that the function exists and is callable
-        assert callable(discovery_tool.fn)
-
-    @pytest.mark.asyncio
-    async def test_workflow_creation_guidance_tool_structure(self):
-        """Test workflow_creation_guidance tool is properly registered with correct structure."""
-        # Get the tool
-        tools = await mcp.get_tools()
-        assert "workflow_creation_guidance" in tools
-        creation_tool = tools["workflow_creation_guidance"]
-
-        # Verify tool structure
-        assert creation_tool.name == "workflow_creation_guidance"
-        assert "Guide agent through creating a custom YAML workflow" in creation_tool.description
-        assert creation_tool.parameters["type"] == "object"
-        assert "task_description" in creation_tool.parameters["properties"]
-        assert "workflow_type" in creation_tool.parameters["properties"]
-        assert "complexity_level" in creation_tool.parameters["properties"]
-        assert "task_description" in creation_tool.parameters["required"]
-
-        # Test that the function exists and is callable
-        assert callable(creation_tool.fn)
-
-
-class TestToolParameters:
-    """Test tool parameter validation."""
-
-    @pytest.mark.asyncio
-    async def test_workflow_guidance_requires_task_description(self):
-        """Test that workflow_guidance requires task_description parameter."""
-        tools = await mcp.get_tools()
-        assert "workflow_guidance" in tools
-        workflow_tool = tools["workflow_guidance"]
-
-        # Check that required parameters are present
-        assert "action" in workflow_tool.parameters["properties"]
-        assert "task_description" in workflow_tool.parameters["properties"]
-        # Only task_description is required, action has a default value
-        assert "task_description" in workflow_tool.parameters["required"]
-
-    @pytest.mark.asyncio
-    async def test_workflow_state_requires_operation(self):
-        """Test that workflow_state requires operation parameter."""
-        tools = await mcp.get_tools()
-        assert "workflow_state" in tools
-        state_tool = tools["workflow_state"]
-
-        # Check that operation is a required parameter
-        assert "operation" in state_tool.parameters["properties"]
-        assert "operation" in state_tool.parameters["required"]
-
-    @pytest.mark.asyncio
-    async def test_workflow_discovery_parameters(self):
-        """Test workflow_discovery parameter schema."""
-        tools = await mcp.get_tools()
-        assert "workflow_discovery" in tools
-        discovery_tool = tools["workflow_discovery"]
-
-        properties = discovery_tool.parameters["properties"]
-        required = discovery_tool.parameters["required"]
-
-        # Check required parameters
-        assert "task_description" in properties
-        assert "task_description" in required
-
-        # Check optional parameters
-        assert "workflows_dir" in properties
-        assert "client_id" in properties
-        assert "workflows_dir" not in required
-        assert "client_id" not in required

@@ -29,22 +29,24 @@ def create_test_workflow_def(name: str = "Test Workflow") -> WorkflowDefinition:
                 "start": WorkflowNode(
                     goal="Start the test",
                     acceptance_criteria={"completed": "Test started"},
-                    next_allowed_nodes=["complete"]
+                    next_allowed_nodes=["complete"],
                 ),
                 "complete": WorkflowNode(
-                    goal="Complete the test", 
+                    goal="Complete the test",
                     acceptance_criteria={"finished": "Test completed"},
-                    next_allowed_nodes=[]
-                )
-            }
-        )
+                    next_allowed_nodes=[],
+                ),
+            },
+        ),
     )
 
 
 def create_test_session(client_id: str, task_description: str) -> DynamicWorkflowState:
     """Create a test session directly for testing purposes."""
     workflow_def = create_test_workflow_def()
-    return session_manager.create_dynamic_session(client_id, task_description, workflow_def)
+    return session_manager.create_dynamic_session(
+        client_id, task_description, workflow_def
+    )
 
 
 class TestSessionManager:
@@ -58,8 +60,10 @@ class TestSessionManager:
     def test_create_dynamic_session(self):
         """Test creating a new dynamic session."""
         workflow_def = create_test_workflow_def()
-        session = session_manager.create_dynamic_session("test-client", "Test task", workflow_def)
-        
+        session = session_manager.create_dynamic_session(
+            "test-client", "Test task", workflow_def
+        )
+
         assert session is not None
         assert session.client_id == "test-client"
         assert session.current_item == "Test task"
@@ -71,7 +75,7 @@ class TestSessionManager:
         """Test getting an existing session."""
         original = create_test_session("test-client", "Test task")
         retrieved = session_manager.get_session("test-client")
-        
+
         assert retrieved is not None
         assert retrieved.client_id == original.client_id
         assert retrieved.current_item == original.current_item
@@ -102,7 +106,7 @@ class TestSessionManager:
 
     def test_export_session_to_markdown(self):
         """Test exporting session to markdown."""
-        session = create_test_session("test-client", "Test task")
+        create_test_session("test-client", "Test task")
         markdown = session_manager.export_session_to_markdown("test-client")
 
         assert markdown is not None
@@ -137,7 +141,7 @@ class TestSessionExportFunctions:
 
     def test_export_session_to_json_structure(self):
         """Test JSON export returns expected structure."""
-        session = create_test_session("test-client", "Test task")
+        create_test_session("test-client", "Test task")
         session_manager.update_session(
             "test-client",
             status="RUNNING",
@@ -260,8 +264,8 @@ class TestSessionExportFunctions:
 
     def test_export_session_json_complete_data_integrity(self):
         """Test complete data integrity for JSON export."""
-        session = create_test_session("complex-client", "Complex task")
-        
+        create_test_session("complex-client", "Complex task")
+
         # Add some data to test
         session_manager.add_log_to_session("complex-client", "First log entry")
         session_manager.add_log_to_session("complex-client", "Second log entry")
@@ -272,7 +276,7 @@ class TestSessionExportFunctions:
 
         # Verify flat DynamicWorkflowState structure
         assert "client_id" in data
-        assert "workflow_name" in data  
+        assert "workflow_name" in data
         assert "current_node" in data
         assert "status" in data
         assert "items" in data
