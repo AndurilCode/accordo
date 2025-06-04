@@ -366,14 +366,28 @@ User: workflow_guidance(action="next", context="choose: option_a")
 
 ## Advanced Configuration
 
-### Environment Variables
+### Command Line Arguments
 
-#### **WORKFLOW_AUTO_APPROVE_PLANS** (default: `false`)
-Controls automatic plan approval in workflows:
+#### **--enable-local-state-file** (default: disabled)
+Enables automatic synchronization of workflow state to local files:
 
 ```bash
-# Enable automatic plan approval  
-export WORKFLOW_AUTO_APPROVE_PLANS=true
+# Enable local state file synchronization
+dev-workflow-mcp --enable-local-state-file
+
+# Enable with specific format
+dev-workflow-mcp --enable-local-state-file --local-state-file-format JSON
+```
+
+#### **--local-state-file-format** (default: `MD`)
+Specifies the format for local state files when synchronization is enabled:
+
+```bash
+# Use markdown format (default)
+dev-workflow-mcp --enable-local-state-file --local-state-file-format MD
+
+# Use JSON format
+dev-workflow-mcp --enable-local-state-file --local-state-file-format JSON
 ```
 
 **MCP Configuration:**
@@ -382,25 +396,22 @@ export WORKFLOW_AUTO_APPROVE_PLANS=true
   "mcpServers": {
     "workflow-commander": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"],
-      "env": {
-        "WORKFLOW_AUTO_APPROVE_PLANS": "true"
-      }
+      "args": [
+        "--from", "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "dev-workflow-mcp",
+        "--enable-local-state-file",
+        "--local-state-file-format", "JSON"
+      ]
     }
   }
 }
 ```
 
-
-
-#### **WORKFLOW_LOCAL_STATE_FILE** (default: `false`)
-Enables local state file synchronization:
-
-```bash
-# Enable local state file backup
-export WORKFLOW_LOCAL_STATE_FILE=true
-export WORKFLOW_LOCAL_STATE_FILE_FORMAT=MD  # or JSON
-```
+**Local State File Features:**
+- **Auto-Sync**: Every workflow state change automatically persists to `.workflow-commander/sessions/`
+- **Repository-Scoped**: Each repository gets its own session storage
+- **Format Choice**: Support for both markdown and JSON formats
+- **Non-Blocking**: File sync failures don't interrupt workflow execution
 
 ### MCP Client Configuration Details
 

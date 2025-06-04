@@ -3,10 +3,18 @@
 from ..models.config import WorkflowConfig
 
 
-def get_workflow_config() -> WorkflowConfig:
+def get_workflow_config(server_config=None) -> WorkflowConfig:
     """Get workflow configuration instance.
 
+    Args:
+        server_config: Optional ServerConfig instance with CLI-provided values.
+                      If None, uses default values.
+
     Returns:
-        WorkflowConfig: Configuration instance with environment variables loaded
+        WorkflowConfig: Configuration instance
     """
-    return WorkflowConfig()
+    if server_config:
+        return WorkflowConfig.from_server_config(server_config)
+    else:
+        # Default configuration for backward compatibility
+        return WorkflowConfig()
