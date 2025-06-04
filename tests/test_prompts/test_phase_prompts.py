@@ -331,6 +331,44 @@ inputs:
         assert any(indicator in result for indicator in mandatory_indicators)
 
     @pytest.mark.asyncio
+    async def test_enhanced_criteria_evidence_emphasis(self, mock_context):
+        """Test that enhanced emphasis on criteria evidence is properly displayed."""
+        mcp = FastMCP("test-server")
+        register_phase_prompts(mcp, config=None)
+
+        tools = await mcp.get_tools()
+        workflow_tool = tools["workflow_guidance"]
+        
+        # Get the tool directly to check its docstring and parameter descriptions
+        tool_definition = tools["workflow_guidance"]
+        
+        # Check docstring contains enhanced emphasis
+        docstring = tool_definition.fn.__doc__
+        assert "🚨 CRITICAL AGENT REQUIREMENTS" in docstring
+        assert "MANDATORY" in docstring
+        assert "ALWAYS provide criteria_evidence" in docstring
+        assert "NEVER" in docstring
+        assert "JSON format" in docstring
+        
+        # Check context parameter description contains mandatory format emphasis
+        context_param = tool_definition.parameters.get("properties", {}).get("context", {})
+        context_desc = context_param.get("description", "")
+        assert "🚨 MANDATORY CONTEXT FORMAT" in context_desc
+        assert "ALWAYS use JSON format" in context_desc
+        assert "PREFERRED" in context_desc
+        assert "DISCOURAGED" in context_desc
+        
+        # Test actual tool output contains emphasis
+        result = workflow_tool.fn(task_description="test enhanced emphasis")
+        
+        # Should contain multiple emphasis indicators
+        emphasis_indicators = ["🚨", "MANDATORY", "CRITICAL", "ALWAYS", "REQUIRED"]
+        found_indicators = [indicator for indicator in emphasis_indicators if indicator in result]
+        
+        # Should contain at least 2 different emphasis indicators
+        assert len(found_indicators) >= 2, f"Only found indicators: {found_indicators}"
+
+    @pytest.mark.asyncio
     async def test_json_context_parsing(self, mock_context):
         """Test the new JSON context parsing functionality."""
         from src.dev_workflow_mcp.prompts.phase_prompts import _parse_criteria_evidence_context

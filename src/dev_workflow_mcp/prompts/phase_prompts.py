@@ -787,9 +787,15 @@ def format_enhanced_node_status(
             options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
 
         options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += (
-            '**Example:** workflow_guidance(action="next", context="choose: blueprint")'
-        )
+        options_text += '🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n'
+        
+        if len(transitions) == 1:
+            # Single option - provide specific example
+            example_node = transitions[0]['name']
+            options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+        else:
+            # Multiple options - provide generic example
+            options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
     else:
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
@@ -1005,10 +1011,10 @@ def register_phase_prompts(app: FastMCP, config=None):
         ),
         context: str = Field(
             default="",
-            description="Additional context for actions. Supports both string and JSON dict formats. "
-            "String format: 'choose: node_name' for simple transitions. "
-            'JSON format: \'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\' '
-            "for transitions with detailed criteria evidence.",
+            description="🚨 MANDATORY CONTEXT FORMAT: When transitioning nodes, ALWAYS use JSON format with criteria evidence. "
+            "PREFERRED: JSON format: '{\"choose\": \"node_name\", \"criteria_evidence\": {\"criterion1\": \"detailed evidence\"}}' - "
+            "LEGACY: String format 'choose: node_name' (DISCOURAGED - provides poor work tracking). "
+            "REQUIREMENT: Include specific evidence of actual work completed, not generic confirmations.",
         ),
         options: str = Field(
             default="",
@@ -1021,11 +1027,21 @@ def register_phase_prompts(app: FastMCP, config=None):
         Provides guidance based entirely on workflow schema structure.
         No hardcoded behavior - everything driven by YAML definitions.
 
+        🚨 CRITICAL AGENT REQUIREMENTS:
+        - **MANDATORY**: When transitioning nodes, ALWAYS provide criteria_evidence in JSON format
+        - **REQUIRED**: Use JSON context format: {"choose": "node_name", "criteria_evidence": {"criterion": "detailed evidence"}}
+        - **NEVER**: Use simple string format "choose: node_name" - this provides poor tracking
+        - **ALWAYS**: Include specific evidence of work completed for each acceptance criterion
+
         CRITICAL DISCOVERY-FIRST LOGIC:
         - If no session exists, FORCE discovery first regardless of action
         - Dynamic sessions continue with schema-driven workflow
         - Legacy only when YAML workflows unavailable
-        - While transitioning to a new node, ALWAYS provide criteria_evidence in JSON format
+
+        🎯 AGENT EXECUTION STANDARDS:
+        - Provide detailed evidence instead of generic confirmations
+        - Document actual work performed, not just criterion names
+        - Use JSON format for ALL node transitions to capture real work details
         """
         try:
             # Extract client_id from MCP Context with defensive handling
