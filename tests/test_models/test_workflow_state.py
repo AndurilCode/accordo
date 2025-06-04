@@ -13,7 +13,6 @@ from src.dev_workflow_mcp.models.workflow_state import (
 )
 
 
-
 class TestWorkflowItem:
     """Test WorkflowItem model."""
 
@@ -160,9 +159,7 @@ class TestWorkflowState:
             WorkflowItem(id=2, description="Task 2", status="pending"),
             WorkflowItem(id=3, description="Task 3", status="pending"),
         ]
-        state = WorkflowState(
-            phase="INIT", status="READY", items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         next_item = state.get_next_pending_item()
 
@@ -177,9 +174,7 @@ class TestWorkflowState:
             WorkflowItem(id=1, description="Task 1", status="completed"),
             WorkflowItem(id=2, description="Task 2", status="completed"),
         ]
-        state = WorkflowState(
-            phase="INIT", status="READY", items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         next_item = state.get_next_pending_item()
 
@@ -187,9 +182,7 @@ class TestWorkflowState:
 
     def test_get_next_pending_item_empty_items(self):
         """Test getting next pending item when items list is empty."""
-        state = WorkflowState(
-            phase="INIT", status="READY", items=[]
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=[])
 
         next_item = state.get_next_pending_item()
 
@@ -201,9 +194,7 @@ class TestWorkflowState:
             WorkflowItem(id=1, description="Task 1", status="pending"),
             WorkflowItem(id=2, description="Task 2", status="pending"),
         ]
-        state = WorkflowState(
-            phase="INIT", status="READY", items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         result = state.mark_item_completed(1)
 
@@ -216,9 +207,7 @@ class TestWorkflowState:
         items = [
             WorkflowItem(id=1, description="Task 1", status="pending"),
         ]
-        state = WorkflowState(
-            phase="INIT", status="READY", items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         result = state.mark_item_completed(999)
 
@@ -227,9 +216,7 @@ class TestWorkflowState:
 
     def test_mark_item_completed_empty_items(self):
         """Test marking item as completed when items list is empty."""
-        state = WorkflowState(
-            phase="INIT", status="READY", items=[]
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=[])
 
         result = state.mark_item_completed(1)
 

@@ -520,8 +520,13 @@ def _handle_dynamic_workflow(
 # =============================================================================
 
 
-def register_phase_prompts(app: FastMCP):
-    """Register purely schema-driven workflow prompts."""
+def register_phase_prompts(app: FastMCP, config=None):
+    """Register purely schema-driven workflow prompts.
+
+    Args:
+        app: FastMCP application instance
+        config: ServerConfig instance with repository path settings (optional)
+    """
 
     @app.tool()
     def workflow_guidance(

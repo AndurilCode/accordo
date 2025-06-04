@@ -26,7 +26,7 @@ class TestWorkflowCreationGuidance:
         result = creation_tool.fn(
             task_description="Create a custom workflow for API testing",
             workflow_type="testing",
-            complexity_level="medium"
+            complexity_level="medium",
         )
 
         # Verify the result structure
@@ -60,7 +60,7 @@ class TestWorkflowCreationGuidance:
         example = result["complete_example"]
         assert "title" in example
         assert "yaml_content" in example
-        
+
         # Verify the example YAML contains expected structure
         yaml_content = example["yaml_content"]
         assert "name:" in yaml_content
@@ -99,7 +99,7 @@ class TestWorkflowCreationGuidance:
             result = creation_tool.fn(
                 task_description=f"Test {wf_type} workflow",
                 workflow_type=wf_type,
-                complexity_level="medium"
+                complexity_level="medium",
             )
 
             assert result["status"] == "workflow_creation_guidance"
@@ -107,7 +107,7 @@ class TestWorkflowCreationGuidance:
             assert "guidance" in result
             assert f"Test {wf_type} workflow" in result["guidance"]["message"]
 
-    @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_workflow_creation_guidance_complexity_levels(self):
         """Test workflow creation guidance with different complexity levels."""
         app = FastMCP("test-creation-complexity")
@@ -123,7 +123,7 @@ class TestWorkflowCreationGuidance:
             result = creation_tool.fn(
                 task_description="Test task with varying complexity",
                 workflow_type="general",
-                complexity_level=complexity
+                complexity_level=complexity,
             )
 
             assert result["status"] == "workflow_creation_guidance"
@@ -140,13 +140,12 @@ class TestWorkflowCreationGuidance:
         creation_tool = tools["workflow_creation_guidance"]
 
         result = creation_tool.fn(
-            task_description="Validate YAML format guidance",
-            workflow_type="coding"
+            task_description="Validate YAML format guidance", workflow_type="coding"
         )
 
         # Check that YAML structure specification is comprehensive
         yaml_spec = result["guidance"]["yaml_structure_specification"]
-        
+
         assert "required_top_level_fields" in yaml_spec
         top_level = yaml_spec["required_top_level_fields"]
         assert "name" in top_level
@@ -173,7 +172,9 @@ class TestWorkflowCreationGuidance:
 
         # Verify mandatory elements are specified
         mandatory_elements = goal_format["mandatory_elements"]
-        assert any("🔨 REQUIRED EXECUTION STEPS" in element for element in mandatory_elements)
+        assert any(
+            "🔨 REQUIRED EXECUTION STEPS" in element for element in mandatory_elements
+        )
         assert any("⚠️ MANDATORY" in element for element in mandatory_elements)
 
     @pytest.mark.asyncio
@@ -186,8 +187,7 @@ class TestWorkflowCreationGuidance:
         creation_tool = tools["workflow_creation_guidance"]
 
         result = creation_tool.fn(
-            task_description="Test template provision",
-            workflow_type="coding"
+            task_description="Test template provision", workflow_type="coding"
         )
 
         templates = result["workflow_templates"]
@@ -195,10 +195,10 @@ class TestWorkflowCreationGuidance:
         # Verify all expected templates are present
         expected_templates = [
             "simple_linear",
-            "analysis_planning_construction", 
+            "analysis_planning_construction",
             "investigation_resolution",
             "iterative_refinement",
-            "branching_decision"
+            "branching_decision",
         ]
 
         for template_name in expected_templates:
@@ -219,8 +219,7 @@ class TestWorkflowCreationGuidance:
         creation_tool = tools["workflow_creation_guidance"]
 
         result = creation_tool.fn(
-            task_description="Test complete example",
-            workflow_type="general"
+            task_description="Test complete example", workflow_type="general"
         )
 
         example = result["complete_example"]
@@ -244,7 +243,7 @@ class TestWorkflowCreationGuidance:
             "execute:",
             "validate:",
             "acceptance_criteria:",
-            "next_allowed_nodes:"
+            "next_allowed_nodes:",
         ]
 
         for element in required_yaml_elements:
@@ -256,8 +255,8 @@ class TestWorkflowCreationGuidance:
             "PHASE - FOLLOW EXACTLY:**",
             "**TASK:** ${{ inputs.task_description }}",
             "**🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**",
-            "⚠️ MANDATORY"
+            "⚠️ MANDATORY",
         ]
 
         for marker in formatting_markers:
-            assert marker in yaml_content, f"Missing formatting marker: {marker}" 
+            assert marker in yaml_content, f"Missing formatting marker: {marker}"

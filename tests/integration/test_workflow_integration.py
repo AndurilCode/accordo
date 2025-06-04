@@ -23,22 +23,30 @@ class TestWorkflowLifecycle:
         """Clear session state before each test."""
         session_manager.client_sessions.clear()
 
-    @pytest.mark.skip(reason="Legacy workflow lifecycle not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy workflow lifecycle not supported in YAML-only architecture"
+    )
     def test_complete_workflow_cycle(self):
         """Skipped - requires legacy workflow support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy workflow error handling not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy workflow error handling not supported in YAML-only architecture"
+    )
     def test_workflow_error_handling(self):
         """Skipped - requires legacy workflow support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy workflow items not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy workflow items not supported in YAML-only architecture"
+    )
     def test_multiple_workflow_items(self):
         """Skipped - requires legacy workflow support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy session isolation testing not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy session isolation testing not supported in YAML-only architecture"
+    )
     def test_session_isolation(self):
         """Skipped - requires legacy workflow support."""
         pass
@@ -57,17 +65,23 @@ class TestWorkflowLifecycle:
         manager.set_client_id("new-client")
         assert manager.get_client_id() == "new-client"
 
-    @pytest.mark.skip(reason="Legacy log accumulation not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy log accumulation not supported in YAML-only architecture"
+    )
     def test_log_accumulation(self):
         """Skipped - requires legacy workflow support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy state transitions not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy state transitions not supported in YAML-only architecture"
+    )
     def test_state_transitions(self):
         """Skipped - requires legacy workflow support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy auto-approval workflow not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy auto-approval workflow not supported in YAML-only architecture"
+    )
     def test_auto_approval_workflow(self):
         """Skipped - requires legacy workflow support."""
         pass
@@ -107,6 +121,7 @@ pytest tests/
         finally:
             # Clean up
             import os
+
             os.unlink(config_path)
 
         # Test with non-existent file
@@ -135,9 +150,7 @@ class TestWorkflowStateModelIntegration:
             status="READY",
             current_item="Test workflow state model",
             plan="Test plan for model validation",
-            items=[
-                WorkflowItem(id=1, description="Model test task", status="pending")
-            ],
+            items=[WorkflowItem(id=1, description="Model test task", status="pending")],
             log=["Model initialization log entry"],
         )
 
@@ -159,7 +172,9 @@ class TestWorkflowStateModelIntegration:
         assert '"phase": "INIT"' in json_str
         assert '"status": "READY"' in json_str
 
-    @pytest.mark.skip(reason="Legacy log rotation testing not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy log rotation testing not supported in YAML-only architecture"
+    )
     def test_workflow_state_log_rotation_integration(self):
         """Skipped - requires legacy session integration."""
         pass
@@ -172,12 +187,16 @@ class TestSessionManagementIntegration:
         """Clear session state before each test."""
         session_manager.client_sessions.clear()
 
-    @pytest.mark.skip(reason="Legacy session creation not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy session creation not supported in YAML-only architecture"
+    )
     def test_session_creation_and_retrieval(self):
         """Skipped - requires legacy session creation support."""
         pass
 
-    @pytest.mark.skip(reason="Legacy session persistence not supported in YAML-only architecture")
+    @pytest.mark.skip(
+        reason="Legacy session persistence not supported in YAML-only architecture"
+    )
     def test_session_state_persistence(self):
         """Skipped - requires legacy session creation support."""
         pass

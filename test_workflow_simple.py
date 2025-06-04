@@ -297,9 +297,11 @@ async def test_workflow_state():
 
         print("✅ Workflow state retrieval executed")
         # Handle both possible outcomes - either a successful workflow state or an error message
-        assert "WORKFLOW STATE" in result or "Error in workflow_state" in result or "No Active Workflow Session" in result, (
-            "Failed to process state request"
-        )
+        assert (
+            "WORKFLOW STATE" in result
+            or "Error in workflow_state" in result
+            or "No Active Workflow Session" in result
+        ), "Failed to process state request"
         print("✅ Workflow state request processed")
 
     except Exception as e:
