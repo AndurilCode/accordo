@@ -1,0 +1,115 @@
+name: Simple Linear Workflow
+description: A basic linear workflow that demonstrates automatic progression through sequential phases
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+  output_format:
+    type: string
+    description: Format for outputs (text, markdown, etc.)
+    required: false
+    default: "markdown"
+
+execution:
+  max_depth: 10
+  allow_backtracking: false
+
+workflow:
+  goal: Complete a simple task using a linear progression of phases
+
+  root: start
+
+  tree:
+    # Starting phase - initialize and understand
+    start:
+      goal: |
+        **START PHASE:** ${{ inputs.task_description }}
+        
+        Initialize the workflow and understand the basic requirements.
+        This is the entry point where we gather initial information.
+        
+        **Focus:** Quick setup and requirement understanding.
+      acceptance_criteria:
+        requirements_clear: "Basic task requirements are understood and documented"
+        scope_defined: "Clear scope and boundaries identified for the task"
+        next_steps_identified: "Next steps in the workflow are clear"
+      next_allowed_nodes: [analyze]
+
+    # Analysis phase - deeper examination
+    analyze:
+      goal: |
+        **ANALYZE PHASE:** ${{ inputs.task_description }}
+        
+        Perform detailed analysis of the requirements and gather necessary information.
+        Explore any existing relevant materials or context.
+        
+        **Focus:** Comprehensive understanding and information gathering.
+      acceptance_criteria:
+        detailed_analysis: "Complete analysis of requirements and context performed"
+        information_gathered: "All necessary information and resources identified"
+        constraints_identified: "Any limitations or constraints documented"
+      next_allowed_nodes: [plan]
+
+    # Planning phase - create execution strategy
+    plan:
+      goal: |
+        **PLAN PHASE:** ${{ inputs.task_description }}
+        
+        Create a detailed plan for executing the task based on the analysis.
+        Define specific steps and approach to achieve the objectives.
+        
+        **Focus:** Strategic planning and step-by-step approach definition.
+      acceptance_criteria:
+        execution_plan: "Detailed execution plan created with clear steps"
+        approach_defined: "Specific approach and methodology selected"
+        success_criteria: "Clear success criteria and validation methods defined"
+      next_allowed_nodes: [execute]
+
+    # Execution phase - implement the plan
+    execute:
+      goal: |
+        **EXECUTE PHASE:** ${{ inputs.task_description }}
+        
+        Implement the planned approach and complete the actual work.
+        Follow the execution plan systematically and track progress.
+        
+        **Focus:** Implementation and progress tracking.
+      acceptance_criteria:
+        plan_executed: "Execution plan followed systematically"
+        work_completed: "Primary work and deliverables completed"
+        quality_maintained: "Quality standards maintained throughout execution"
+      next_allowed_nodes: [review]
+
+    # Review phase - validate and finalize
+    review:
+      goal: |
+        **REVIEW PHASE:** ${{ inputs.task_description }}
+        
+        Review the completed work for quality and completeness.
+        Ensure all requirements have been met and objectives achieved.
+        
+        **Focus:** Quality assurance and final validation.
+      acceptance_criteria:
+        quality_verified: "Work quality meets expected standards"
+        requirements_met: "All original requirements satisfied"
+        documentation_complete: "Appropriate documentation and notes completed"
+      next_allowed_nodes: [complete]
+
+    # Completion phase - finalize and summarize
+    complete:
+      goal: |
+        **COMPLETE PHASE:** ${{ inputs.task_description }}
+        
+        Finalize the workflow with summary and any necessary cleanup.
+        Provide final deliverables and document completion.
+        
+        **Output Format:** ${{ inputs.output_format }}
+        
+        **Focus:** Final delivery and workflow completion.
+      acceptance_criteria:
+        deliverables_ready: "Final deliverables prepared and validated"
+        summary_provided: "Comprehensive summary of work completed"
+        workflow_concluded: "Workflow properly concluded with all phases completed"
+      next_allowed_nodes: []  # Terminal node - workflow ends here 

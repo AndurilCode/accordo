@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": [
+        "--from", 
+        "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "dev-workflow-mcp",
+        "--enable-local-state-file",
+        "--local-state-file-format", "JSON",
+        "--session-retention-hours", "72"
+      ]
+    }
+  }
+} 

@@ -91,6 +91,7 @@ Documentation should be updated when:
 - **YAML-Driven System**: Reflects the current pure YAML architecture without legacy references
 
 ## Changelog
+- [2025-06-04] Optimized session file structure and enhanced node completion tracking: deprecated unused plan field in YAML workflows, enhanced complete_current_node() to always populate node_outputs with acceptance criteria evidence, added validation helpers has_node_completion_evidence() and get_node_completion_summary(), improved logging for criteria satisfaction, and maintained backward compatibility while eliminating empty node_outputs in session files
 - [2025-06-04] Implemented unique session file management system to prevent overrides: added timestamp-based unique filenames (client_timestamp_counter.ext), session archiving with completion timestamps, configurable retention policies (--session-retention-hours), and comprehensive test suite ensuring concurrent sessions no longer overwrite each other's files
 - [2025-01-09] Added WORKFLOW_AUTO_PROGRESSION_ENABLED environment variable to control automatic workflow progression, allowing users to disable auto-progression and require manual confirmation for all transitions when set to "false" (default: "false")
 - [2025-06-03] Completely rewrote README to reflect modern dynamic YAML workflow system, removing all legacy references and highlighting auto-progression feature with comprehensive usage examples and troubleshooting guide
