@@ -1,0 +1,163 @@
+name: Simple Decision Workflow
+description: A basic workflow demonstrating decision points and branching logic
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+  complexity_level:
+    type: string
+    description: Expected complexity level (simple, medium, complex)
+    required: false
+    default: "medium"
+
+execution:
+  max_depth: 15
+  allow_backtracking: true
+
+workflow:
+  goal: Complete a task with appropriate approach based on complexity assessment
+
+  root: assess
+
+  tree:
+    # Assessment phase - understand and evaluate
+    assess:
+      goal: |
+        **ASSESS PHASE:** ${{ inputs.task_description }}
+        
+        Evaluate the task requirements and determine the appropriate approach.
+        Consider complexity, resources needed, and time constraints.
+        
+        **Initial Complexity Estimate:** ${{ inputs.complexity_level }}
+        
+        **Focus:** Task evaluation and complexity assessment.
+      acceptance_criteria:
+        requirements_understood: "Task requirements clearly understood and documented"
+        complexity_evaluated: "Complexity level assessed based on actual requirements"
+        approach_options: "Different approach options identified for various complexity levels"
+      next_allowed_nodes: [choose_approach]
+
+    # Decision point - choose approach based on complexity
+    choose_approach:
+      goal: |
+        **CHOOSE APPROACH:** ${{ inputs.task_description }}
+        
+        Based on the assessment, choose the most appropriate approach:
+        
+        - **simple_approach**: For straightforward tasks requiring minimal planning
+        - **standard_approach**: For moderate complexity tasks needing structured approach  
+        - **complex_approach**: For complex tasks requiring extensive planning and validation
+        
+        **Consider:** Task complexity, available time, required quality, and resources.
+      acceptance_criteria:
+        approach_selected: "Appropriate approach selected based on complexity assessment"
+        rationale_documented: "Clear rationale provided for approach selection"
+        next_steps_clear: "Next steps in chosen approach pathway identified"
+      next_allowed_nodes: [simple_approach, standard_approach, complex_approach]
+
+    # Simple approach path - minimal process
+    simple_approach:
+      goal: |
+        **SIMPLE APPROACH:** ${{ inputs.task_description }}
+        
+        Execute the task using a streamlined approach suitable for simple requirements.
+        Focus on direct implementation with minimal overhead.
+        
+        **Focus:** Quick, efficient execution with basic quality checks.
+      acceptance_criteria:
+        task_completed: "Task completed using streamlined process"
+        basic_quality: "Basic quality standards met"
+        minimal_documentation: "Essential documentation provided"
+      next_allowed_nodes: [finalize]
+
+    # Standard approach path - balanced process
+    standard_approach:
+      goal: |
+        **STANDARD APPROACH:** ${{ inputs.task_description }}
+        
+        Execute the task using a balanced approach with moderate planning and validation.
+        Include reasonable quality checks and documentation.
+        
+        **Focus:** Balanced execution with appropriate quality and documentation.
+      acceptance_criteria:
+        planned_execution: "Task executed with appropriate planning"
+        quality_validation: "Quality validation performed"
+        adequate_documentation: "Adequate documentation and notes provided"
+      next_allowed_nodes: [validate_standard]
+
+    # Complex approach path - comprehensive process
+    complex_approach:
+      goal: |
+        **COMPLEX APPROACH:** ${{ inputs.task_description }}
+        
+        Execute the task using a comprehensive approach with detailed planning,
+        multiple validation stages, and thorough documentation.
+        
+        **Focus:** Comprehensive execution with high quality standards.
+      acceptance_criteria:
+        detailed_planning: "Detailed planning and design completed"
+        implementation_started: "Implementation begun following detailed plan"
+        progress_tracked: "Progress tracking and intermediate validation performed"
+      next_allowed_nodes: [validate_complex]
+
+    # Validation for standard approach
+    validate_standard:
+      goal: |
+        **VALIDATE STANDARD:** ${{ inputs.task_description }}
+        
+        Perform standard validation to ensure quality and completeness.
+        Check that requirements are met and work is ready for delivery.
+        
+        **Focus:** Standard quality assurance and validation.
+      acceptance_criteria:
+        requirements_met: "All requirements verified as met"
+        quality_acceptable: "Quality standards validated"
+        ready_for_delivery: "Work confirmed ready for final delivery"
+      next_allowed_nodes: [finalize]
+
+    # Validation for complex approach  
+    validate_complex:
+      goal: |
+        **VALIDATE COMPLEX:** ${{ inputs.task_description }}
+        
+        Perform comprehensive validation including multiple quality checks,
+        edge case testing, and thorough review of all deliverables.
+        
+        **Focus:** Comprehensive quality assurance and validation.
+      acceptance_criteria:
+        comprehensive_testing: "Comprehensive testing and validation completed"
+        edge_cases_covered: "Edge cases and error conditions tested"
+        full_documentation: "Complete documentation and specifications validated"
+      next_allowed_nodes: [review_complex]
+
+    # Additional review for complex approach
+    review_complex:
+      goal: |
+        **REVIEW COMPLEX:** ${{ inputs.task_description }}
+        
+        Conduct final review of complex implementation to ensure all aspects
+        meet high quality standards and requirements are fully satisfied.
+        
+        **Focus:** Final comprehensive review and approval.
+      acceptance_criteria:
+        final_review_complete: "Comprehensive final review completed"
+        high_quality_confirmed: "High quality standards confirmed"
+        all_requirements_met: "Complete requirement satisfaction verified"
+      next_allowed_nodes: [finalize]
+
+    # Final phase - all paths converge here
+    finalize:
+      goal: |
+        **FINALIZE:** ${{ inputs.task_description }}
+        
+        Finalize the completed work regardless of which approach was used.
+        Provide final deliverables and summary of the work completed.
+        
+        **Focus:** Final delivery and workflow completion.
+      acceptance_criteria:
+        work_finalized: "All work properly finalized and delivered"
+        summary_provided: "Summary of approach used and results achieved"
+        workflow_complete: "Workflow successfully completed"
+      next_allowed_nodes: []  # Terminal node - workflow ends here 

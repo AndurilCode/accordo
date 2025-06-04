@@ -22,8 +22,11 @@ Examples:
   # Run with specific repository path
   %(prog)s --repository-path /path/to/my/project
   
-  # Run with relative repository path
-  %(prog)s --repository-path ../my-project
+  # Enable local session file storage in markdown format
+  %(prog)s --enable-local-state-file --local-state-file-format MD
+  
+  # Enable local session file storage in JSON format  
+  %(prog)s --repository-path ../my-project --enable-local-state-file --local-state-file-format JSON
 """,
     )
 
@@ -33,6 +36,39 @@ Examples:
         help="Path to the repository root where .workflow-commander folder should be located. "
         "Defaults to current directory if not specified.",
         metavar="PATH",
+    )
+
+    parser.add_argument(
+        "--enable-local-state-file",
+        action="store_true",
+        help="Enable automatic synchronization of workflow state to local files in "
+        ".workflow-commander/sessions/ directory. When enabled, every workflow state "
+        "change is automatically persisted to the filesystem.",
+    )
+
+    parser.add_argument(
+        "--local-state-file-format",
+        type=str,
+        choices=["MD", "JSON", "md", "json"],
+        default="MD",
+        help="Format for local state files when --enable-local-state-file is enabled. "
+        "Supports 'MD' for markdown or 'JSON' for structured JSON format. (default: %(default)s)",
+        metavar="FORMAT",
+    )
+
+    parser.add_argument(
+        "--session-retention-hours",
+        type=int,
+        default=168,  # 7 days
+        help="Hours to keep completed sessions before cleanup. Minimum 1 hour. (default: %(default)s = 7 days)",
+        metavar="HOURS",
+    )
+
+    parser.add_argument(
+        "--disable-session-archiving",
+        action="store_true",
+        help="Disable archiving of session files before cleanup. By default, completed sessions "
+        "are archived with a completion timestamp before being cleaned up.",
     )
 
     return parser
@@ -46,7 +82,13 @@ def main():
 
     # Create configuration
     try:
-        config = ServerConfig(repository_path=args.repository_path)
+        config = ServerConfig(
+            repository_path=args.repository_path,
+            enable_local_state_file=args.enable_local_state_file,
+            local_state_file_format=args.local_state_file_format.upper(),
+            session_retention_hours=args.session_retention_hours,
+            enable_session_archiving=not args.disable_session_archiving,
+        )
     except ValueError as e:
         print(f"Error: {e}")
         return 1

@@ -1,0 +1,103 @@
+name: Default Coding Workflow
+description: Standard development workflow for coding tasks with analysis, planning, construction, and validation phases
+
+inputs:
+  task_description:
+    type: string
+    description: Task provided by the user
+    required: true
+  project_config_path:
+    type: string
+    description: Path to project configuration file
+    required: false
+    default: ".workflow-commander/project_config.md"
+
+execution:
+  max_depth: 10
+  allow_backtracking: true
+
+workflow:
+  goal: Complete coding task with thorough analysis, planning, implementation, and validation
+
+  root: analyze
+
+  tree:
+    # Analysis phase - understand requirements and codebase
+    analyze:
+      goal: |
+        **ANALYZE PHASE:** ${{ inputs.task_description }}
+
+        Thoroughly understand the task requirements, explore the codebase, and gather all necessary information before proceeding to planning. This is a discovery and understanding phase only - no code should be written or plans created.
+
+        **Focus:** Comprehensive information gathering and requirements analysis.
+      acceptance_criteria:
+        project_config_analysis: "MUST read `${{ inputs.project_config_path }}` completely and understand coding standards, dependencies, test commands, and project structure constraints"
+        codebase_exploration: "MUST use semantic search to find related code patterns, understand current architecture and design patterns, identify files that need modification, and examine similar implementations for consistency"
+        requirements_analysis: "MUST decompose task into specific actionable requirements, identify scope boundaries and what's in/out of scope, note any ambiguities requiring clarification, and identify potential risks and complexity factors"
+        documentation_review: "MUST summarize understanding of task requirements, list all affected components and files, identify integration points and dependencies, and note any constraints or special considerations"
+        understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
+      next_allowed_nodes: [blueprint]
+
+    # Blueprint phase - create implementation plan
+    blueprint:
+      goal: |
+        **BLUEPRINT PHASE:** ${{ inputs.task_description }}
+
+        Create a comprehensive implementation plan with clear architecture, step-by-step execution strategy, and testing approach. The plan should be detailed enough for systematic execution.
+
+        **Ask for approval before proceeding to implementation.**
+        
+      acceptance_criteria:
+        solution_architecture: "MUST define overall technical approach and strategy, specify design patterns and architectural decisions, identify all files to create/modify with rationale, and plan for error handling and edge cases"
+        step_breakdown: "MUST break implementation into atomic ordered steps, ensure each step is small specific and verifiable, include verification commands for each step, and specify success criteria and validation methods"
+        quality_plan: "MUST plan how each component will be tested, identify integration points requiring validation, specify acceptance criteria and quality gates, and include regression testing considerations"
+        implementation_plan: "MUST create detailed implementation plan under ## Plan section, include risk assessment and mitigation strategies, specify quality assurance checkpoints, and define rollback procedures if needed"
+        plan_approval: "Plan is comprehensive, actionable, and ready for systematic execution with user approval obtained"
+      next_allowed_nodes: [construct]
+
+    # Construction phase - implement the plan
+    construct:
+      goal: |
+        **CONSTRUCT PHASE:** ${{ inputs.task_description }}
+
+        Execute the approved implementation plan systematically, following each step in sequence with proper verification and progress tracking.
+
+        **Key Points:** Complete each step fully before proceeding, maintain detailed progress logs, and ensure quality standards throughout.
+      acceptance_criteria:
+        step_execution: "MUST implement each planned step in exact sequence, complete each step fully before proceeding to next, NOT skip combine or reorder steps, and follow the approved implementation plan precisely"
+        progress_logging: "MUST call workflow_state tool after EVERY major step, log with format 'workflow_state(operation=\"update\", updates='{\"log_entry\": \"Step X: [description] - [status]\"}')', capture verification results in each log entry, and document any deviations from plan with rationale"
+        verification_results: "MUST run verification commands immediately after each change, test functionality works as expected, run linting/formatting checks and fix any issues, and ensure code quality standards are maintained"
+        quality_validation: "Code follows project standards with no new linting errors and quality gates passed"
+        backwards_compatibility: "No breaking changes introduced unless explicitly specified in requirements"
+        integration_check: "All imports resolve correctly with no circular dependencies and integration points tested"
+      next_allowed_nodes: [validate]
+
+    # Validation phase - comprehensive quality verification
+    validate:
+      goal: |
+        **VALIDATE PHASE:** ${{ inputs.task_description }}
+
+        Perform comprehensive quality verification to ensure the implementation is production-ready. This includes functional testing, quality checks, integration validation, and documentation review.
+
+        **Objective:** Confirm all requirements are met and the implementation is ready for deployment.
+      acceptance_criteria:
+        functional_testing: "MUST run complete test suite with all tests passing, test all implemented functionality thoroughly, verify edge cases and error conditions, and ensure no regressions in existing functionality"
+        quality_verification: "MUST run linting checks with zero errors (ruff check .), verify code formatting (ruff format --check .), run type checking if applicable (mypy src/), and ensure code follows project standards"
+        integration_testing: "MUST verify backwards compatibility maintained, test all integration points work correctly, ensure imports resolve without circular dependencies, and validate system works end-to-end"
+        requirements_verification: "MUST verify all original requirements implemented, confirm task objectives achieved, validate all acceptance criteria satisfied, and document any limitations or considerations"
+        documentation_validation: "MUST ensure code is properly documented, update relevant project documentation, verify examples and usage instructions accurate, and check documentation completeness"
+      next_allowed_nodes: [complete]
+
+    # Completion phase - finalize and summarize
+    complete:
+      goal: |
+        **COMPLETE PHASE:** ${{ inputs.task_description }}
+
+        Finalize the implementation by updating documentation, performing final validation, and providing a comprehensive summary of the work completed.
+
+        **Outcome:** Task successfully completed with full validation and documentation.
+      acceptance_criteria:
+        changelog_update: "MUST update project changelog with summary of changes, document new features fixes or improvements, include version information if applicable, and ensure changelog follows project format"
+        final_validation: "MUST verify all acceptance criteria met across all phases, confirm implementation is production-ready, ensure no outstanding issues or technical debt, and validate system stability and performance"
+        workflow_summary: "MUST provide comprehensive summary of work performed, document outcomes and achievements, note any limitations or future considerations, and confirm successful completion of all objectives"
+        completion_status: "MUST call workflow_state to mark workflow as completed, ensure all session data properly finalized, and confirm task requirements fully satisfied" 

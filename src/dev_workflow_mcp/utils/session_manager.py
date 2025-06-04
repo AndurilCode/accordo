@@ -1,5 +1,6 @@
 """Session manager for client-based workflow state persistence."""
 
+import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,112 @@ session_lock = threading.Lock()
 # Global workflow definition cache for dynamically created workflows
 workflow_definitions_cache: dict[str, WorkflowDefinition] = {}
 workflow_cache_lock = threading.Lock()
+
+# Global server configuration for auto-sync functionality
+_server_config = None
+_server_config_lock = threading.Lock()
+
+
+def set_server_config(server_config) -> None:
+    """Set the server configuration for auto-sync functionality.
+
+    Args:
+        server_config: ServerConfig instance with session storage settings
+    """
+    global _server_config
+    with _server_config_lock:
+        _server_config = server_config
+
+
+def _generate_unique_session_filename(
+    client_id: str, format_ext: str, sessions_dir: Path
+) -> str:
+    """Generate a unique session filename with timestamp and counter.
+
+    Args:
+        client_id: Client session identifier
+        format_ext: File extension (e.g., 'json', 'md')
+        sessions_dir: Directory where session files are stored
+
+    Returns:
+        str: Unique filename in format: {client_id}_{timestamp}_{counter}.{ext}
+    """
+    # Clean client_id for filesystem safety
+    safe_client_id = re.sub(r"[^\w\-_]", "_", client_id)
+
+    # Generate ISO timestamp for filename (replace : with - for filesystem compatibility)
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
+
+    # Find existing files with same client_id and timestamp to generate counter
+    pattern = f"{safe_client_id}_{timestamp}_*.{format_ext}"
+    existing_files = list(sessions_dir.glob(pattern))
+
+    # Generate next counter
+    counter = len(existing_files) + 1
+
+    return f"{safe_client_id}_{timestamp}_{counter:03d}.{format_ext}"
+
+
+def _sync_session_to_file(
+    client_id: str, session: DynamicWorkflowState | None = None
+) -> bool:
+    """Automatically sync session to filesystem when enabled.
+
+    Args:
+        client_id: Client ID for session lookup
+        session: Optional session object to avoid lock re-acquisition
+
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    global _server_config
+
+    with _server_config_lock:
+        if not _server_config or not _server_config.enable_local_state_file:
+            return True  # Skip if disabled or no config
+
+    try:
+        # Ensure sessions directory exists
+        if not _server_config.ensure_sessions_dir():
+            return False
+
+        # Get session content - avoid lock re-acquisition if session provided
+        if session is None:
+            session = get_session(client_id)
+        if not session:
+            return False
+
+        # Determine file format and content
+        format_ext = _server_config.local_state_file_format.lower()
+
+        # Generate or use existing unique filename for this session
+        if not session.session_filename:
+            # Generate new unique filename and store it in session
+            unique_filename = _generate_unique_session_filename(
+                client_id, format_ext, _server_config.sessions_dir
+            )
+            session.session_filename = unique_filename
+
+        session_file = _server_config.sessions_dir / session.session_filename
+
+        if _server_config.local_state_file_format == "JSON":
+            content = session.to_json()
+        else:
+            content = session.to_markdown()
+
+        if not content:
+            return False
+
+        # Atomic write operation
+        temp_file = session_file.with_suffix(f".{format_ext}.tmp")
+        temp_file.write_text(content, encoding="utf-8")
+        temp_file.rename(session_file)
+
+        return True
+
+    except Exception:
+        # Non-blocking: don't break workflow execution on sync failures
+        return False
 
 
 def get_session(client_id: str) -> DynamicWorkflowState | None:
@@ -79,6 +186,9 @@ def create_dynamic_session(
         # Store in global sessions
         client_sessions[client_id] = state
 
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, state)
+
         return state
 
 
@@ -96,6 +206,9 @@ def update_session(client_id: str, **kwargs) -> bool:
 
         # Update timestamp
         session.last_updated = datetime.now(UTC)
+
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
 
         return True
 
@@ -133,6 +246,10 @@ def update_dynamic_session_node(
 
         if success and status:
             session.status = status
+
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        if success:
+            _sync_session_to_file(client_id, session)
 
         return success
 
@@ -246,6 +363,10 @@ def add_log_to_session(client_id: str, entry: str) -> bool:
             return False
 
         session.add_log_entry(entry)
+
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
+
         return True
 
 
@@ -282,6 +403,9 @@ def add_item_to_session(client_id: str, description: str) -> bool:
         session.items.append(new_item)
         session.last_updated = datetime.now(UTC)
 
+        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        _sync_session_to_file(client_id, session)
+
         return True
 
 
@@ -295,6 +419,8 @@ def mark_item_completed_in_session(client_id: str, item_id: int) -> bool:
         result = session.mark_item_completed(item_id)
         if result:
             session.last_updated = datetime.now(UTC)
+            # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+            _sync_session_to_file(client_id, session)
 
         return result
 
@@ -340,11 +466,57 @@ def get_session_stats() -> dict[str, int]:
         return stats
 
 
-def cleanup_completed_sessions(keep_recent_hours: int = 24) -> int:
-    """Clean up old completed sessions.
+def _archive_session_file(session: DynamicWorkflowState) -> bool:
+    """Archive a completed session file by adding completion timestamp to filename.
+
+    Args:
+        session: The session to archive
+
+    Returns:
+        bool: True if archiving succeeded, False otherwise
+    """
+    global _server_config
+
+    with _server_config_lock:
+        if not _server_config or not _server_config.enable_local_state_file:
+            return True  # Skip if disabled
+
+    try:
+        if not session.session_filename:
+            return True  # No file to archive
+
+        sessions_dir = _server_config.sessions_dir
+        current_file = sessions_dir / session.session_filename
+
+        if not current_file.exists():
+            return True  # File doesn't exist, nothing to archive
+
+        # Generate archived filename with completion timestamp
+        completion_timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
+        base_name = session.session_filename.rsplit(".", 1)[0]  # Remove extension
+        extension = session.session_filename.rsplit(".", 1)[1]  # Get extension
+
+        archived_filename = f"{base_name}_COMPLETED_{completion_timestamp}.{extension}"
+        archived_file = sessions_dir / archived_filename
+
+        # Move current file to archived location
+        current_file.rename(archived_file)
+
+        return True
+
+    except Exception:
+        # Non-blocking: don't break workflow execution on archive failures
+        return False
+
+
+def cleanup_completed_sessions(
+    keep_recent_hours: int = 24, archive_before_cleanup: bool = True
+) -> int:
+    """Clean up old completed sessions with optional archiving.
 
     Args:
         keep_recent_hours: Keep sessions modified within this many hours
+        archive_before_cleanup: Whether to archive session files before cleanup
 
     Returns:
         Number of sessions cleaned up
@@ -369,9 +541,13 @@ def cleanup_completed_sessions(keep_recent_hours: int = 24) -> int:
                 ]
 
             if is_completed and session_time < cutoff_time:
+                # Archive the session file before removing from memory
+                if archive_before_cleanup:
+                    _archive_session_file(session)
+
                 sessions_to_remove.append(client_id)
 
-        # Remove the sessions
+        # Remove the sessions from memory
         for client_id in sessions_to_remove:
             del client_sessions[client_id]
             cleaned_count += 1

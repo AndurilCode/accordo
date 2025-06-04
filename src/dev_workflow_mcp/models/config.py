@@ -63,29 +63,35 @@ class WorkflowConfig(BaseModel):
     """Workflow behavior configuration.
 
     This configuration controls core workflow behavior including:
-    - Automatic plan approval to bypass user confirmation
     - Local state file enforcement for dual storage mode
     - Local state file format selection (MD or JSON)
+
+    Configuration is now CLI-driven rather than environment variable based.
     """
 
-    auto_approve_plans: bool = Field(
-        default_factory=lambda: os.getenv(
-            "WORKFLOW_AUTO_APPROVE_PLANS", "false"
-        ).lower()
-        == "true",
-        description="Automatically approve blueprint plans without user interaction (from WORKFLOW_AUTO_APPROVE_PLANS env var)",
-    )
     local_state_file: bool = Field(
-        default_factory=lambda: os.getenv("WORKFLOW_LOCAL_STATE_FILE", "false").lower()
-        == "true",
-        description="Enforce local storage of workflow_state.md file through mandatory agent prompts. When enabled, maintains both MCP server memory state AND local file state for dual storage mode. (from WORKFLOW_LOCAL_STATE_FILE env var)",
+        default=False,
+        description="Enforce local storage of workflow state files through automatic synchronization. When enabled, maintains both MCP server memory state AND local file state in .workflow-commander/sessions/ directory.",
     )
     local_state_file_format: str = Field(
-        default_factory=lambda: _get_validated_format(
-            os.getenv("WORKFLOW_LOCAL_STATE_FILE_FORMAT", "MD")
-        ),
-        description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format. (from WORKFLOW_LOCAL_STATE_FILE_FORMAT env var)",
+        default="MD",
+        description="Format for local state file when local_state_file is enabled. Supports 'MD' for markdown or 'JSON' for structured JSON format.",
     )
+
+    @classmethod
+    def from_server_config(cls, server_config) -> "WorkflowConfig":
+        """Create WorkflowConfig from ServerConfig instance.
+
+        Args:
+            server_config: ServerConfig instance with CLI-provided values
+
+        Returns:
+            WorkflowConfig instance
+        """
+        return cls(
+            local_state_file=server_config.enable_local_state_file,
+            local_state_file_format=server_config.local_state_file_format,
+        )
 
     @field_validator("local_state_file_format")
     @classmethod
@@ -97,16 +103,3 @@ class WorkflowConfig(BaseModel):
                 f"local_state_file_format must be 'MD' or 'JSON', got '{v}'"
             )
         return v_upper
-
-
-def _get_validated_format(env_value: str | None) -> str:
-    """Get validated format from environment variable, defaulting to MD for invalid values."""
-    if not env_value:
-        return "MD"
-
-    env_upper = env_value.upper()
-    if env_upper in ("MD", "JSON"):
-        return env_upper
-
-    # Invalid environment value defaults to MD (graceful degradation)
-    return "MD"
