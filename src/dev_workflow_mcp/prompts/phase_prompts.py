@@ -1092,19 +1092,6 @@ Dynamic session exists but workflow definition is missing.
                     session, workflow_def, action, context, engine, loader
                 )
 
-            elif session_type == "legacy":
-                # Legacy sessions are no longer supported - force migration to YAML workflows
-                return f"""❌ **Legacy Workflow Session Detected**
-
-Legacy workflows have been removed. Please start a new YAML workflow:
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content
-
-🚨 **Note:** All legacy workflow functionality has been permanently removed."""
-
             else:
                 # session_type is None - NO SESSION EXISTS
                 # MANDATORY DISCOVERY-FIRST ENFORCEMENT
