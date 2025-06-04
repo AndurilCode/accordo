@@ -32,6 +32,12 @@ class DynamicWorkflowState(BaseModel):
         default=None, description="Path to workflow YAML file"
     )
 
+    # Session file management
+    session_filename: str | None = Field(
+        default=None,
+        description="Unique filename for this session's persistent storage",
+    )
+
     # Dynamic workflow state
     last_updated: datetime = Field(default_factory=datetime.now)
     current_node: str = Field(description="Current node in the workflow")

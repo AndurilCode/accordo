@@ -566,11 +566,11 @@ def register_phase_prompts(app: FastMCP, config=None):
         try:
             # Extract client_id from MCP Context with defensive handling
             client_id = "default"  # consistent fallback for session continuity
-            
+
             # Defensive Context handling to prevent hanging
             if ctx is not None:
                 try:
-                    if hasattr(ctx, 'client_id') and ctx.client_id:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
                         client_id = ctx.client_id
                     # Note: Do NOT use request_id as fallback since it changes per request
                     # and would break workflow session continuity
@@ -578,7 +578,7 @@ def register_phase_prompts(app: FastMCP, config=None):
                     # Context object exists but doesn't have expected attributes
                     # This is unusual but could happen with different FastMCP versions
                     pass
-            
+
             # If we still have "default", this is expected behavior for:
             # 1. Missing Context injection
             # 2. Context without client_id
@@ -864,11 +864,11 @@ You called workflow_guidance with action="{action}" but there's no active workfl
         try:
             # Extract client_id from MCP Context with defensive handling
             client_id = "default"  # consistent fallback for session continuity
-            
+
             # Defensive Context handling to prevent hanging
             if ctx is not None:
                 try:
-                    if hasattr(ctx, 'client_id') and ctx.client_id:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
                         client_id = ctx.client_id
                     # Note: Do NOT use request_id as fallback since it changes per request
                     # and would break workflow session continuity
