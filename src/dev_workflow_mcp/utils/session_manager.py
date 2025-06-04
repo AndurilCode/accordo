@@ -19,6 +19,70 @@ session_lock = threading.Lock()
 workflow_definitions_cache: dict[str, WorkflowDefinition] = {}
 workflow_cache_lock = threading.Lock()
 
+# Global server configuration for auto-sync functionality
+_server_config = None
+_server_config_lock = threading.Lock()
+
+
+def set_server_config(server_config) -> None:
+    """Set the server configuration for auto-sync functionality.
+
+    Args:
+        server_config: ServerConfig instance with session storage settings
+    """
+    global _server_config
+    with _server_config_lock:
+        _server_config = server_config
+
+
+def _sync_session_to_file(client_id: str) -> bool:
+    """Automatically sync session to filesystem when enabled.
+
+    Args:
+        client_id: Client ID for session lookup
+
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    global _server_config
+
+    with _server_config_lock:
+        if not _server_config or not _server_config.enable_local_state_file:
+            return True  # Skip if disabled or no config
+
+    try:
+        # Ensure sessions directory exists
+        if not _server_config.ensure_sessions_dir():
+            return False
+
+        # Get session content
+        session = get_session(client_id)
+        if not session:
+            return False
+
+        # Determine file format and content
+        format_ext = _server_config.local_state_file_format.lower()
+        session_file = _server_config.sessions_dir / f"{client_id}.{format_ext}"
+
+        if _server_config.local_state_file_format == "JSON":
+            content = session.to_json()
+        else:
+            content = session.to_markdown()
+
+        if not content:
+            return False
+
+        # Atomic write operation
+        temp_file = session_file.with_suffix(f".{format_ext}.tmp")
+        temp_file.write_text(content, encoding="utf-8")
+        temp_file.rename(session_file)
+
+        return True
+
+    except Exception:
+        # Non-blocking: don't break workflow execution on sync failures
+        return False
+
 
 def get_session(client_id: str) -> DynamicWorkflowState | None:
     """Get workflow session for a client."""
@@ -79,6 +143,9 @@ def create_dynamic_session(
         # Store in global sessions
         client_sessions[client_id] = state
 
+        # Auto-sync to filesystem if enabled
+        _sync_session_to_file(client_id)
+
         return state
 
 
@@ -96,6 +163,9 @@ def update_session(client_id: str, **kwargs) -> bool:
 
         # Update timestamp
         session.last_updated = datetime.now(UTC)
+
+        # Auto-sync to filesystem if enabled
+        _sync_session_to_file(client_id)
 
         return True
 
@@ -133,6 +203,10 @@ def update_dynamic_session_node(
 
         if success and status:
             session.status = status
+
+        # Auto-sync to filesystem if enabled
+        if success:
+            _sync_session_to_file(client_id)
 
         return success
 
@@ -246,6 +320,10 @@ def add_log_to_session(client_id: str, entry: str) -> bool:
             return False
 
         session.add_log_entry(entry)
+
+        # Auto-sync to filesystem if enabled
+        _sync_session_to_file(client_id)
+
         return True
 
 
@@ -282,6 +360,9 @@ def add_item_to_session(client_id: str, description: str) -> bool:
         session.items.append(new_item)
         session.last_updated = datetime.now(UTC)
 
+        # Auto-sync to filesystem if enabled
+        _sync_session_to_file(client_id)
+
         return True
 
 
@@ -295,6 +376,8 @@ def mark_item_completed_in_session(client_id: str, item_id: int) -> bool:
         result = session.mark_item_completed(item_id)
         if result:
             session.last_updated = datetime.now(UTC)
+            # Auto-sync to filesystem if enabled
+            _sync_session_to_file(client_id)
 
         return result
 

@@ -59,8 +59,12 @@ class TestMainFunction:
         with patch.object(sys, "argv", test_args):
             result = main()
 
-        # Verify ServerConfig was called with None (default)
-        mock_config.assert_called_once_with(repository_path=None)
+        # Verify ServerConfig was called with default values
+        mock_config.assert_called_once_with(
+            repository_path=None,
+            enable_local_state_file=False,
+            local_state_file_format="MD",
+        )
 
         # Verify FastMCP was created
         mock_fastmcp.assert_called_once_with("Development Workflow")
@@ -100,8 +104,12 @@ class TestMainFunction:
         with patch.object(sys, "argv", test_args):
             result = main()
 
-        # Verify ServerConfig was called with the provided path
-        mock_config.assert_called_once_with(repository_path="/test/path")
+        # Verify ServerConfig was called with the provided path and defaults
+        mock_config.assert_called_once_with(
+            repository_path="/test/path",
+            enable_local_state_file=False,
+            local_state_file_format="MD",
+        )
 
         # Verify other calls
         mock_fastmcp.assert_called_once_with("Development Workflow")
@@ -130,7 +138,11 @@ class TestMainFunction:
             result = main()
 
         # Verify error handling
-        mock_config.assert_called_once_with(repository_path="/invalid/path")
+        mock_config.assert_called_once_with(
+            repository_path="/invalid/path",
+            enable_local_state_file=False,
+            local_state_file_format="MD",
+        )
         mock_print.assert_called_once_with(
             "Error: Repository path does not exist: /invalid/path"
         )
