@@ -6,12 +6,24 @@ from pathlib import Path
 class ServerConfig:
     """Configuration settings for the MCP server."""
 
-    def __init__(self, repository_path: str | None = None):
+    def __init__(
+        self,
+        repository_path: str | None = None,
+        enable_local_state_file: bool = False,
+        local_state_file_format: str = "MD",
+        session_retention_hours: int = 168,  # 7 days default
+        enable_session_archiving: bool = True,
+    ):
         """Initialize server configuration.
 
         Args:
             repository_path: Optional path to the repository root where .workflow-commander
                            folder should be located. Defaults to current directory.
+            enable_local_state_file: Enable automatic synchronization of workflow state
+                                   to local files in .workflow-commander/sessions/.
+            local_state_file_format: Format for local state files ('MD' or 'JSON').
+            session_retention_hours: Hours to keep completed sessions before cleanup (default: 168 = 7 days).
+            enable_session_archiving: Whether to archive session files before cleanup (default: True).
         """
         if repository_path:
             self.repository_path = Path(repository_path).resolve()
@@ -27,6 +39,21 @@ class ServerConfig:
                 f"Repository path is not a directory: {self.repository_path}"
             )
 
+        # Store session storage configuration
+        self.enable_local_state_file = enable_local_state_file
+
+        # Validate and normalize format
+        format_upper = local_state_file_format.upper()
+        if format_upper not in ("MD", "JSON"):
+            raise ValueError(
+                f"local_state_file_format must be 'MD' or 'JSON', got '{local_state_file_format}'"
+            )
+        self.local_state_file_format = format_upper
+
+        # Store session management configuration
+        self.session_retention_hours = max(1, session_retention_hours)  # Minimum 1 hour
+        self.enable_session_archiving = enable_session_archiving
+
     @property
     def workflow_commander_dir(self) -> Path:
         """Get the .workflow-commander directory path."""
@@ -41,6 +68,11 @@ class ServerConfig:
     def project_config_path(self) -> Path:
         """Get the project configuration file path."""
         return self.workflow_commander_dir / "project_config.md"
+
+    @property
+    def sessions_dir(self) -> Path:
+        """Get the sessions directory path."""
+        return self.workflow_commander_dir / "sessions"
 
     def ensure_workflow_commander_dir(self) -> bool:
         """Ensure the .workflow-commander directory exists.
@@ -63,6 +95,20 @@ class ServerConfig:
         try:
             if self.ensure_workflow_commander_dir():
                 self.workflows_dir.mkdir(exist_ok=True)
+                return True
+            return False
+        except (OSError, PermissionError):
+            return False
+
+    def ensure_sessions_dir(self) -> bool:
+        """Ensure the sessions directory exists.
+
+        Returns:
+            True if directory exists or was created successfully, False otherwise.
+        """
+        try:
+            if self.ensure_workflow_commander_dir():
+                self.sessions_dir.mkdir(exist_ok=True)
                 return True
             return False
         except (OSError, PermissionError):
@@ -101,7 +147,7 @@ class ServerConfig:
 
     def __str__(self) -> str:
         """String representation of the configuration."""
-        return f"ServerConfig(repository_path={self.repository_path})"
+        return f"ServerConfig(repository_path={self.repository_path}, enable_local_state_file={self.enable_local_state_file}, local_state_file_format={self.local_state_file_format})"
 
     def __repr__(self) -> str:
         """Detailed string representation of the configuration."""

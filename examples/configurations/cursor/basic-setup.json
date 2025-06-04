@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "workflow-commander": {
+      "command": "uvx",
+      "args": [
+        "--from", 
+        "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "dev-workflow-mcp"
+      ]
+    }
+  }
+} 
