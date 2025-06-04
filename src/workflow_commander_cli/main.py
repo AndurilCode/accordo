@@ -84,9 +84,9 @@ def configure(
         platform_info = PlatformInfo.for_platform(platform_enum)
         
         # Step 2: Server Configuration (hardcoded to workflow-commander)
-        if server_name and non_interactive:
-            # Non-interactive mode with predefined server name
-            server_name_configured = server_name
+        if non_interactive:
+            # Non-interactive mode - use defaults
+            server_name_configured = server_name if server_name else "workflow-commander"
             server_config = MCPServer(
                 command="uvx",
                 args=["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
