@@ -11,6 +11,8 @@ class ServerConfig:
         repository_path: str | None = None,
         enable_local_state_file: bool = False,
         local_state_file_format: str = "MD",
+        session_retention_hours: int = 168,  # 7 days default
+        enable_session_archiving: bool = True,
     ):
         """Initialize server configuration.
 
@@ -20,6 +22,8 @@ class ServerConfig:
             enable_local_state_file: Enable automatic synchronization of workflow state
                                    to local files in .workflow-commander/sessions/.
             local_state_file_format: Format for local state files ('MD' or 'JSON').
+            session_retention_hours: Hours to keep completed sessions before cleanup (default: 168 = 7 days).
+            enable_session_archiving: Whether to archive session files before cleanup (default: True).
         """
         if repository_path:
             self.repository_path = Path(repository_path).resolve()
@@ -45,6 +49,10 @@ class ServerConfig:
                 f"local_state_file_format must be 'MD' or 'JSON', got '{local_state_file_format}'"
             )
         self.local_state_file_format = format_upper
+
+        # Store session management configuration
+        self.session_retention_hours = max(1, session_retention_hours)  # Minimum 1 hour
+        self.enable_session_archiving = enable_session_archiving
 
     @property
     def workflow_commander_dir(self) -> Path:

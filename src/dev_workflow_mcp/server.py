@@ -56,6 +56,21 @@ Examples:
         metavar="FORMAT",
     )
 
+    parser.add_argument(
+        "--session-retention-hours",
+        type=int,
+        default=168,  # 7 days
+        help="Hours to keep completed sessions before cleanup. Minimum 1 hour. (default: %(default)s = 7 days)",
+        metavar="HOURS",
+    )
+
+    parser.add_argument(
+        "--disable-session-archiving",
+        action="store_true",
+        help="Disable archiving of session files before cleanup. By default, completed sessions "
+        "are archived with a completion timestamp before being cleaned up.",
+    )
+
     return parser
 
 
@@ -71,6 +86,8 @@ def main():
             repository_path=args.repository_path,
             enable_local_state_file=args.enable_local_state_file,
             local_state_file_format=args.local_state_file_format.upper(),
+            session_retention_hours=args.session_retention_hours,
+            enable_session_archiving=not args.disable_session_archiving,
         )
     except ValueError as e:
         print(f"Error: {e}")
