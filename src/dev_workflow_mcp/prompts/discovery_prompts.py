@@ -12,6 +12,31 @@ from ..utils.session_manager import (
 )
 from ..utils.yaml_loader import WorkflowLoader
 
+# Global cache for discovered workflows (workflow_name -> workflow_definition)
+_discovered_workflows_cache = {}
+
+
+def get_cached_workflow(workflow_name: str):
+    """Retrieve a workflow from the cache by name.
+    
+    Args:
+        workflow_name: Name of the workflow to retrieve
+        
+    Returns:
+        WorkflowDefinition or None if not found
+    """
+    return _discovered_workflows_cache.get(workflow_name)
+
+
+def cache_workflows(workflows: dict):
+    """Cache discovered workflows for later lookup.
+    
+    Args:
+        workflows: Dictionary of workflow_name -> WorkflowDefinition
+    """
+    global _discovered_workflows_cache
+    _discovered_workflows_cache.update(workflows)
+
 
 def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
     """Register discovery prompt tools for workflow selection.
@@ -132,31 +157,12 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                     },
                 }
 
-            # Format workflows for agent selection
+            # Cache the discovered workflows for later lookup
+            cache_workflows(workflows)
+            
+            # Format workflows for agent selection (without YAML content)
             workflow_choices = {}
             for name, workflow_def in workflows.items():
-                # Read the original YAML file to get the exact content
-                workflow_file = None
-                workflow_content = None
-
-                # Try to find the corresponding YAML file
-                try:
-                    from pathlib import Path
-
-                    workflows_path = Path(workflows_dir)
-                    for yaml_file in workflows_path.glob("*.yaml"):
-                        try:
-                            test_workflow = loader.load_workflow(str(yaml_file))
-                            if test_workflow and test_workflow.name == name:
-                                workflow_file = str(yaml_file)
-                                with open(yaml_file, encoding="utf-8") as f:
-                                    workflow_content = f.read()
-                                break
-                        except Exception:
-                            continue
-                except Exception:
-                    pass
-
                 workflow_choices[name] = {
                     "name": workflow_def.name,
                     "description": workflow_def.description,
@@ -164,8 +170,6 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                     "root_node": workflow_def.workflow.root,
                     "total_nodes": len(workflow_def.workflow.tree),
                     "node_names": list(workflow_def.workflow.tree.keys()),
-                    "file_path": workflow_file,
-                    "yaml_content": workflow_content,
                 }
 
             return {
@@ -190,7 +194,8 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                         "**Goal alignment:** Pick workflows whose goals align with your objectives",
                         "**Node structure:** Consider the workflow phases that best fit your needs",
                     ],
-                    "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>\\nyaml: <yaml_content>')",
+                    "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>')",
+                    "note": "⚠️ Just provide the workflow name - the server will look up the YAML content automatically",
                 },
                 "fallback": {
                     "option": "If none of these workflows fit, create a custom one",
