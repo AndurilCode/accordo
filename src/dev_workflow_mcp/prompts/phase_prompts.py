@@ -335,6 +335,58 @@ def _validate_and_reformat_yaml(yaml_content: str) -> str | None:
 
 
 # =============================================================================
+# CONTEXT PARSING FUNCTIONS
+# =============================================================================
+
+
+def _parse_criteria_evidence_context(
+    context: str,
+) -> tuple[str | None, dict[str, str] | None]:
+    """Parse context to extract choice and criteria evidence.
+
+    Supports both legacy string format and new JSON dict format.
+
+    Args:
+        context: Context string from user input
+
+    Returns:
+        Tuple of (choice, criteria_evidence) where:
+        - choice: The chosen next node/workflow
+        - criteria_evidence: Dict of criterion -> evidence details
+
+    Examples:
+        Legacy format: "choose: blueprint"
+        New format: '{"choose": "blueprint", "criteria_evidence": {"analysis_complete": "Found the issue in _generate_node_completion_outputs"}}'
+    """
+    if not context or not isinstance(context, str):
+        return None, None
+
+    context = context.strip()
+
+    # Try to parse as JSON first (new format)
+    try:
+        if context.startswith("{") and context.endswith("}"):
+            context_dict = json.loads(context)
+
+            if isinstance(context_dict, dict):
+                choice = context_dict.get("choose")
+                criteria_evidence = context_dict.get("criteria_evidence", {})
+
+                # Validate criteria_evidence is a dict
+                if not isinstance(criteria_evidence, dict):
+                    criteria_evidence = {}
+
+                return choice, criteria_evidence
+    except (json.JSONDecodeError, ValueError):
+        # If JSON parsing fails, fall back to legacy format
+        pass
+
+    # Legacy string format parsing
+    choice = extract_choice_from_context(context)
+    return choice, None
+
+
+# =============================================================================
 # FORMATTING FUNCTIONS
 # =============================================================================
 
@@ -469,9 +521,13 @@ def _handle_dynamic_workflow(
         if not current_node:
             return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
-        # Handle choice selection
-        if context and isinstance(context, str) and "choose:" in context.lower():
-            choice = extract_choice_from_context(context)
+        # Handle choice selection with enhanced context parsing
+        if (
+            context
+            and isinstance(context, str)
+            and ("choose:" in context.lower() or context.strip().startswith("{"))
+        ):
+            choice, criteria_evidence = _parse_criteria_evidence_context(context)
 
             if choice and validate_transition(current_node, choice, workflow_def):
                 # Valid transition - update session
@@ -479,12 +535,15 @@ def _handle_dynamic_workflow(
                     # Generate node completion outputs before transitioning
                     # This ensures that the current node's work is properly documented
                     completion_outputs = _generate_node_completion_outputs(
-                        session.current_node, current_node, session
+                        session.current_node, current_node, session, criteria_evidence
                     )
-                    
+
                     # Node transition with completion outputs
                     update_dynamic_session_node(
-                        session.client_id, choice, workflow_def, outputs=completion_outputs
+                        session.client_id,
+                        choice,
+                        workflow_def,
+                        outputs=completion_outputs,
                     )
                     session.current_node = choice
                     new_node = workflow_def.workflow.tree[choice]
@@ -531,51 +590,63 @@ def _handle_dynamic_workflow(
 
 
 def _generate_node_completion_outputs(
-    node_name: str, node_def: WorkflowNode, session
+    node_name: str,
+    node_def: WorkflowNode,
+    session,
+    criteria_evidence: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Generate completion outputs for a workflow node.
-    
-    This function was added to fix the issue where node_outputs remained empty
-    during workflow transitions. Previously, transitions would occur without
-    capturing any evidence of work completed in the previous node.
-    
+
+    This function creates structured completion evidence that can be used for
+    reporting and workflow analysis. It now supports actual agent-provided
+    evidence instead of just hardcoded generic strings.
+
     Args:
         node_name: Name of the completed node
         node_def: The workflow node definition
         session: Current workflow session
-        
+        criteria_evidence: Optional dict of criterion -> evidence details provided by agent
+
     Returns:
         Dict containing completion outputs including evidence for acceptance criteria
-        
+
     Note:
-        This addresses the bug where node_outputs field was empty in session files
-        despite workflow phases being completed. The function generates structured
-        completion evidence that can be used for reporting and workflow analysis.
+        Enhanced to capture actual agent work details instead of generic strings.
+        Falls back to descriptive evidence when agent doesn't provide specific details.
     """
     outputs = {
         "goal_achieved": True,
         "completion_timestamp": datetime.now(UTC).isoformat(),
         "node_name": node_name,
     }
-    
-    # Generate evidence for acceptance criteria based on logged activities
+
+    # Generate evidence for acceptance criteria
     if node_def.acceptance_criteria:
         completed_criteria = {}
-        
-        # Extract evidence from session logs related to this node
-        # TODO: In future versions, this could be enhanced to analyze actual
-        # work artifacts, file changes, or other concrete evidence
-        for criterion, _description in node_def.acceptance_criteria.items():
-            # Generate basic completion evidence
-            # In a more sophisticated system, this could analyze actual work done
-            completed_criteria[criterion] = f"Criterion satisfied during {node_name} phase execution"
-            
+
+        for criterion, description in node_def.acceptance_criteria.items():
+            if criteria_evidence and criterion in criteria_evidence:
+                # Use actual agent-provided evidence
+                evidence = criteria_evidence[criterion].strip()
+                if evidence:
+                    completed_criteria[criterion] = evidence
+                else:
+                    # Fallback if evidence is empty
+                    completed_criteria[criterion] = (
+                        f"Criterion {criterion} completed (no details provided)"
+                    )
+            else:
+                # Enhanced fallback - more descriptive than the old hardcoded string
+                completed_criteria[criterion] = (
+                    f"Criterion '{criterion}' satisfied - {description}"
+                )
+
         outputs["completed_criteria"] = completed_criteria
-    
+
     # Add any additional context from session
-    if hasattr(session, 'execution_context') and session.execution_context:
+    if hasattr(session, "execution_context") and session.execution_context:
         outputs["execution_context"] = dict(session.execution_context)
-    
+
     return outputs
 
 
@@ -608,7 +679,10 @@ def register_phase_prompts(app: FastMCP, config=None):
         ),
         context: str = Field(
             default="",
-            description="Additional context for actions like 'plan' (requirements summary) or 'revise' (user feedback)",
+            description="Additional context for actions. Supports both string and JSON dict formats. "
+            "String format: 'choose: node_name' for simple transitions. "
+            'JSON format: \'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\' '
+            "for transitions with detailed criteria evidence.",
         ),
         options: str = Field(
             default="",
