@@ -8,10 +8,12 @@ dependencies = [
     "fastmcp",
     "pydantic",
     "PyYAML",
+    "typer",
 ]
 
 [project.scripts]
 dev-workflow-mcp = "dev_workflow_mcp.server:main"
+workflow-commander = "workflow_commander_cli.main:app"
 
 [project.optional-dependencies]
 dev = [
