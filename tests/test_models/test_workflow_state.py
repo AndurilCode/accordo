@@ -9,50 +9,8 @@ from pydantic import ValidationError
 
 from src.dev_workflow_mcp.models.workflow_state import (
     WorkflowItem,
-    WorkflowPhase,
     WorkflowState,
-    WorkflowStatus,
 )
-
-
-class TestWorkflowPhase:
-    """Test WorkflowPhase enum."""
-
-    def test_enum_values(self):
-        """Test that all expected enum values exist."""
-        assert WorkflowPhase.INIT == "INIT"
-        assert WorkflowPhase.ANALYZE == "ANALYZE"
-        assert WorkflowPhase.BLUEPRINT == "BLUEPRINT"
-        assert WorkflowPhase.CONSTRUCT == "CONSTRUCT"
-        assert WorkflowPhase.VALIDATE == "VALIDATE"
-
-    def test_string_conversion(self):
-        """Test that enum values convert to strings correctly."""
-        assert str(WorkflowPhase.INIT) == "WorkflowPhase.INIT"
-        assert str(WorkflowPhase.ANALYZE) == "WorkflowPhase.ANALYZE"
-        # Test the actual value access
-        assert WorkflowPhase.INIT.value == "INIT"
-        assert WorkflowPhase.ANALYZE.value == "ANALYZE"
-
-
-class TestWorkflowStatus:
-    """Test WorkflowStatus enum."""
-
-    def test_enum_values(self):
-        """Test that all expected enum values exist."""
-        assert WorkflowStatus.READY == "READY"
-        assert WorkflowStatus.RUNNING == "RUNNING"
-        assert WorkflowStatus.NEEDS_PLAN_APPROVAL == "NEEDS_PLAN_APPROVAL"
-        assert WorkflowStatus.COMPLETED == "COMPLETED"
-        assert WorkflowStatus.ERROR == "ERROR"
-
-    def test_string_conversion(self):
-        """Test that enum values convert to strings correctly."""
-        assert str(WorkflowStatus.READY) == "WorkflowStatus.READY"
-        assert str(WorkflowStatus.ERROR) == "WorkflowStatus.ERROR"
-        # Test the actual value access
-        assert WorkflowStatus.READY.value == "READY"
-        assert WorkflowStatus.ERROR.value == "ERROR"
 
 
 class TestWorkflowItem:
@@ -94,9 +52,9 @@ class TestWorkflowState:
 
     def test_valid_creation(self):
         """Test creating a valid WorkflowState."""
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
-        assert state.phase == WorkflowPhase.INIT
-        assert state.status == WorkflowStatus.READY
+        state = WorkflowState(phase="INIT", status="READY")
+        assert state.phase == "INIT"
+        assert state.status == "READY"
         assert state.current_item is None
         assert state.plan == ""
         assert state.items == []
@@ -108,16 +66,16 @@ class TestWorkflowState:
         """Test creating WorkflowState with all fields."""
         items = [WorkflowItem(id=1, description="Task 1")]
         state = WorkflowState(
-            phase=WorkflowPhase.BLUEPRINT,
-            status=WorkflowStatus.RUNNING,
+            phase="BLUEPRINT",
+            status="RUNNING",
             current_item="Current task",
             plan="Test plan",
             items=items,
             log=["Test log"],
             archive_log=["Archive log"],
         )
-        assert state.phase == WorkflowPhase.BLUEPRINT
-        assert state.status == WorkflowStatus.RUNNING
+        assert state.phase == "BLUEPRINT"
+        assert state.status == "RUNNING"
         assert state.current_item == "Current task"
         assert state.plan == "Test plan"
         assert len(state.items) == 1
@@ -130,7 +88,7 @@ class TestWorkflowState:
         # Mock datetime.now() to return a fixed time
         mock_datetime.now.return_value.strftime.return_value = "12:34:56"
 
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
+        state = WorkflowState(phase="INIT", status="READY")
 
         state.add_log_entry("Test entry")
 
@@ -142,7 +100,7 @@ class TestWorkflowState:
         """Test adding multiple log entries."""
         mock_datetime.now.return_value.strftime.side_effect = ["12:34:56", "12:35:00"]
 
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
+        state = WorkflowState(phase="INIT", status="READY")
 
         state.add_log_entry("First entry")
         state.add_log_entry("Second entry")
@@ -152,7 +110,7 @@ class TestWorkflowState:
 
     def test_rotate_log_when_over_5000_chars(self):
         """Test that log rotates when it exceeds 5000 characters."""
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
+        state = WorkflowState(phase="INIT", status="READY")
 
         # Create a log entry that's over 5000 characters
         long_entry = "x" * 5001
@@ -165,7 +123,7 @@ class TestWorkflowState:
 
     def test_rotate_log_with_existing_archive(self):
         """Test log rotation when archive already has content."""
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
+        state = WorkflowState(phase="INIT", status="READY")
 
         state.archive_log = ["Existing archive"]
         state.log = ["Current log"]
@@ -181,7 +139,7 @@ class TestWorkflowState:
         """Test that adding log entry triggers rotation when over 5000 chars."""
         mock_datetime.now.return_value.strftime.return_value = "12:34:56"
 
-        state = WorkflowState(phase=WorkflowPhase.INIT, status=WorkflowStatus.READY)
+        state = WorkflowState(phase="INIT", status="READY")
 
         # Set log to be just under 5000 chars
         state.log = ["x" * 4990]
@@ -201,9 +159,7 @@ class TestWorkflowState:
             WorkflowItem(id=2, description="Task 2", status="pending"),
             WorkflowItem(id=3, description="Task 3", status="pending"),
         ]
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         next_item = state.get_next_pending_item()
 
@@ -218,9 +174,7 @@ class TestWorkflowState:
             WorkflowItem(id=1, description="Task 1", status="completed"),
             WorkflowItem(id=2, description="Task 2", status="completed"),
         ]
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         next_item = state.get_next_pending_item()
 
@@ -228,9 +182,7 @@ class TestWorkflowState:
 
     def test_get_next_pending_item_empty_items(self):
         """Test getting next pending item when items list is empty."""
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=[]
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=[])
 
         next_item = state.get_next_pending_item()
 
@@ -242,9 +194,7 @@ class TestWorkflowState:
             WorkflowItem(id=1, description="Task 1", status="pending"),
             WorkflowItem(id=2, description="Task 2", status="pending"),
         ]
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         result = state.mark_item_completed(1)
 
@@ -257,9 +207,7 @@ class TestWorkflowState:
         items = [
             WorkflowItem(id=1, description="Task 1", status="pending"),
         ]
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=items
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=items)
 
         result = state.mark_item_completed(999)
 
@@ -268,9 +216,7 @@ class TestWorkflowState:
 
     def test_mark_item_completed_empty_items(self):
         """Test marking item as completed when items list is empty."""
-        state = WorkflowState(
-            phase=WorkflowPhase.INIT, status=WorkflowStatus.READY, items=[]
-        )
+        state = WorkflowState(phase="INIT", status="READY", items=[])
 
         result = state.mark_item_completed(1)
 
@@ -279,19 +225,19 @@ class TestWorkflowState:
     def test_validation_error_missing_phase(self):
         """Test that missing phase raises validation error."""
         with pytest.raises(ValidationError):
-            WorkflowState(status=WorkflowStatus.READY)
+            WorkflowState(status="READY")
 
     def test_validation_error_missing_status(self):
         """Test that missing status raises validation error."""
         with pytest.raises(ValidationError):
-            WorkflowState(phase=WorkflowPhase.INIT)
+            WorkflowState(phase="INIT")
 
     def test_serialization(self):
         """Test that WorkflowState can be serialized."""
         items = [WorkflowItem(id=1, description="Task 1")]
         state = WorkflowState(
-            phase=WorkflowPhase.BLUEPRINT,
-            status=WorkflowStatus.RUNNING,
+            phase="BLUEPRINT",
+            status="RUNNING",
             current_item="Current task",
             plan="Test plan",
             items=items,
@@ -318,8 +264,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_basic(self):
         """Test basic to_json functionality."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
             client_id="test-client",
         )
         json_str = state.to_json()
@@ -331,8 +277,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_structure(self):
         """Test to_json returns expected structure."""
         state = WorkflowState(
-            phase=WorkflowPhase.ANALYZE,
-            status=WorkflowStatus.RUNNING,
+            phase="ANALYZE",
+            status="RUNNING",
             client_id="test-client",
             current_item="Test task",
             plan="Test plan",
@@ -353,8 +299,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_metadata_fields(self):
         """Test to_json metadata section contains expected fields."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
             client_id="test-client",
         )
         json_str = state.to_json()
@@ -369,8 +315,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_state_fields(self):
         """Test to_json state section contains expected fields."""
         state = WorkflowState(
-            phase=WorkflowPhase.BLUEPRINT,
-            status=WorkflowStatus.NEEDS_PLAN_APPROVAL,
+            phase="BLUEPRINT",
+            status="NEEDS_PLAN_APPROVAL",
             client_id="test-client",
             current_item="Current task",
         )
@@ -392,8 +338,8 @@ class TestWorkflowStateJsonExport:
             WorkflowItem(id=2, description="Task 2", status="completed"),
         ]
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
             items=items,
         )
         json_str = state.to_json()
@@ -418,8 +364,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_with_plan_and_logs(self):
         """Test to_json includes plan and log data."""
         state = WorkflowState(
-            phase=WorkflowPhase.CONSTRUCT,
-            status=WorkflowStatus.RUNNING,
+            phase="CONSTRUCT",
+            status="RUNNING",
             plan="Detailed implementation plan",
             log=["Implementation log entry"],
             archive_log=["Previous log entries"],
@@ -434,8 +380,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_empty_values_as_null(self):
         """Test to_json represents empty strings as null."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
             plan="",
             log=[],
             archive_log=[],
@@ -450,8 +396,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_current_item_null(self):
         """Test to_json handles None current_item correctly."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
             current_item=None,
         )
         json_str = state.to_json()
@@ -462,8 +408,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_empty_items_array(self):
         """Test to_json handles empty items array correctly."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -473,8 +419,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_datetime_serialization(self):
         """Test to_json properly serializes datetime fields."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
         )
         json_str = state.to_json()
         data = json.loads(json_str)
@@ -492,8 +438,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_consistent_output(self):
         """Test to_json produces consistent output for same state."""
         state = WorkflowState(
-            phase=WorkflowPhase.ANALYZE,
-            status=WorkflowStatus.RUNNING,
+            phase="ANALYZE",
+            status="RUNNING",
             client_id="consistent-test",
             plan="Same plan",
         )
@@ -515,8 +461,8 @@ class TestWorkflowStateJsonExport:
     def test_to_json_formatting(self):
         """Test to_json produces properly formatted JSON."""
         state = WorkflowState(
-            phase=WorkflowPhase.INIT,
-            status=WorkflowStatus.READY,
+            phase="INIT",
+            status="READY",
         )
         json_str = state.to_json()
 
@@ -535,8 +481,8 @@ class TestWorkflowStateJsonExport:
         ]
 
         state = WorkflowState(
-            phase=WorkflowPhase.VALIDATE,
-            status=WorkflowStatus.COMPLETED,
+            phase="VALIDATE",
+            status="COMPLETED",
             client_id="complex-test-client",
             current_item="Final validation task",
             plan="Complex multi-step plan with detailed instructions",

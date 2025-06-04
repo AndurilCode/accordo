@@ -60,8 +60,8 @@ def generate_summary_markdown(state: WorkflowState) -> str:
     summary = f"""# Workflow Summary
 
 **Client**: {state.client_id}  
-**Phase**: {state.phase.value}  
-**Status**: {state.status.value}  
+**Phase**: {state.phase}  
+**Status**: {state.status}  
 **Current Item**: {state.current_item or "None"}
 
 ## Progress

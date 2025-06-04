@@ -10,29 +10,60 @@ from ..utils.session_manager import (
     detect_session_conflict,
     get_session_summary,
 )
+from ..utils.yaml_loader import WorkflowLoader
+
+# Global cache for discovered workflows (workflow_name -> workflow_definition)
+_discovered_workflows_cache = {}
 
 
-def register_discovery_prompts(mcp: FastMCP) -> None:
-    """Register discovery prompt tools for workflow selection."""
+def get_cached_workflow(workflow_name: str):
+    """Retrieve a workflow from the cache by name.
+
+    Args:
+        workflow_name: Name of the workflow to retrieve
+
+    Returns:
+        WorkflowDefinition or None if not found
+    """
+    return _discovered_workflows_cache.get(workflow_name)
+
+
+def cache_workflows(workflows: dict):
+    """Cache discovered workflows for later lookup.
+
+    Args:
+        workflows: Dictionary of workflow_name -> WorkflowDefinition
+    """
+    global _discovered_workflows_cache
+    _discovered_workflows_cache.update(workflows)
+
+
+def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
+    """Register discovery prompt tools for workflow selection.
+
+    Args:
+        mcp: FastMCP application instance
+        config: ServerConfig instance with repository path settings (optional)
+    """
 
     @mcp.tool()
     def workflow_discovery(
         task_description: str,
-        workflows_dir: str = ".workflow-commander/workflows",
+        workflows_dir: str = None,
         client_id: str = "default",
     ) -> dict:
-        """Discover available workflows through agent file access.
+        """Discover available workflows and provide them to the agent for selection.
 
-        The MCP server cannot access files directly. This tool instructs the agent
-        to check the workflows directory and provide workflow information.
+        The MCP server now performs server-side workflow discovery and provides
+        the actual workflow content to the agent for selection.
 
         Args:
             task_description: Description of the task to be performed
-            workflows_dir: Directory containing workflow YAML files (for agent to check)
+            workflows_dir: Directory containing workflow YAML files (optional, uses config if available)
             client_id: Client session identifier
 
         Returns:
-            dict: Instructions for agent to discover workflows or session conflict information
+            dict: Available workflows with their content or session conflict information
         """
         # First, check for existing session conflicts
         conflict_info = detect_session_conflict(client_id)
@@ -92,47 +123,107 @@ def register_discovery_prompts(mcp: FastMCP) -> None:
                 "workflows_dir": workflows_dir,
             }
 
-        # No conflict - proceed with normal workflow discovery
-        return {
-            "status": "agent_action_required",
-            "task_description": task_description,
-            "instructions": {
-                "title": "🔍 **AGENT FILE ACCESS REQUIRED**",
-                "message": "The MCP server cannot access files directly. Please perform the following steps:",
-                "required_steps": [
-                    f"1. **Check directory:** Use `list_dir` tool to examine `{workflows_dir}`",
-                    "2. **Read workflow files:** Use `read_file` tool to read each .yaml/.yml file found",
-                    "3. **Analyze workflows:** Parse the YAML content to understand available workflows",
-                    "4. **Select workflow:** Choose the most appropriate workflow for the task",
-                    "5. **Start workflow:** Use `workflow_guidance(action='start', context='workflow: <name>\\nyaml: <full_yaml_content>')` with the selected workflow's YAML content",
-                ],
-                "expected_workflow_structure": {
-                    "name": "Workflow display name",
-                    "description": "Brief description of what this workflow does",
-                    "workflow": {
-                        "goal": "Main objective of the workflow",
-                        "root": "starting_node_name",
-                        "tree": "Node definitions with goals and transitions",
+        # Determine workflows directory
+        if workflows_dir is None and config is not None:
+            # Use server configuration
+            workflows_dir = str(config.workflows_dir)
+        elif workflows_dir is None:
+            # Fall back to default
+            workflows_dir = ".workflow-commander/workflows"
+
+        # Perform server-side workflow discovery
+        try:
+            loader = WorkflowLoader(workflows_dir)
+            workflows = loader.discover_workflows()
+
+            if not workflows:
+                return {
+                    "status": "no_workflows_found",
+                    "task_description": task_description,
+                    "workflows_dir": workflows_dir,
+                    "message": {
+                        "title": "📁 **NO WORKFLOWS FOUND**",
+                        "description": f"No workflow YAML files found in: {workflows_dir}",
+                        "suggestions": [
+                            "• Create workflow YAML files in the workflows directory",
+                            "• Use workflow_creation_guidance() to create a custom workflow",
+                            "• Check that the repository path is correct",
+                            "• Ensure .workflow-commander/workflows directory exists",
+                        ],
                     },
+                    "fallback": {
+                        "option": "Create a custom workflow",
+                        "command": f"workflow_creation_guidance(task_description='{task_description}')",
+                    },
+                }
+
+            # Cache the discovered workflows for later lookup
+            cache_workflows(workflows)
+
+            # Format workflows for agent selection (without YAML content)
+            workflow_choices = {}
+            for name, workflow_def in workflows.items():
+                workflow_choices[name] = {
+                    "name": workflow_def.name,
+                    "description": workflow_def.description,
+                    "goal": workflow_def.workflow.goal,
+                    "root_node": workflow_def.workflow.root,
+                    "total_nodes": len(workflow_def.workflow.tree),
+                    "node_names": list(workflow_def.workflow.tree.keys()),
+                }
+
+            return {
+                "status": "workflows_discovered",
+                "task_description": task_description,
+                "workflows_dir": workflows_dir,
+                "total_workflows": len(workflows),
+                "message": {
+                    "title": "🔍 **WORKFLOWS DISCOVERED**",
+                    "description": f"Found {len(workflows)} workflow(s) in: {workflows_dir}",
+                    "instructions": [
+                        "1. **Review the available workflows below**",
+                        "2. **Choose the most appropriate workflow for your task**",
+                        "3. **Start the selected workflow using the provided command**",
+                    ],
                 },
-                "selection_criteria": [
-                    "**Task complexity:** Simple vs complex multi-step tasks",
-                    "**Domain match:** Coding, documentation, debugging, etc.",
-                    "**Requirements:** What the task needs vs what workflow provides",
-                    "**Goal alignment:** Task objective vs workflow goal",
-                ],
-            },
-            "agent_guidance": {
-                "workflow_directory": workflows_dir,
-                "file_patterns": ["*.yaml", "*.yml"],
-                "discovery_process": "Use file system tools to discover and analyze workflows",
-                "selection_method": "Agent decides based on task requirements and workflow capabilities",
-            },
-            "fallback": {
-                "option": "If no workflows found or accessible, use legacy workflow",
-                "command": "workflow_guidance(action='start') without context parameter",
-            },
-        }
+                "available_workflows": workflow_choices,
+                "selection_guidance": {
+                    "criteria": [
+                        "**Task complexity:** Choose workflows that match your task's complexity",
+                        "**Domain match:** Select workflows designed for your type of work (coding, documentation, debugging)",
+                        "**Goal alignment:** Pick workflows whose goals align with your objectives",
+                        "**Node structure:** Consider the workflow phases that best fit your needs",
+                    ],
+                    "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>')",
+                    "note": "⚠️ Just provide the workflow name - the server will look up the YAML content automatically",
+                },
+                "fallback": {
+                    "option": "If none of these workflows fit, create a custom one",
+                    "command": f"workflow_creation_guidance(task_description='{task_description}')",
+                },
+            }
+
+        except Exception as e:
+            return {
+                "status": "discovery_error",
+                "task_description": task_description,
+                "workflows_dir": workflows_dir,
+                "error": str(e),
+                "message": {
+                    "title": "❌ **WORKFLOW DISCOVERY ERROR**",
+                    "description": f"Error discovering workflows: {str(e)}",
+                    "suggestions": [
+                        "• Check that the workflows directory exists and is accessible",
+                        "• Verify YAML files are valid",
+                        "• Try using a different repository path if specified",
+                        "• Create a custom workflow as alternative",
+                    ],
+                },
+                "fallback": {
+                    "option": "Create a custom workflow",
+                    "command": f"workflow_creation_guidance(task_description='{task_description}')",
+                },
+            }
 
     @mcp.tool()
     def workflow_creation_guidance(
