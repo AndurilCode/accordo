@@ -60,10 +60,10 @@ class ClaudeDesktopHandler(BaseConfigHandler):
         """
         try:
             if config_path.exists():
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, encoding='utf-8') as f:
                     return json.load(f)
             return {"mcpServers": {}}
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {"mcpServers": {}}
     
     def merge_configs(self, existing: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
@@ -228,10 +228,10 @@ class ClaudeCodeHandler(BaseConfigHandler):
         """
         try:
             if config_path.exists():
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, encoding='utf-8') as f:
                     return json.load(f)
             return {"mcpServers": {}}
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {"mcpServers": {}}
     
     def merge_configs(self, existing: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:

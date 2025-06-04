@@ -371,7 +371,9 @@ inputs:
     @pytest.mark.asyncio
     async def test_json_context_parsing(self, mock_context):
         """Test the new JSON context parsing functionality."""
-        from src.dev_workflow_mcp.prompts.phase_prompts import _parse_criteria_evidence_context
+        from src.dev_workflow_mcp.prompts.phase_prompts import (
+            _parse_criteria_evidence_context,
+        )
         
         # Test legacy string format
         choice, evidence = _parse_criteria_evidence_context("choose: blueprint")
@@ -406,9 +408,12 @@ inputs:
     @pytest.mark.asyncio
     async def test_criteria_evidence_integration(self, mock_context):
         """Test that criteria evidence is properly integrated into completion outputs."""
-        from src.dev_workflow_mcp.prompts.phase_prompts import _generate_node_completion_outputs
-        from src.dev_workflow_mcp.models.yaml_workflow import WorkflowNode
         from unittest.mock import Mock
+
+        from src.dev_workflow_mcp.models.yaml_workflow import WorkflowNode
+        from src.dev_workflow_mcp.prompts.phase_prompts import (
+            _generate_node_completion_outputs,
+        )
         
         # Create a mock node with acceptance criteria
         mock_node = Mock(spec=WorkflowNode)
