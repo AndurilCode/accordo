@@ -276,9 +276,15 @@ class WorkflowEngine:
             criterion_description,
         ) in current_node.acceptance_criteria.items():
             if provided_evidence and criterion_name in provided_evidence:
-                # Evidence provided for this criterion
+                # Evidence provided for this criterion with truncation for readability
+                evidence_text = provided_evidence[criterion_name].strip()
+                log_evidence = (
+                    evidence_text
+                    if len(evidence_text) <= 100
+                    else evidence_text[:100] + "..."
+                )
                 state.add_log_entry(
-                    f"✅ CRITERION MET: {criterion_name} - {provided_evidence[criterion_name]}"
+                    f"✅ CRITERION MET: {criterion_name} - {log_evidence}"
                 )
             else:
                 missing_criteria.append(f"{criterion_name}: {criterion_description}")

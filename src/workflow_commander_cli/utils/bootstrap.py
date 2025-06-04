@@ -1,7 +1,6 @@
 """Bootstrap utilities for deploying workflow guidelines to AI assistants."""
 
 from pathlib import Path
-from typing import Dict
 
 import typer
 
@@ -57,12 +56,12 @@ workflow_guidance(action="start", context="workflow: [Selected Workflow Name]")
 **Purpose:** Initialize the selected workflow session
 **Result:** Workflow begins with first phase instructions
 
-#### STEP 3: FOLLOW SCHEMA (ONGOING)
+#### STEP 3: FOLLOW SCHEMA (ONGOING) 
 ```
-workflow_guidance(action="next", context="choose: [option]")
+workflow_guidance(action="next", context='{"choose": "[option]", "criteria_evidence": {"criterion": "detailed evidence"}}')
 ```
-**Purpose:** Navigate through workflow phases using YAML-defined transitions
-**Result:** Structured progression through the complete workflow
+**Purpose:** Navigate through workflow phases using YAML-defined transitions with detailed evidence
+**Result:** Structured progression through the complete workflow with work tracking
 
 ### 🎯 Decision Framework
 **Use this exact decision tree for EVERY user request:**
@@ -87,7 +86,7 @@ The workflow system operates on these principles:
 1. **Schema-Driven Navigation**: All workflow behavior defined by YAML schemas
 2. **Agent-Driven Selection**: You choose workflows based on task requirements  
 3. **Dynamic Discovery**: System discovers available workflows automatically
-4. **Context Parameters**: Control execution with `context="choose: node_name"`
+4. **Context Parameters**: Control execution with JSON format: `context='{"choose": "node_name", "criteria_evidence": {...}}'`
 5. **No Hardcoded Routes**: All transitions defined in YAML `next_allowed_nodes`
 
 ### 📋 Available Workflow Tools
@@ -146,12 +145,12 @@ workflow_guidance(action="start", context="workflow: [Selected Workflow Name]")
 **Purpose:** Initialize the selected workflow session
 **Result:** Workflow begins with first phase instructions
 
-#### STEP 3: FOLLOW SCHEMA (ONGOING)
+#### STEP 3: FOLLOW SCHEMA (ONGOING) 
 ```
-workflow_guidance(action="next", context="choose: [option]")
+workflow_guidance(action="next", context='{"choose": "[option]", "criteria_evidence": {"criterion": "detailed evidence"}}')
 ```
-**Purpose:** Navigate through workflow phases using YAML-defined transitions
-**Result:** Structured progression through the complete workflow
+**Purpose:** Navigate through workflow phases using YAML-defined transitions with detailed evidence
+**Result:** Structured progression through the complete workflow with work tracking
 
 ### 🎯 Decision Framework
 **Use this exact decision tree for EVERY user request:**
@@ -176,7 +175,7 @@ The workflow system operates on these principles:
 1. **Schema-Driven Navigation**: All workflow behavior defined by YAML schemas
 2. **Agent-Driven Selection**: You choose workflows based on task requirements  
 3. **Dynamic Discovery**: System discovers available workflows automatically
-4. **Context Parameters**: Control execution with `context="choose: node_name"`
+4. **Context Parameters**: Control execution with JSON format: `context='{"choose": "node_name", "criteria_evidence": {...}}'`
 5. **No Hardcoded Routes**: All transitions defined in YAML `next_allowed_nodes`
 
 ### 📋 Available Workflow Tools
@@ -356,7 +355,7 @@ The workflow system operates on these principles:
             self._log_error(f"Unknown assistant type: {assistant}")
             return False
     
-    def deploy_all(self, force: bool = False) -> Dict[str, bool]:
+    def deploy_all(self, force: bool = False) -> dict[str, bool]:
         """Deploy content to all assistants."""
         results = {}
         results["cursor"] = self.deploy_to_cursor(force)

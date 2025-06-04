@@ -4,11 +4,12 @@ from pathlib import Path
 
 import typer
 
-from .handlers.claude import ClaudeDesktopHandler, ClaudeCodeHandler
+from .handlers.claude import ClaudeCodeHandler, ClaudeDesktopHandler
 from .handlers.cursor import CursorHandler
 from .handlers.vscode import VSCodeHandler
 from .models.config import MCPServer
 from .models.platform import Platform, PlatformInfo
+from .utils.bootstrap import BootstrapManager
 from .utils.prompts import (
     confirm_action,
     display_error_message,
@@ -17,7 +18,6 @@ from .utils.prompts import (
     select_config_location,
     select_platform,
 )
-from .utils.bootstrap import BootstrapManager
 
 # Create the main Typer application
 app = typer.Typer(
@@ -28,7 +28,7 @@ app = typer.Typer(
 
 def version_callback(value: bool):
     if value:
-        from . import __version__, __description__
+        from . import __description__, __version__
         typer.echo(f"workflow-commander {__version__}")
         typer.echo(__description__)
         raise typer.Exit()
@@ -84,9 +84,9 @@ def configure(
         platform_info = PlatformInfo.for_platform(platform_enum)
         
         # Step 2: Server Configuration (hardcoded to workflow-commander)
-        if server_name and non_interactive:
-            # Non-interactive mode with predefined server name
-            server_name_configured = server_name
+        if non_interactive:
+            # Non-interactive mode - use defaults
+            server_name_configured = server_name if server_name else "workflow-commander"
             server_config = MCPServer(
                 command="uvx",
                 args=["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
