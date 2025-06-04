@@ -379,9 +379,10 @@ inputs:
             "requirements_clear": "Clear understanding of requirements"
         }
         
-        # Create a mock session
+        # Create a mock session with proper log attribute
         mock_session = Mock()
         mock_session.execution_context = {}
+        mock_session.log = []  # Empty log for testing automatic extraction fallback
         
         # Test with criteria evidence
         criteria_evidence = {
