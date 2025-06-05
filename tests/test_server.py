@@ -191,7 +191,6 @@ class TestServerIntegration:
             "workflow_creation_guidance",
             "list_available_workflows",
             "validate_workflow_file",
-            "resolve_session_conflict",
         ]
 
         for tool_name in expected_tools:

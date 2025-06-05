@@ -77,73 +77,13 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
             dict: Available workflows with their content or session conflict information.
                   All responses include session_id when workflows are started.
         """
-        # First, check for existing session conflicts
-        conflict_info = detect_session_conflict(client_id)
-        if conflict_info:
-            # Session conflict detected - prompt user for resolution
-            most_recent_session_id = conflict_info.get("most_recent_session", {}).get(
-                "session_id"
-            )
-            session_summary = (
-                get_session_summary(most_recent_session_id)
-                if most_recent_session_id
-                else "No session details available"
-            )
-            return add_session_id_to_response(
-                {
-                    "status": "session_conflict_detected",
-                    "conflict_info": conflict_info,
-                    "session_summary": session_summary,
-                    "message": {
-                        "title": "⚠️ **EXISTING WORKFLOW SESSION DETECTED**",
-                        "description": "There is already an active workflow session for this client.",
-                        "current_session": session_summary,
-                        "conflict_details": {
-                            "workflow_type": conflict_info["session_type"],
-                            "workflow_name": conflict_info["workflow_name"],
-                            "current_phase_or_node": conflict_info["phase_or_node"],
-                            "status": conflict_info["status"],
-                            "current_task": conflict_info["current_item"],
-                            "last_updated": conflict_info["last_updated"],
-                        },
-                    },
-                    "user_choice_required": {
-                        "title": "🤔 **WHAT WOULD YOU LIKE TO DO?**",
-                        "options": [
-                            {
-                                "choice": "cleanup",
-                                "description": "Clear the existing session and start fresh",
-                                "action": f"resolve_session_conflict(action='cleanup', client_id='{client_id}')",
-                                "consequences": [
-                                    "• All current session data will be lost",
-                                    "• You can start a new workflow from scratch",
-                                    "• Previous progress will not be recoverable",
-                                ],
-                            },
-                            {
-                                "choice": "continue",
-                                "description": "Continue with the existing workflow session",
-                                "action": f"resolve_session_conflict(action='continue', client_id='{client_id}')",
-                                "consequences": [
-                                    "• Keep all current session data",
-                                    "• Resume from where you left off",
-                                    "• No new workflow discovery needed",
-                                ],
-                            },
-                        ],
-                        "instructions": [
-                            "1. **Review the current session details above**",
-                            "2. **Choose one of the options below:**",
-                            "   - Use `resolve_session_conflict(action='cleanup')` to clear and start fresh",
-                            "   - Use `resolve_session_conflict(action='continue')` to resume existing workflow",
-                            "3. **After resolving the conflict, you can proceed with your intended action**",
-                        ],
-                    },
-                    "task_description": task_description,
-                    "workflows_dir": workflows_dir,
-                },
-                most_recent_session_id,
-            )
+        # NOTE: Conflict detection has been disabled to fix multi-chat environment issues.
+        # Previously, this function would check for existing sessions using client_id,
+        # but this created false conflicts in environments like Cursor where multiple
+        # chat windows share the same client_id. Each chat now operates independently.
+        
+        # REMOVED: Client-based conflict detection that caused false positives
+        # in multi-chat environments. Sessions are now truly independent.
 
         # Determine workflows directory
         if workflows_dir is None and config is not None:
@@ -290,22 +230,9 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         Returns:
             dict: Comprehensive guidance for creating a YAML workflow that will auto-generate session_ids
         """
-        # First, check for existing session conflicts
-        conflict_info = detect_session_conflict(client_id)
-        if conflict_info:
-            most_recent_session_id = conflict_info.get("most_recent_session", {}).get("session_id")
-            session_summary = (
-                get_session_summary(most_recent_session_id)
-                if most_recent_session_id
-                else "No session details available"
-            )
-            return {
-                "status": "session_conflict_detected",
-                "message": "Active session detected. Resolve conflict before creating new workflow.",
-                "conflict_info": conflict_info,
-                "session_summary": session_summary,
-                "required_action": f"Call resolve_session_conflict(action='cleanup' or 'continue', client_id='{client_id}') first",
-            }
+        # NOTE: Conflict detection has been disabled to allow independent workflow creation.
+        # Each chat/conversation can now create workflows without false conflict detection.
+        # REMOVED: Client-based conflict checking that prevented workflow creation in multi-chat environments.
 
         # Provide comprehensive workflow creation guidance
         return {
@@ -603,94 +530,4 @@ workflow:
             },
             "agent_tools_needed": ["read_file"],
             "expected_result": "Validation report with any errors found or confirmation of validity",
-        }
-
-    @mcp.tool()
-    def resolve_session_conflict(
-        action: str,
-        client_id: str = "default",
-    ) -> dict:
-        """Resolve a session conflict by either cleaning up the existing session or continuing with it.
-
-        Args:
-            action: Action to take - either "cleanup" to clear the session or "continue" to keep it
-            client_id: Client session identifier
-
-        Returns:
-            dict: Result of the conflict resolution action
-        """
-        # Validate action parameter
-        if action not in ["cleanup", "continue"]:
-            return {
-                "status": "error",
-                "error": "Invalid action. Must be 'cleanup' or 'continue'",
-                "valid_actions": ["cleanup", "continue"],
-            }
-
-        # Check if there's actually a conflict to resolve
-        conflict_info = detect_session_conflict(client_id)
-        if not conflict_info:
-            return {
-                "status": "no_conflict",
-                "message": "No session conflict detected. You can proceed with workflow discovery.",
-                "next_action": "Call workflow_discovery to start a new workflow",
-            }
-
-        if action == "cleanup":
-            # Clear all sessions for the client
-            cleanup_results = clear_all_client_sessions(client_id)
-
-            if cleanup_results["success"]:
-                return {
-                    "status": "cleanup_successful",
-                    "message": f"Cleared {cleanup_results['sessions_cleared']} session(s) successfully. You can now start a new workflow.",
-                    "cleanup_details": {
-                        "previous_session_type": cleanup_results["previous_session_type"],
-                        "sessions_cleared": cleanup_results["sessions_cleared"],
-                        "failed_sessions": cleanup_results["failed_sessions"],
-                    },
-                    "next_actions": [
-                        "1. Call workflow_discovery to find available workflows",
-                        "2. Start a new workflow with workflow_guidance",
-                    ],
-                }
-            else:
-                return {
-                    "status": "cleanup_failed",
-                    "error": f"Failed to clear sessions: {cleanup_results.get('error', 'Unknown error')}",
-                    "cleanup_details": cleanup_results,
-                    "recommendation": "Try manual session cleanup or contact support",
-                }
-
-        elif action == "continue":
-            # Continue with existing session
-            most_recent_session_id = conflict_info.get("most_recent_session", {}).get("session_id")
-            session_summary = (
-                get_session_summary(most_recent_session_id)
-                if most_recent_session_id
-                else "No session details available"
-            )
-            return {
-                "status": "continue_existing",
-                "message": "Continuing with existing workflow session.",
-                "session_info": conflict_info,
-                "session_summary": session_summary,
-                "next_actions": [
-                    "1. Use workflow_guidance to continue the current workflow",
-                    "2. Check workflow_state to see current progress",
-                    "3. Use appropriate workflow actions based on current phase/node",
-                ],
-                "current_state": {
-                    "workflow": conflict_info["workflow_name"],
-                    "type": conflict_info["session_type"],
-                    "current": conflict_info["phase_or_node"],
-                    "status": conflict_info["status"],
-                    "task": conflict_info["current_item"],
-                },
-            }
-
-        # This should never be reached due to validation above
-        return {
-            "status": "error",
-            "error": "Unexpected error in conflict resolution",
         }
