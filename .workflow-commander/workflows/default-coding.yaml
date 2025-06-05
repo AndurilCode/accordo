@@ -36,7 +36,7 @@ workflow:
         requirements_analysis: "MUST decompose task into specific actionable requirements, identify scope boundaries and what's in/out of scope, note any ambiguities requiring clarification, and identify potential risks and complexity factors"
         documentation_review: "MUST summarize understanding of task requirements, list all affected components and files, identify integration points and dependencies, and note any constraints or special considerations"
         understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
-      next_allowed_nodes: [blueprint, semantic_analysis]
+      next_allowed_nodes: [semantic_analysis]
 
     semantic_analysis:
       goal: "Analyze with historical context"
@@ -53,6 +53,7 @@ workflow:
         lessons_integration: "Integrated lessons from completed similar workflows"
         risk_assessment: "Identified risks based on historical patterns"
         synthesis_report: "Combined current understanding with historical insights"
+      next_allowed_nodes: [blueprint]
 
     # Blueprint phase - create implementation plan
     blueprint:

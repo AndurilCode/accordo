@@ -84,14 +84,142 @@ def _initialize_cache_manager(server_config) -> bool:
             return False
 
 
+def _should_initialize_cache_from_environment() -> bool:
+    """Check if cache manager should be initialized from environment indicators.
+    
+    This function detects when cache mode should be enabled based on:
+    1. Cache directory existence (indicates cache was configured)
+    2. MCP configuration context hints
+    
+    Returns:
+        bool: True if cache initialization should be attempted
+    """
+    try:
+        import os
+        from pathlib import Path
+        
+        # Method 1: Check for cache directory existence
+        cache_paths = [
+            ".workflow-commander/cache",  # Default relative path
+            Path.cwd() / ".workflow-commander" / "cache",  # Current directory
+            Path("~/.workflow-commander/cache").expanduser(),  # User home
+        ]
+        
+        for cache_path in cache_paths:
+            if Path(cache_path).exists() and Path(cache_path).is_dir():
+                return True
+        
+        # Method 2: Check for MCP server arguments in environment
+        # This catches cases where cache was configured but directory doesn't exist yet
+        command_line = " ".join(os.environ.get("MCP_COMMAND_LINE", "").split())
+        if "--enable-cache-mode" in command_line:
+            return True
+            
+        # Method 3: Check if we're in a repository that likely has cache configured
+        workflow_commander_dir = Path(".workflow-commander")
+        return workflow_commander_dir.exists() and workflow_commander_dir.is_dir()
+        
+    except Exception:
+        return False
+
+
+def _reinitialize_cache_from_environment() -> bool:
+    """Reinitialize cache manager from environment detection.
+    
+    This function attempts to recreate cache manager configuration
+    when module reimport has reset global variables.
+    
+    Returns:
+        bool: True if reinitialization successful
+    """
+    global _cache_manager, _server_config
+    
+    try:
+        import os
+        from pathlib import Path
+
+        from ..config import ServerConfig
+        
+        # Determine appropriate cache configuration
+        cache_path = None
+        embedding_model = "all-MiniLM-L6-v2"  # Safe default
+        max_results = 50
+        
+        # Try to find existing cache directory
+        cache_paths = [
+            ".workflow-commander/cache",
+            Path.cwd() / ".workflow-commander" / "cache",
+            Path("~/.workflow-commander/cache").expanduser(),
+        ]
+        
+        for path in cache_paths:
+            if Path(path).exists() and Path(path).is_dir():
+                cache_path = str(path)
+                break
+        
+        # If no existing cache dir, use default location
+        if not cache_path:
+            cache_path = ".workflow-commander/cache"
+        
+        # Try to extract configuration from environment if available
+        command_line = os.environ.get("MCP_COMMAND_LINE", "")
+        if "--cache-embedding-model" in command_line:
+            # Extract embedding model from command line
+            parts = command_line.split()
+            try:
+                model_idx = parts.index("--cache-embedding-model") + 1
+                if model_idx < len(parts):
+                    embedding_model = parts[model_idx]
+            except (ValueError, IndexError):
+                pass  # Use default
+        
+        if "--cache-max-results" in command_line:
+            # Extract max results from command line
+            parts = command_line.split()
+            try:
+                results_idx = parts.index("--cache-max-results") + 1
+                if results_idx < len(parts):
+                    max_results = int(parts[results_idx])
+            except (ValueError, IndexError):
+                pass  # Use default
+        
+        # Create minimal config for cache initialization
+        temp_config = ServerConfig(
+            repository_path=".",
+            enable_cache_mode=True,
+            cache_db_path=cache_path,
+            cache_embedding_model=embedding_model,
+            cache_max_results=max_results
+        )
+        
+        # Initialize cache manager with detected configuration
+        success = _initialize_cache_manager(temp_config)
+        
+        if success:
+            # Store the config for future reference (helps with subsequent calls)
+            _server_config = temp_config
+            
+        return success
+        
+    except Exception as e:
+        # Minimal logging to avoid noise, but track the issue
+        print(f"Warning: Failed to reinitialize cache from environment: {e}")
+        return False
+
+
 def get_cache_manager():
     """Get the global cache manager instance.
     
     Returns:
         WorkflowCacheManager or None if not available
     """
-    global _cache_manager
+    global _cache_manager, _server_config
     with _cache_manager_lock:
+        # Check if cache manager is uninitialized due to module reimport
+        # but we can detect cache mode should be enabled from environment
+        if _cache_manager is None and _should_initialize_cache_from_environment():
+            _reinitialize_cache_from_environment()
+        
         return _cache_manager
 
 
