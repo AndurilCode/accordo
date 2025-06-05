@@ -1322,18 +1322,27 @@ def _generate_temporal_insights(results: list) -> str:
     
     from datetime import datetime, timedelta
     
-    # Use timezone-naive datetime for comparison
-    now = datetime.now()  # noqa: DTZ005
-    recent = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)])
-    this_month = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)])
+    # Ensure timezone-naive comparison by normalizing both datetimes
+    now = datetime.now().replace(tzinfo=None)  # noqa: DTZ005
     
-    oldest = min(results, key=lambda x: x.metadata.last_updated)
-    newest = max(results, key=lambda x: x.metadata.last_updated)
+    def normalize_datetime(dt):
+        """Normalize datetime to timezone-naive for comparison."""
+        if dt is None:
+            return datetime.now().replace(tzinfo=None)  # noqa: DTZ005
+        if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+            return dt.replace(tzinfo=None)
+        return dt
+    
+    recent = len([r for r in results if (now - normalize_datetime(r.metadata.last_updated)) < timedelta(days=7)])
+    this_month = len([r for r in results if (now - normalize_datetime(r.metadata.last_updated)) < timedelta(days=30)])
+    
+    oldest = min(results, key=lambda x: normalize_datetime(x.metadata.last_updated))
+    newest = max(results, key=lambda x: normalize_datetime(x.metadata.last_updated))
     
     # Basic temporal stats
     temporal_info = f"• Recent activity (last 7 days): {recent} workflows\n"
     temporal_info += f"• This month: {this_month} workflows\n"
-    temporal_info += f"• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
+    temporal_info += f"• Timespan: {normalize_datetime(oldest.metadata.last_updated).strftime('%Y-%m-%d')} to {normalize_datetime(newest.metadata.last_updated).strftime('%Y-%m-%d')}"
     
     # Add temporal insights
     if results:
@@ -1354,7 +1363,7 @@ def _generate_temporal_insights(results: list) -> str:
             temporal_info += f"• Trending approaches: Active focus on {dominant_type[0].lower()} patterns\n"
         
         # Development cycle insights
-        timespan_days = (newest.metadata.last_updated - oldest.metadata.last_updated).days
+        timespan_days = (normalize_datetime(newest.metadata.last_updated) - normalize_datetime(oldest.metadata.last_updated)).days
         if timespan_days <= 1:
             temporal_info += "• Development velocity: Current session indicates active development cycle"
         elif timespan_days <= 7:
