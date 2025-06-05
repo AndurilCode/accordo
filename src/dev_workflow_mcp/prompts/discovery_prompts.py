@@ -5,6 +5,7 @@ Updated for pure discovery system - no hardcoded scoring, agents make decisions.
 
 from fastmcp import FastMCP
 
+from ..utils.session_id_utils import add_session_id_to_response
 from ..utils.session_manager import (
     clear_session_completely,
     detect_session_conflict,
@@ -74,59 +75,69 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         conflict_info = detect_session_conflict(client_id)
         if conflict_info:
             # Session conflict detected - prompt user for resolution
-            session_summary = get_session_summary(client_id)
-            return {
-                "status": "session_conflict_detected",
-                "conflict_info": conflict_info,
-                "session_summary": session_summary,
-                "message": {
-                    "title": "⚠️ **EXISTING WORKFLOW SESSION DETECTED**",
-                    "description": "There is already an active workflow session for this client.",
-                    "current_session": session_summary,
-                    "conflict_details": {
-                        "workflow_type": conflict_info["session_type"],
-                        "workflow_name": conflict_info["workflow_name"],
-                        "current_phase_or_node": conflict_info["phase_or_node"],
-                        "status": conflict_info["status"],
-                        "current_task": conflict_info["current_item"],
-                        "last_updated": conflict_info["last_updated"],
+            most_recent_session_id = conflict_info.get("most_recent_session", {}).get(
+                "session_id"
+            )
+            session_summary = (
+                get_session_summary(most_recent_session_id)
+                if most_recent_session_id
+                else "No session details available"
+            )
+            return add_session_id_to_response(
+                {
+                    "status": "session_conflict_detected",
+                    "conflict_info": conflict_info,
+                    "session_summary": session_summary,
+                    "message": {
+                        "title": "⚠️ **EXISTING WORKFLOW SESSION DETECTED**",
+                        "description": "There is already an active workflow session for this client.",
+                        "current_session": session_summary,
+                        "conflict_details": {
+                            "workflow_type": conflict_info["session_type"],
+                            "workflow_name": conflict_info["workflow_name"],
+                            "current_phase_or_node": conflict_info["phase_or_node"],
+                            "status": conflict_info["status"],
+                            "current_task": conflict_info["current_item"],
+                            "last_updated": conflict_info["last_updated"],
+                        },
                     },
+                    "user_choice_required": {
+                        "title": "🤔 **WHAT WOULD YOU LIKE TO DO?**",
+                        "options": [
+                            {
+                                "choice": "cleanup",
+                                "description": "Clear the existing session and start fresh",
+                                "action": f"resolve_session_conflict(action='cleanup', client_id='{client_id}')",
+                                "consequences": [
+                                    "• All current session data will be lost",
+                                    "• You can start a new workflow from scratch",
+                                    "• Previous progress will not be recoverable",
+                                ],
+                            },
+                            {
+                                "choice": "continue",
+                                "description": "Continue with the existing workflow session",
+                                "action": f"resolve_session_conflict(action='continue', client_id='{client_id}')",
+                                "consequences": [
+                                    "• Keep all current session data",
+                                    "• Resume from where you left off",
+                                    "• No new workflow discovery needed",
+                                ],
+                            },
+                        ],
+                        "instructions": [
+                            "1. **Review the current session details above**",
+                            "2. **Choose one of the options below:**",
+                            "   - Use `resolve_session_conflict(action='cleanup')` to clear and start fresh",
+                            "   - Use `resolve_session_conflict(action='continue')` to resume existing workflow",
+                            "3. **After resolving the conflict, you can proceed with your intended action**",
+                        ],
+                    },
+                    "task_description": task_description,
+                    "workflows_dir": workflows_dir,
                 },
-                "user_choice_required": {
-                    "title": "🤔 **WHAT WOULD YOU LIKE TO DO?**",
-                    "options": [
-                        {
-                            "choice": "cleanup",
-                            "description": "Clear the existing session and start fresh",
-                            "action": f"resolve_session_conflict(action='cleanup', client_id='{client_id}')",
-                            "consequences": [
-                                "• All current session data will be lost",
-                                "• You can start a new workflow from scratch",
-                                "• Previous progress will not be recoverable",
-                            ],
-                        },
-                        {
-                            "choice": "continue",
-                            "description": "Continue with the existing workflow session",
-                            "action": f"resolve_session_conflict(action='continue', client_id='{client_id}')",
-                            "consequences": [
-                                "• Keep all current session data",
-                                "• Resume from where you left off",
-                                "• No new workflow discovery needed",
-                            ],
-                        },
-                    ],
-                    "instructions": [
-                        "1. **Review the current session details above**",
-                        "2. **Choose one of the options below:**",
-                        "   - Use `resolve_session_conflict(action='cleanup')` to clear and start fresh",
-                        "   - Use `resolve_session_conflict(action='continue')` to resume existing workflow",
-                        "3. **After resolving the conflict, you can proceed with your intended action**",
-                    ],
-                },
-                "task_description": task_description,
-                "workflows_dir": workflows_dir,
-            }
+                most_recent_session_id,
+            )
 
         # Determine workflows directory
         if workflows_dir is None and config is not None:
@@ -142,25 +153,28 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
             workflows = loader.discover_workflows()
 
             if not workflows:
-                return {
-                    "status": "no_workflows_found",
-                    "task_description": task_description,
-                    "workflows_dir": workflows_dir,
-                    "message": {
-                        "title": "📁 **NO WORKFLOWS FOUND**",
-                        "description": f"No workflow YAML files found in: {workflows_dir}",
-                        "suggestions": [
-                            "• Create workflow YAML files in the workflows directory",
-                            "• Use workflow_creation_guidance() to create a custom workflow",
-                            "• Check that the repository path is correct",
-                            "• Ensure .workflow-commander/workflows directory exists",
-                        ],
+                return add_session_id_to_response(
+                    {
+                        "status": "no_workflows_found",
+                        "task_description": task_description,
+                        "workflows_dir": workflows_dir,
+                        "message": {
+                            "title": "📁 **NO WORKFLOWS FOUND**",
+                            "description": f"No workflow YAML files found in: {workflows_dir}",
+                            "suggestions": [
+                                "• Create workflow YAML files in the workflows directory",
+                                "• Use workflow_creation_guidance() to create a custom workflow",
+                                "• Check that the repository path is correct",
+                                "• Ensure .workflow-commander/workflows directory exists",
+                            ],
+                        },
+                        "fallback": {
+                            "option": "Create a custom workflow",
+                            "command": f"workflow_creation_guidance(task_description='{task_description}')",
+                        },
                     },
-                    "fallback": {
-                        "option": "Create a custom workflow",
-                        "command": f"workflow_creation_guidance(task_description='{task_description}')",
-                    },
-                }
+                    None,
+                )
 
             # Cache the discovered workflows for later lookup
             cache_workflows(workflows)
@@ -177,36 +191,39 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                     "node_names": list(workflow_def.workflow.tree.keys()),
                 }
 
-            return {
-                "status": "workflows_discovered",
-                "task_description": task_description,
-                "workflows_dir": workflows_dir,
-                "total_workflows": len(workflows),
-                "message": {
-                    "title": "🔍 **WORKFLOWS DISCOVERED**",
-                    "description": f"Found {len(workflows)} workflow(s) in: {workflows_dir}",
-                    "instructions": [
-                        "1. **Review the available workflows below**",
-                        "2. **Choose the most appropriate workflow for your task**",
-                        "3. **Start the selected workflow using the provided command**",
-                    ],
+            return add_session_id_to_response(
+                {
+                    "status": "workflows_discovered",
+                    "task_description": task_description,
+                    "workflows_dir": workflows_dir,
+                    "total_workflows": len(workflows),
+                    "message": {
+                        "title": "🔍 **WORKFLOWS DISCOVERED**",
+                        "description": f"Found {len(workflows)} workflow(s) in: {workflows_dir}",
+                        "instructions": [
+                            "1. **Review the available workflows below**",
+                            "2. **Choose the most appropriate workflow for your task**",
+                            "3. **Start the selected workflow using the provided command**",
+                        ],
+                    },
+                    "available_workflows": workflow_choices,
+                    "selection_guidance": {
+                        "criteria": [
+                            "**Task complexity:** Choose workflows that match your task's complexity",
+                            "**Domain match:** Select workflows designed for your type of work (coding, documentation, debugging)",
+                            "**Goal alignment:** Pick workflows whose goals align with your objectives",
+                            "**Node structure:** Consider the workflow phases that best fit your needs",
+                        ],
+                        "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>')",
+                        "note": "⚠️ Just provide the workflow name - the server will look up the YAML content automatically",
+                    },
+                    "fallback": {
+                        "option": "If none of these workflows fit, create a custom one",
+                        "command": f"workflow_creation_guidance(task_description='{task_description}')",
+                    },
                 },
-                "available_workflows": workflow_choices,
-                "selection_guidance": {
-                    "criteria": [
-                        "**Task complexity:** Choose workflows that match your task's complexity",
-                        "**Domain match:** Select workflows designed for your type of work (coding, documentation, debugging)",
-                        "**Goal alignment:** Pick workflows whose goals align with your objectives",
-                        "**Node structure:** Consider the workflow phases that best fit your needs",
-                    ],
-                    "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>')",
-                    "note": "⚠️ Just provide the workflow name - the server will look up the YAML content automatically",
-                },
-                "fallback": {
-                    "option": "If none of these workflows fit, create a custom one",
-                    "command": f"workflow_creation_guidance(task_description='{task_description}')",
-                },
-            }
+                None,
+            )
 
         except Exception as e:
             return {

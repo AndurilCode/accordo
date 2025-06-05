@@ -107,14 +107,16 @@ def format_node_status(node: WorkflowNode, workflow: WorkflowDefinition) -> str:
         options_text = "**Available Next Steps:**\n"
         for transition in transitions:
             options_text += f"• **{transition['name']}**: {transition['goal']}\n"
-        
+
         # Enhanced guidance with JSON format emphasis
         options_text += '\n📋 **To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += '🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n'
-        
+        options_text += (
+            "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
+        )
+
         if len(transitions) == 1:
             # Single option - provide specific example
-            example_node = transitions[0]['name']
+            example_node = transitions[0]["name"]
             options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
         else:
             # Multiple options - provide generic example
