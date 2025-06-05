@@ -274,8 +274,8 @@ class TestPrompts:
         from workflow_commander_cli.utils.prompts import get_workflow_commander_details
         
         with (
-            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=["workflow-commander"]),
-            patch('workflow_commander_cli.utils.prompts.typer.confirm', return_value=True),
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=["workflow-commander", 1]),  # Server name, basic template
+            patch('workflow_commander_cli.utils.prompts.typer.confirm', return_value=False),  # Don't customize
             patch('workflow_commander_cli.utils.prompts.typer.secho'),
             patch('workflow_commander_cli.utils.prompts.typer.echo'),
         ):
@@ -288,15 +288,27 @@ class TestPrompts:
         from workflow_commander_cli.utils.prompts import get_workflow_commander_details
         
         with (
-            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=["custom-server", "node", "server.js"]),
-            patch('workflow_commander_cli.utils.prompts.typer.confirm', return_value=False),
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=[
+                "custom-server",  # Server name
+                4,  # Custom configuration
+                ".",  # Repository path
+                "JSON",  # State file format
+                72,  # Session retention
+                "all-MiniLM-L6-v2",  # Embedding model
+                ".workflow-commander/cache",  # Cache path
+                50  # Max results
+            ]),
+            patch('workflow_commander_cli.utils.prompts.typer.confirm', side_effect=[
+                True,  # Enable local state
+                True   # Enable cache
+            ]),
             patch('workflow_commander_cli.utils.prompts.typer.secho'),
             patch('workflow_commander_cli.utils.prompts.typer.echo'),
         ):
             name, config = get_workflow_commander_details()
             assert name == "custom-server"
-            assert config.command == "node"
-            assert config.args == ["server.js"]
+            assert config.command == "uvx"
+            assert "--repository-path" in config.args
 
 
 class TestModels:
@@ -388,6 +400,273 @@ class TestIntegration:
             # Should succeed now that mocks are properly placed
             assert result.exit_code == 0
             assert "Configuration successful!" in result.stdout
+
+
+class TestConfigurationTemplates:
+    """Test configuration template functionality."""
+    
+    def test_configuration_template_enum(self):
+        """Test ConfigurationTemplate enum values."""
+        from workflow_commander_cli.models.config import ConfigurationTemplate
+        
+        assert ConfigurationTemplate.BASIC == "basic"
+        assert ConfigurationTemplate.ADVANCED == "advanced"
+        assert ConfigurationTemplate.CACHE_ENABLED == "cache_enabled"
+    
+    def test_basic_template_config(self):
+        """Test basic template configuration."""
+        from workflow_commander_cli.models.config import TemplateConfig
+        
+        template = TemplateConfig.get_basic_template()
+        assert template.name == "Basic Setup"
+        assert "Minimal configuration" in template.description
+        assert template.args == [
+            "--from", 
+            "git+https://github.com/AndurilCode/workflow-commander@main", 
+            "dev-workflow-mcp"
+        ]
+    
+    def test_advanced_template_config(self):
+        """Test advanced template configuration."""
+        from workflow_commander_cli.models.config import TemplateConfig
+        
+        template = TemplateConfig.get_advanced_template()
+        assert template.name == "Advanced Setup"
+        assert "comprehensive command line options" in template.description
+        assert "--repository-path" in template.args
+        assert "--enable-local-state-file" in template.args
+        assert "--enable-cache-mode" in template.args
+        assert "--cache-embedding-model" in template.args
+    
+    def test_cache_enabled_template_config(self):
+        """Test cache-enabled template configuration."""
+        from workflow_commander_cli.models.config import TemplateConfig
+        
+        template = TemplateConfig.get_cache_enabled_template()
+        assert template.name == "Cache-Enabled Setup"
+        assert "semantic workflow analysis" in template.description
+        assert "--enable-cache-mode" in template.args
+        assert "--cache-embedding-model" in template.args
+        assert "all-MiniLM-L6-v2" in template.args
+    
+    def test_get_template_by_enum(self):
+        """Test getting template by enum value."""
+        from workflow_commander_cli.models.config import TemplateConfig, ConfigurationTemplate
+        
+        basic = TemplateConfig.get_template(ConfigurationTemplate.BASIC)
+        assert basic.name == "Basic Setup"
+        
+        advanced = TemplateConfig.get_template(ConfigurationTemplate.ADVANCED)
+        assert advanced.name == "Advanced Setup"
+        
+        cache = TemplateConfig.get_template(ConfigurationTemplate.CACHE_ENABLED)
+        assert cache.name == "Cache-Enabled Setup"
+    
+    def test_invalid_template_raises_error(self):
+        """Test that invalid template raises ValueError."""
+        from workflow_commander_cli.models.config import TemplateConfig
+        
+        with pytest.raises(ValueError, match="Unknown template"):
+            TemplateConfig.get_template("invalid_template")
+
+
+class TestConfigurationBuilder:
+    """Test ConfigurationBuilder functionality."""
+    
+    def test_builder_basic_initialization(self):
+        """Test basic builder initialization."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        assert builder.command == "uvx"
+        assert builder.base_args == ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
+        assert len(builder.options) == 0
+    
+    def test_builder_with_template(self):
+        """Test builder initialization with template."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder, ConfigurationTemplate
+        
+        builder = ConfigurationBuilder(ConfigurationTemplate.CACHE_ENABLED)
+        assert len(builder.options) > 0
+        
+        # Check that template options are parsed
+        flags = [opt.flag for opt in builder.options]
+        assert "--repository-path" in flags
+        assert "--enable-cache-mode" in flags
+    
+    def test_builder_add_repository_path(self):
+        """Test adding repository path."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        builder.add_repository_path("/custom/path")
+        
+        repo_option = next(opt for opt in builder.options if opt.flag == "--repository-path")
+        assert repo_option.value == "/custom/path"
+    
+    def test_builder_enable_local_state_file(self):
+        """Test enabling local state file."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        builder.enable_local_state_file("MD")
+        
+        flags = [opt.flag for opt in builder.options]
+        assert "--enable-local-state-file" in flags
+        assert "--local-state-file-format" in flags
+        
+        format_option = next(opt for opt in builder.options if opt.flag == "--local-state-file-format")
+        assert format_option.value == "MD"
+    
+    def test_builder_enable_cache_mode(self):
+        """Test enabling cache mode."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        builder.enable_cache_mode("custom-model")
+        
+        flags = [opt.flag for opt in builder.options]
+        assert "--enable-cache-mode" in flags
+        assert "--cache-embedding-model" in flags
+        
+        model_option = next(opt for opt in builder.options if opt.flag == "--cache-embedding-model")
+        assert model_option.value == "custom-model"
+    
+    def test_builder_build_mcp_server(self):
+        """Test building MCPServer from builder."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        builder.add_repository_path(".")
+        builder.enable_cache_mode()
+        
+        server = builder.build()
+        assert server.command == "uvx"
+        assert "--repository-path" in server.args
+        assert "." in server.args
+        assert "--enable-cache-mode" in server.args
+    
+    def test_builder_get_args_preview(self):
+        """Test getting args preview without building."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        builder.add_repository_path(".")
+        
+        args = builder.get_args_preview()
+        assert "--from" in args
+        assert "dev-workflow-mcp" in args
+        assert "--repository-path" in args
+        assert "." in args
+    
+    def test_builder_update_existing_option(self):
+        """Test updating existing option."""
+        from workflow_commander_cli.models.config import ConfigurationBuilder, ConfigurationTemplate
+        
+        builder = ConfigurationBuilder(ConfigurationTemplate.CACHE_ENABLED)
+        
+        # Update repository path
+        builder.add_repository_path("/new/path")
+        
+        repo_options = [opt for opt in builder.options if opt.flag == "--repository-path"]
+        assert len(repo_options) == 1  # Should only have one
+        assert repo_options[0].value == "/new/path"
+    
+    def test_configuration_option_to_args(self):
+        """Test ConfigurationOption to_args method."""
+        from workflow_commander_cli.models.config import ConfigurationOption
+        
+        # Option with value
+        option_with_value = ConfigurationOption(
+            flag="--test-flag",
+            value="test-value",
+            description="Test option",
+            requires_value=True
+        )
+        assert option_with_value.to_args() == ["--test-flag", "test-value"]
+        
+        # Option without value
+        option_without_value = ConfigurationOption(
+            flag="--enable-test",
+            description="Test flag",
+            requires_value=False
+        )
+        assert option_without_value.to_args() == ["--enable-test"]
+        
+        # Option that requires value but has none
+        option_missing_value = ConfigurationOption(
+            flag="--missing-value",
+            description="Missing value",
+            requires_value=True
+        )
+        assert option_missing_value.to_args() == []
+
+
+class TestEnhancedPrompts:
+    """Test enhanced prompt functionality."""
+    
+    def test_select_configuration_template_basic(self):
+        """Test selecting basic configuration template."""
+        from workflow_commander_cli.utils.prompts import select_configuration_template
+        from workflow_commander_cli.models.config import ConfigurationTemplate
+        
+        with (
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', return_value=1),
+            patch('workflow_commander_cli.utils.prompts.typer.secho'),
+            patch('workflow_commander_cli.utils.prompts.typer.echo'),
+        ):
+            template = select_configuration_template()
+            assert template == ConfigurationTemplate.BASIC
+    
+    def test_select_configuration_template_custom(self):
+        """Test selecting custom configuration."""
+        from workflow_commander_cli.utils.prompts import select_configuration_template
+        
+        with (
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', return_value=4),
+            patch('workflow_commander_cli.utils.prompts.typer.secho'),
+            patch('workflow_commander_cli.utils.prompts.typer.echo'),
+        ):
+            template = select_configuration_template()
+            assert template is None  # Custom configuration
+    
+    def test_get_workflow_commander_details_with_template(self):
+        """Test enhanced get_workflow_commander_details with template selection."""
+        from workflow_commander_cli.utils.prompts import get_workflow_commander_details
+        
+        with (
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=["test-server", 2]),  # Server name, template choice
+            patch('workflow_commander_cli.utils.prompts.typer.confirm', return_value=False),  # Don't customize
+            patch('workflow_commander_cli.utils.prompts.typer.secho'),
+            patch('workflow_commander_cli.utils.prompts.typer.echo'),
+        ):
+            name, config = get_workflow_commander_details()
+            assert name == "test-server"
+            assert config.command == "uvx"
+            assert "--repository-path" in config.args  # Advanced template includes this
+    
+    def test_get_workflow_commander_details_with_customization(self):
+        """Test enhanced function with template customization."""
+        from workflow_commander_cli.utils.prompts import get_workflow_commander_details
+        
+        with (
+            patch('workflow_commander_cli.utils.prompts.typer.prompt', side_effect=[
+                "custom-server",  # Server name
+                1,  # Basic template
+                "/custom/path"  # Repository path customization
+            ]),
+            patch('workflow_commander_cli.utils.prompts.typer.confirm', side_effect=[
+                True,  # Customize configuration
+                False,  # Don't enable local state
+                False   # Don't enable cache
+            ]),
+            patch('workflow_commander_cli.utils.prompts.typer.secho'),
+            patch('workflow_commander_cli.utils.prompts.typer.echo'),
+        ):
+            name, config = get_workflow_commander_details()
+            assert name == "custom-server"
+            assert "--repository-path" in config.args
+            assert "/custom/path" in config.args
 
 
 if __name__ == "__main__":
