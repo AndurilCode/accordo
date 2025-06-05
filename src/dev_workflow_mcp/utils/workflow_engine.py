@@ -145,6 +145,7 @@ class WorkflowEngine:
         state: DynamicWorkflowState,
         workflow_def: WorkflowDefinition,
         target_node: str,
+        user_approval: bool = False,
     ) -> tuple[bool, str]:
         """Validate if a transition to target node is allowed.
 
@@ -152,6 +153,7 @@ class WorkflowEngine:
             state: Current workflow state
             workflow_def: Workflow definition
             target_node: Node to transition to
+            user_approval: Whether user has provided explicit approval
 
         Returns:
             tuple[bool, str]: (is_valid, reason)
@@ -173,6 +175,16 @@ class WorkflowEngine:
                 f"Transition to '{target_node}' not allowed from '{state.current_node}'. Allowed: {allowed}",
             )
 
+        # Check if current node requires approval for transition
+        # Only check approval for non-terminal nodes (nodes with next_allowed_nodes)
+        needs_approval = getattr(current_node, 'needs_approval', False)
+        if needs_approval and current_node.next_allowed_nodes and not user_approval:
+            return (
+                False,
+                f"Node '{state.current_node}' requires explicit user approval before transition. "
+                f"Provide 'user_approval': true in your context to proceed.",
+            )
+
         return True, "Transition is valid"
 
     def execute_transition(
@@ -181,6 +193,7 @@ class WorkflowEngine:
         workflow_def: WorkflowDefinition,
         target_node: str,
         outputs: dict[str, Any] | None = None,
+        user_approval: bool = False,
     ) -> bool:
         """Execute a transition to a new node.
 
@@ -189,15 +202,21 @@ class WorkflowEngine:
             workflow_def: Workflow definition
             target_node: Node to transition to
             outputs: Optional outputs from the current node
+            user_approval: Whether user has provided explicit approval
 
         Returns:
             bool: True if transition was successful
         """
-        # Validate transition
-        is_valid, reason = self.validate_transition(state, workflow_def, target_node)
+        # Validate transition including approval check
+        is_valid, reason = self.validate_transition(state, workflow_def, target_node, user_approval)
         if not is_valid:
             state.add_log_entry(f"❌ TRANSITION FAILED: {reason}")
             return False
+
+        # Log approval if provided for a node that required it
+        current_node = workflow_def.workflow.get_node(state.current_node)
+        if current_node and getattr(current_node, 'needs_approval', False) and user_approval:
+            state.add_log_entry(f"✅ USER APPROVAL GRANTED for transition from '{state.current_node}'")
 
         # Complete current node if outputs provided
         if outputs:

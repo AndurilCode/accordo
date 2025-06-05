@@ -104,23 +104,47 @@ def format_node_status(node: WorkflowNode, workflow: WorkflowDefinition) -> str:
     # Format next options
     options_text = ""
     if transitions:
-        options_text = "**Available Next Steps:**\n"
+        # Check if this node requires approval before proceeding
+        needs_approval = getattr(node, 'needs_approval', False)
+        
+        if needs_approval:
+            options_text = "🚨 **APPROVAL REQUIRED BEFORE PROCEEDING** 🚨\n\n"
+            options_text += "This node requires explicit user approval before transitioning to the next step.\n\n"
+        
+        options_text += "**Available Next Steps:**\n"
         for transition in transitions:
             options_text += f"• **{transition['name']}**: {transition['goal']}\n"
 
-        # Enhanced guidance with JSON format emphasis
-        options_text += '\n📋 **To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += (
-            "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
-        )
-
-        if len(transitions) == 1:
-            # Single option - provide specific example
-            example_node = transitions[0]["name"]
-            options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+        if needs_approval:
+            # Special approval guidance
+            options_text += '\n⚠️ **MANDATORY APPROVAL PROCESS:**\n'
+            options_text += 'To proceed, you must provide explicit approval in your context:\n'
+            options_text += '📋 **Required Format:** Call workflow_guidance with context including "user_approval": true\n'
+            options_text += (
+                "🚨 **CRITICAL:** ALWAYS provide both approval AND criteria evidence when transitioning:\n"
+            )
+            
+            if len(transitions) == 1:
+                # Single option - provide specific example
+                example_node = transitions[0]["name"]
+                options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "user_approval": true, "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+            else:
+                # Multiple options - provide generic example
+                options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "user_approval": true, "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
         else:
-            # Multiple options - provide generic example
-            options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
+            # Standard guidance without approval requirement
+            options_text += '\n📋 **To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
+            options_text += (
+                "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
+            )
+
+            if len(transitions) == 1:
+                # Single option - provide specific example
+                example_node = transitions[0]["name"]
+                options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+            else:
+                # Multiple options - provide generic example
+                options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
     else:
         options_text = "**Status:** This is a terminal node (workflow complete)"
 

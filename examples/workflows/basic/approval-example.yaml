@@ -1,0 +1,144 @@
+name: Approval Example Workflow
+description: Demonstrates the needs_approval feature with mandatory user approval before critical transitions
+
+inputs:
+  task_description:
+    type: string
+    description: Task to be completed requiring approval
+    required: true
+  approval_threshold:
+    type: string
+    description: Level of approval required (low, medium, high)
+    required: false
+    default: "medium"
+
+execution:
+  max_depth: 8
+  allow_backtracking: true
+
+workflow:
+  goal: Complete a task with mandatory approval checkpoints to ensure user oversight
+
+  root: analyze
+
+  tree:
+    # Initial analysis phase - no approval needed
+    analyze:
+      goal: |
+        **ANALYZE PHASE:** ${{ inputs.task_description }}
+        
+        Thoroughly analyze the task requirements and gather necessary information.
+        This phase does not require approval and can proceed automatically.
+        
+        **Focus:** Understanding and information gathering.
+      acceptance_criteria:
+        requirements_clear: "Task requirements are clearly understood and documented"
+        scope_defined: "Project scope and boundaries are clearly defined"
+        resources_identified: "Required resources and dependencies identified"
+      next_allowed_nodes: [plan_with_approval]
+
+    # Planning phase - REQUIRES APPROVAL
+    plan_with_approval:
+      goal: |
+        **PLANNING PHASE:** ${{ inputs.task_description }}
+        
+        🚨 **CRITICAL DECISION POINT** 🚨
+        
+        Create a detailed implementation plan for the analyzed requirements.
+        This phase requires explicit user approval before proceeding to implementation
+        because the plan will determine the entire execution strategy.
+        
+        **Approval Required:** This node requires user approval before proceeding.
+        
+        **Focus:** Strategic planning and approach definition.
+      acceptance_criteria:
+        plan_created: "Detailed implementation plan created with clear steps"
+        approach_selected: "Technical approach and methodology selected"
+        timeline_estimated: "Timeline and milestones estimated"
+        risks_assessed: "Potential risks identified and mitigation strategies planned"
+      needs_approval: true
+      next_allowed_nodes: [implement]
+
+    # Implementation phase - no approval needed once plan is approved
+    implement:
+      goal: |
+        **IMPLEMENTATION PHASE:** ${{ inputs.task_description }}
+        
+        Execute the approved plan systematically. Since the plan has been approved,
+        this implementation phase can proceed without additional approval.
+        
+        **Focus:** Following the approved plan and implementing the solution.
+      acceptance_criteria:
+        code_implemented: "Core functionality implemented according to plan"
+        tests_written: "Appropriate tests written and passing"
+        documentation_updated: "Documentation updated to reflect changes"
+      next_allowed_nodes: [review_for_deployment]
+
+    # Review phase - REQUIRES APPROVAL for deployment
+    review_for_deployment:
+      goal: |
+        **DEPLOYMENT REVIEW:** ${{ inputs.task_description }}
+        
+        🚨 **FINAL APPROVAL CHECKPOINT** 🚨
+        
+        Review the completed implementation for deployment readiness.
+        This requires approval because deployment affects production systems.
+        
+        **Approval Required:** Explicit approval needed before deployment.
+        
+        **Focus:** Quality assurance and deployment readiness validation.
+      acceptance_criteria:
+        quality_verified: "Code quality meets deployment standards"
+        security_checked: "Security review completed successfully"
+        deployment_ready: "All deployment prerequisites satisfied"
+        rollback_plan: "Rollback plan prepared in case of issues"
+      needs_approval: true
+      next_allowed_nodes: [deploy]
+
+    # Deployment phase - no approval needed once review is approved
+    deploy:
+      goal: |
+        **DEPLOYMENT PHASE:** ${{ inputs.task_description }}
+        
+        Execute the approved deployment plan. This phase proceeds automatically
+        after receiving approval in the review phase.
+        
+        **Focus:** Safe deployment execution following approved procedures.
+      acceptance_criteria:
+        deployed_successfully: "Solution deployed to target environment"
+        smoke_tests_passed: "Basic smoke tests confirm deployment success"
+        monitoring_enabled: "Monitoring and alerting configured"
+      next_allowed_nodes: [complete]
+
+    # Final phase - terminal node (approval field ignored)
+    complete:
+      goal: |
+        **COMPLETION PHASE:** ${{ inputs.task_description }}
+        
+        Finalize the workflow with summary and cleanup. This is a terminal node,
+        so any needs_approval setting would be ignored.
+        
+        **Focus:** Project completion and handover.
+      acceptance_criteria:
+        project_completed: "All deliverables completed and verified"
+        documentation_finalized: "Final documentation delivered"
+        stakeholders_notified: "Relevant stakeholders notified of completion"
+      needs_approval: true  # This will be ignored since it's a terminal node
+      next_allowed_nodes: []  # Terminal node - workflow ends here
+
+# Usage Examples:
+#
+# 1. Normal flow with approvals:
+#    - Start: workflow_guidance(action="start", context="workflow: Approval Example Workflow")
+#    - Progress through analyze phase normally
+#    - At plan_with_approval: MUST provide user_approval: true to proceed
+#    - Continue through implement phase normally  
+#    - At review_for_deployment: MUST provide user_approval: true to proceed
+#    - Complete deploy and finish phases
+#
+# 2. Example approval context:
+#    workflow_guidance(action="next", context='{"choose": "implement", "user_approval": true, "criteria_evidence": {"plan_created": "Created detailed 5-step implementation plan", "approach_selected": "Using incremental deployment strategy"}}')
+#
+# 3. What happens without approval:
+#    workflow_guidance(action="next", context='{"choose": "implement", "criteria_evidence": {"plan_created": "Plan ready"}}')
+#    This will FAIL with an error message requiring explicit user approval. 

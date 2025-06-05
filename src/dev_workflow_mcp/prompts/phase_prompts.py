@@ -406,8 +406,8 @@ def _validate_and_reformat_yaml(yaml_content: str) -> str | None:
 
 def _parse_criteria_evidence_context(
     context: str,
-) -> tuple[str | None, dict[str, str] | None]:
-    """Parse context to extract choice and criteria evidence.
+) -> tuple[str | None, dict[str, str] | None, bool]:
+    """Parse context to extract choice, criteria evidence, and user approval.
 
     Supports both legacy string format and new JSON dict format.
 
@@ -415,16 +415,17 @@ def _parse_criteria_evidence_context(
         context: Context string from user input
 
     Returns:
-        Tuple of (choice, criteria_evidence) where:
+        Tuple of (choice, criteria_evidence, user_approval) where:
         - choice: The chosen next node/workflow
         - criteria_evidence: Dict of criterion -> evidence details
+        - user_approval: Whether user has provided explicit approval
 
     Examples:
         Legacy format: "choose: blueprint"
-        New format: '{"choose": "blueprint", "criteria_evidence": {"analysis_complete": "Found the issue in _generate_node_completion_outputs"}}'
+        New format: '{"choose": "blueprint", "criteria_evidence": {"analysis_complete": "Found the issue"}, "user_approval": true}'
     """
     if not context or not isinstance(context, str):
-        return None, None
+        return None, None, False
 
     context = context.strip()
 
@@ -436,19 +437,24 @@ def _parse_criteria_evidence_context(
             if isinstance(context_dict, dict):
                 choice = context_dict.get("choose")
                 criteria_evidence = context_dict.get("criteria_evidence", {})
+                user_approval = context_dict.get("user_approval", False)
 
                 # Validate criteria_evidence is a dict
                 if not isinstance(criteria_evidence, dict):
                     criteria_evidence = {}
 
-                return choice, criteria_evidence
+                # Validate user_approval is a boolean
+                if not isinstance(user_approval, bool):
+                    user_approval = False
+
+                return choice, criteria_evidence, user_approval
     except (json.JSONDecodeError, ValueError):
         # If JSON parsing fails, fall back to legacy format
         pass
 
     # Legacy string format parsing
     choice = extract_choice_from_context(context)
-    return choice, None
+    return choice, None, False
 
 
 # =============================================================================
@@ -910,10 +916,10 @@ def _handle_dynamic_workflow(
             and isinstance(context, str)
             and ("choose:" in context.lower() or context.strip().startswith("{"))
         ):
-            choice, criteria_evidence = _parse_criteria_evidence_context(context)
+            choice, criteria_evidence, user_approval = _parse_criteria_evidence_context(context)
 
             if choice and validate_transition(current_node, choice, workflow_def):
-                # Valid transition - update session
+                # Valid transition - use workflow engine for proper approval handling
                 if choice in (current_node.next_allowed_nodes or []):
                     # Generate node completion outputs before transitioning
                     # This ensures that the current node's work is properly documented
@@ -921,33 +927,34 @@ def _handle_dynamic_workflow(
                         session.current_node, current_node, session, criteria_evidence
                     )
 
-                    # Node transition with completion outputs
-                    update_dynamic_session_node(
-                        session.session_id,
-                        choice,
-                        workflow_def,
+                    # Use workflow engine for transition with approval validation
+                    success = engine.execute_transition(
+                        session, 
+                        workflow_def, 
+                        choice, 
                         outputs=completion_outputs,
-                    )
-                    # Note: update_dynamic_session_node already sets current_node and syncs to file
-                    new_node = workflow_def.workflow.tree[choice]
-
-                    # Log the transition with completion details
-                    add_log_to_session(
-                        session.session_id,
-                        f"🔄 Transitioned from {session.node_history[-1] if session.node_history else 'start'} to {choice}",
-                    )
-                    add_log_to_session(
-                        session.session_id,
-                        f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
+                        user_approval=user_approval
                     )
 
-                    status = format_enhanced_node_status(
-                        new_node, workflow_def, session
-                    )
+                    if success:
+                        # Sync session to filesystem after successful transition
+                        from ..utils.session_id_utils import (
+                            sync_session_after_modification,
+                        )
 
-                    return f"""✅ **Transitioned to:** {choice.upper()}
+                        sync_session_after_modification(session.session_id)
+
+                        new_node = workflow_def.workflow.tree[choice]
+                        status = format_enhanced_node_status(
+                            new_node, workflow_def, session
+                        )
+
+                        return f"""✅ **Transitioned to:** {choice.upper()}
 
 {status}"""
+                    else:
+                        # Transition failed (likely due to missing approval)
+                        return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Check recent logs for details."
 
                 elif choice in (current_node.next_allowed_workflows or []):
                     # Workflow transition - not implemented yet
@@ -1092,78 +1099,21 @@ def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
         if len(clean_sentence) > 10:  # Ignore very short fragments
             sentences.append(clean_sentence)
 
-    # Look for sentences with criteria keywords
-    criteria_keywords = [
-        "must",
-        "should",
-        "shall",
-        "will",
-        "forces",
-        "requires",
-        "ensures",
-        "mandatory",
-        "needed",
-        "necessary",
-        "expected",
-        "demanded",
-    ]
-
-    for sentence in sentences:
-        sentence_lower = sentence.lower()
-
-        # Check if sentence contains criteria keywords
-        if any(keyword in sentence_lower for keyword in criteria_keywords):
-            # Clean up the sentence for display
-            clean_sentence = sentence.strip()
-
-            # Remove common prefixes that aren't part of the actual criteria
-            prefixes_to_remove = [
-                "workflow:",
-                "current node:",
-                "status:",
-                "current task:",
-                "add a new feature:",
-                "i want to",
-            ]
-
-            for prefix in prefixes_to_remove:
-                if clean_sentence.lower().startswith(prefix):
-                    clean_sentence = clean_sentence[len(prefix) :].strip()
-
-            # Only include substantial criteria (not just fragments)
-            if len(clean_sentence) > 20 and any(
-                keyword in clean_sentence.lower() for keyword in criteria_keywords
-            ):
-                # Limit length for display
-                if len(clean_sentence) > 150:
-                    clean_sentence = clean_sentence[:150] + "..."
-
-                criteria.append(clean_sentence)
-
-    # Look for explicit criteria sections (if any)
-    text_lower = text.lower()
-    if "acceptance criteria" in text_lower:
-        # Try to extract criteria from structured sections
-        criteria_section_start = text_lower.find("acceptance criteria")
-        if criteria_section_start != -1:
-            criteria_section = text[
-                criteria_section_start : criteria_section_start + 500
-            ]
-            # Extract bullet points or numbered items
-            lines = criteria_section.split("\n")
-            for line in lines[1:]:  # Skip the header line
-                line = line.strip()
-                if (
-                    line.startswith(("-", "•", "*", "1.", "2.", "3."))
-                    and len(line) > 10
-                    and any(keyword in line.lower() for keyword in criteria_keywords)
-                ):
-                    clean_line = line.lstrip("-•*123456789. ").strip()
-                    if len(clean_line) > 150:
-                        clean_line = clean_line[:150] + "..."
-                    criteria.append(clean_line)
-
-    return criteria[:3]  # Return up to 3 most relevant criteria
+def _generate_temporal_insights(results: list) -> str:
+    """Generate temporal pattern insights."""
+    if not results:
+        return "No results to analyze"
+    
+    from datetime import datetime, timedelta
+    
+    now = datetime.now(UTC)
+    recent = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)])
+    this_month = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)])
+    
+    oldest = min(results, key=lambda x: x.metadata.last_updated)
+    newest = max(results, key=lambda x: x.metadata.last_updated)
+    
+    return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
 
 
 def _handle_cache_list_operation(client_id: str) -> str:

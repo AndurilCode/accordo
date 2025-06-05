@@ -39,6 +39,10 @@ class WorkflowNode(BaseModel):
         default_factory=list,
         description="List of external workflows that can be called from this node",
     )
+    needs_approval: bool = Field(
+        default=False,
+        description="Whether this node requires explicit user approval before proceeding to next node execution. Ignored for terminal nodes.",
+    )
 
     @property
     def is_leaf_node(self) -> bool:
