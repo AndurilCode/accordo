@@ -268,6 +268,38 @@ def get_cache_manager():
         return _cache_manager
 
 
+def _restore_workflow_definition(
+    session: DynamicWorkflowState, workflows_dir: str = ".workflow-commander/workflows"
+) -> None:
+    """Helper function to restore workflow definition for a session.
+    
+    Args:
+        session: The restored session state
+        workflows_dir: Directory containing workflow YAML files
+    """
+    try:
+        if not session.workflow_name:
+            return
+            
+        # Check if workflow definition is already cached
+        cached_def = get_workflow_definition_from_cache(session.session_id)
+        if cached_def:
+            return  # Already available
+            
+        # Load workflow definition using WorkflowLoader
+        loader = WorkflowLoader(workflows_dir)
+        workflow_def = loader.get_workflow_by_name(session.workflow_name)
+        
+        if workflow_def:
+            # Store in workflow definition cache
+            store_workflow_definition_in_cache(session.session_id, workflow_def)
+            
+    except Exception:
+        # Gracefully handle any workflow loading failures
+        # Session restoration should succeed even if workflow definition fails
+        pass
+
+
 def restore_sessions_from_cache(client_id: str | None = None) -> int:
     """Restore workflow sessions from cache on startup.
 
@@ -296,6 +328,9 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     with session_lock:
                         sessions[session_id] = restored_state
                         _register_session_for_client(client_id, session_id)
+                    
+                    # Automatically restore workflow definition
+                    _restore_workflow_definition(restored_state)
                     restored_count += 1
 
         return restored_count
@@ -342,6 +377,9 @@ def auto_restore_sessions_on_startup() -> int:
                     with session_lock:
                         sessions[session_id] = restored_state
                         _register_session_for_client(client_id, session_id)
+                    
+                    # Automatically restore workflow definition
+                    _restore_workflow_definition(restored_state)
                     restored_count += 1
 
         except AttributeError:
