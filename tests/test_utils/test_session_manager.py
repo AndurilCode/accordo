@@ -54,7 +54,8 @@ class TestSessionManager:
 
     def setup_method(self):
         """Clear sessions before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
 
     def test_create_dynamic_session(self):
@@ -74,7 +75,7 @@ class TestSessionManager:
     def test_get_session_exists(self):
         """Test getting an existing session."""
         original = create_test_session("test-client", "Test task")
-        retrieved = session_manager.get_session("test-client")
+        retrieved = session_manager.get_session(original.session_id)
 
         assert retrieved is not None
         assert retrieved.client_id == original.client_id
@@ -87,15 +88,15 @@ class TestSessionManager:
 
     def test_update_session(self):
         """Test updating session state."""
-        create_test_session("test-client", "Test task")
+        original = create_test_session("test-client", "Test task")
         result = session_manager.update_session(
-            "test-client",
+            original.session_id,
             status="RUNNING",
             current_item="Updated task",
         )
         assert result is True
 
-        session = session_manager.get_session("test-client")
+        session = session_manager.get_session(original.session_id)
         assert session.status == "RUNNING"
         assert session.current_item == "Updated task"
 
@@ -106,8 +107,8 @@ class TestSessionManager:
 
     def test_export_session_to_markdown(self):
         """Test exporting session to markdown."""
-        create_test_session("test-client", "Test task")
-        markdown = session_manager.export_session_to_markdown("test-client")
+        session = create_test_session("test-client", "Test task")
+        markdown = session_manager.export_session_to_markdown(session.session_id)
 
         assert markdown is not None
         assert "# Dynamic Workflow State" in markdown
@@ -126,13 +127,14 @@ class TestSessionExportFunctions:
 
     def setup_method(self):
         """Clear sessions before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
 
     def test_export_session_to_json_basic(self):
         """Test basic JSON export functionality."""
-        create_test_session("test-client", "Test task")
-        json_str = session_manager.export_session_to_json("test-client")
+        session = create_test_session("test-client", "Test task")
+        json_str = session_manager.export_session_to_json(session.session_id)
 
         assert json_str is not None
         # Should be valid JSON

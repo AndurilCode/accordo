@@ -86,3 +86,23 @@ def extract_session_id_from_context(context: str | None) -> str | None:
             pass
 
     return None
+
+
+def sync_session_after_modification(session_id: str) -> bool:
+    """Convenience function to sync session after direct modifications.
+    
+    This function provides a way to sync sessions from modules that don't
+    directly import session_manager to avoid circular imports.
+    
+    Args:
+        session_id: The session identifier
+        
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    try:
+        # Import here to avoid circular imports
+        from .session_manager import sync_session
+        return sync_session(session_id)
+    except ImportError:
+        return False

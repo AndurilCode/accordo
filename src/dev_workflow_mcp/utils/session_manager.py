@@ -131,6 +131,21 @@ def _sync_session_to_file(
         return False
 
 
+def sync_session(session_id: str) -> bool:
+    """Explicitly sync a session to filesystem after manual modifications.
+    
+    Use this function after directly modifying session fields outside of 
+    session_manager functions to ensure changes are persisted.
+    
+    Args:
+        session_id: The session identifier
+        
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    return _sync_session_to_file(session_id)
+
+
 def get_session(session_id: str) -> DynamicWorkflowState | None:
     """Get workflow session by session ID."""
     with session_lock:

@@ -914,21 +914,21 @@ def _handle_dynamic_workflow(
 
                     # Node transition with completion outputs
                     update_dynamic_session_node(
-                        session.client_id,
+                        session.session_id,
                         choice,
                         workflow_def,
                         outputs=completion_outputs,
                     )
-                    session.current_node = choice
+                    # Note: update_dynamic_session_node already sets current_node and syncs to file
                     new_node = workflow_def.workflow.tree[choice]
 
                     # Log the transition with completion details
                     add_log_to_session(
-                        session.client_id,
+                        session.session_id,
                         f"🔄 Transitioned from {session.node_history[-1] if session.node_history else 'start'} to {choice}",
                     )
                     add_log_to_session(
-                        session.client_id,
+                        session.session_id,
                         f"🔄 TRANSITIONED TO: {choice.upper()} PHASE",
                     )
 
