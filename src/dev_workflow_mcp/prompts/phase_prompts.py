@@ -1719,7 +1719,7 @@ Cannot update state - no YAML workflow session is currently active.
     @app.tool()
     def workflow_cache_management(
         operation: str = Field(
-            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics)"
+            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics), 'regenerate_embeddings' (update embeddings with enhanced semantic content)"
         ),
         client_id: str = Field(
             default="default",
@@ -1770,8 +1770,33 @@ Cannot update state - no YAML workflow session is currently active.
 
                 except Exception as e:
                     return f"❌ Error getting cache statistics: {str(e)}"
+            elif operation == "regenerate_embeddings":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+
+                    # Regenerate embeddings with enhanced semantic content
+                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search()
+                    
+                    return f"""🔄 **Embedding Regeneration Complete:**
+
+**Results:**
+- Embeddings regenerated: {regenerated_count}
+- Enhanced semantic content: ✅ Active
+- Search improvement: ✅ Better similarity matching expected
+
+**Next Steps:**
+- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- Enhanced embeddings now include detailed node completion evidence
+- Similarity scores should be significantly improved"""
+
+                except Exception as e:
+                    return f"❌ Error regenerating embeddings: {str(e)}"
             else:
-                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats'"
+                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats', 'regenerate_embeddings'"
 
         except Exception as e:
             return f"❌ **Error in workflow_cache_management:** {str(e)}"
