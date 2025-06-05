@@ -75,8 +75,8 @@ workflow-commander --help
 ### Manual MCP Configuration
 
 Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package management and configure your MCP client manually:
-
 **For Cursor** (`.cursor/mcp.json`):
+
 ```json
 {
   "mcpServers": {
@@ -87,6 +87,10 @@ Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package manag
   }
 }
 ```
+
+Or use the following link to install the MCP server (Cursor Installed):
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=workflow-commander&config=eyJjb21tYW5kIjoidXZ4IC0tZnJvbSBnaXQraHR0cHM6Ly9naXRodWIuY29tL0FuZHVyaWxDb2RlL3dvcmtmbG93LWNvbW1hbmRlckBtYWluIGRldi13b3JrZmxvdy1tY3AifQ%3D%3D)
 
 ## Getting Help
 
