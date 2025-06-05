@@ -151,6 +151,21 @@ def main():
     register_phase_prompts(mcp, config)
     register_discovery_prompts(mcp, config)
 
+    # Perform automatic cache restoration if cache mode is enabled
+    if config.enable_cache_mode:
+        try:
+            from .utils.session_manager import auto_restore_sessions_on_startup
+
+            restored_count = auto_restore_sessions_on_startup()
+            if restored_count > 0:
+                print(
+                    f"Info: Automatically restored {restored_count} workflow session(s) from cache"
+                )
+
+        except Exception as e:
+            # Non-blocking: don't let cache restoration prevent server startup
+            print(f"Info: Automatic cache restoration skipped: {e}")
+
     # Run the server
     mcp.run(transport="stdio")
     return 0
