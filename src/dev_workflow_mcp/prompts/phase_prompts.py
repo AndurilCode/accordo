@@ -1070,23 +1070,40 @@ def _extract_content_themes(results: list) -> list[str]:
     if not results:
         return []
     
-    # Extract keywords from matching text content
+    # Extract keywords from multiple sources
     keyword_counts = {}
     
     for result in results:
+        # Combine text from multiple sources for better theme extraction
+        text_sources = []
+        
+        # Primary source: matching_text
         if hasattr(result, 'matching_text') and result.matching_text:
-            # Extract meaningful keywords (basic implementation)
-            words = result.matching_text.lower().split()
-            for word in words:
-                # Filter for meaningful terms (basic heuristic)
-                if (len(word) > 4 and 
-                    word not in ['workflow', 'analysis', 'implementation', 'requirements', 'system'] and
-                    word.isalpha()):
-                    keyword_counts[word] = keyword_counts.get(word, 0) + 1
+            text_sources.append(result.matching_text)
+        
+        # Secondary source: task description from metadata
+        if hasattr(result, 'metadata'):
+            if hasattr(result.metadata, 'current_item') and result.metadata.current_item:
+                text_sources.append(result.metadata.current_item)
+            if hasattr(result.metadata, 'workflow_name') and result.metadata.workflow_name:
+                text_sources.append(result.metadata.workflow_name)
+        
+        # Process all text sources
+        for text in text_sources:
+            if text:
+                # Extract meaningful keywords with improved filtering
+                words = text.lower().replace('-', ' ').replace('_', ' ').split()
+                for word in words:
+                    # More lenient filtering for better theme extraction
+                    if (len(word) > 3 and 
+                        word not in ['workflow', 'analysis', 'implementation', 'requirements', 'system', 'default', 'coding', 'that', 'this', 'with', 'from', 'into', 'node', 'phase'] and
+                        word.isalpha() and
+                        not word.startswith('http')):
+                        keyword_counts[word] = keyword_counts.get(word, 0) + 1
     
-    # Get top themes
+    # Get top themes with lower threshold for better results
     sorted_themes = sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)
-    return [theme for theme, count in sorted_themes[:5] if count > 1]
+    return [theme for theme, count in sorted_themes[:8] if count >= 1]
 
 
 def _analyze_workflow_patterns(results: list) -> dict[str, any]:
@@ -1150,15 +1167,19 @@ def _generate_similarity_distribution(results: list) -> str:
     distribution += f"• Medium similarity (40-69%): {len(med_sim)} results\n"
     distribution += f"• Lower similarity (<40%): {len(low_sim)} results"
     
-    # Add content insights for medium and high similarity results
+    # Add content insights for all results (prioritize high/medium, fallback to all)
     relevant_results = high_sim + med_sim
+    if not relevant_results and results:
+        # If no high/medium similarity, use all results for insights
+        relevant_results = results
+    
     if relevant_results:
         distribution += "\n\n**🔍 Similarity Insights:**\n"
         
         # Extract themes from most relevant results
         themes = _extract_content_themes(relevant_results)
         if themes:
-            distribution += f"• Key themes: {', '.join(themes)}\n"
+            distribution += f"• Key themes: {', '.join(themes[:5])}\n"
         
         # Show top matches with context
         top_matches = sorted(relevant_results, key=lambda x: x.similarity_score, reverse=True)[:2]
@@ -1250,62 +1271,89 @@ def _generate_content_driven_recommendations(results: list, analysis_type: str) 
     patterns = _analyze_workflow_patterns(results)
     themes = _extract_content_themes(results)
     
-    # Analysis type specific recommendations
+    # Analysis type specific recommendations (always start with 1)
+    rec_counter = 1
+    
     if analysis_type == "similar_tasks":
-        # Recommendations based on similar tasks
+        # Recommendations based on similar tasks - handle all similarity levels
         high_sim_results = [r for r in results if r.similarity_score >= 0.7]
         med_sim_results = [r for r in results if 0.4 <= r.similarity_score < 0.7]
+        low_sim_results = [r for r in results if r.similarity_score < 0.4]
         
         if high_sim_results:
             top_match = max(high_sim_results, key=lambda x: x.similarity_score)
             workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
             similarity = top_match.similarity_score * 100
-            recommendations.append(f"1. **Follow Proven Patterns** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
+            recommendations.append(f"{rec_counter}. **Follow Proven Patterns** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
             recommendations.append("   - Apply similar workflow structure and progression patterns")
             recommendations.append("   - Reference implementation approaches from this high-similarity match")
+            rec_counter += 1
         elif med_sim_results:
             top_match = max(med_sim_results, key=lambda x: x.similarity_score)
             workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
             similarity = top_match.similarity_score * 100
-            recommendations.append(f"1. **Adapt Similar Approaches** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
+            recommendations.append(f"{rec_counter}. **Adapt Similar Approaches** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
             recommendations.append("   - Consider adapting patterns while accounting for context differences")
+            recommendations.append("   - Extract relevant structural elements from similar workflows")
+            rec_counter += 1
+        elif low_sim_results:
+            # Handle low similarity results with useful insights
+            top_match = max(low_sim_results, key=lambda x: x.similarity_score)
+            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
+            similarity = top_match.similarity_score * 100
+            recommendations.append(f"{rec_counter}. **Learn from Related Work** (Best match: \"{workflow_name}\" at {similarity:.1f}% similarity):")
+            recommendations.append("   - While similarity is low, extract applicable methodological patterns")
+            recommendations.append("   - Focus on workflow structure and progression approaches")
+            rec_counter += 1
     
     elif analysis_type == "lessons_learned":
         completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
         if completed_results:
-            recommendations.append("1. **Apply Lessons from Completed Work:**")
+            recommendations.append(f"{rec_counter}. **Apply Lessons from Completed Work:**")
             for result in completed_results[:2]:
                 workflow_name = getattr(result.metadata, 'workflow_name', 'Unknown')
                 recommendations.append(f"   - Study successful patterns from \"{workflow_name}\"")
+            rec_counter += 1
         else:
-            recommendations.append("1. **Learn from In-Progress Work:**")
+            recommendations.append(f"{rec_counter}. **Learn from In-Progress Work:**")
             recommendations.append("   - No completed examples found, but can reference current approaches")
+            rec_counter += 1
     
     elif analysis_type == "related_context":
         if themes:
-            recommendations.append(f"1. **Leverage Domain Knowledge** (Common themes: {', '.join(themes[:3])}):")
+            recommendations.append(f"{rec_counter}. **Leverage Domain Knowledge** (Common themes: {', '.join(themes[:3])}):")
             recommendations.append("   - Apply cross-domain insights from related workflow contexts")
-        
-    # Pattern-based recommendations
+            rec_counter += 1
+        else:
+            recommendations.append(f"{rec_counter}. **Build on Related Context:**")
+            recommendations.append("   - Extract methodological approaches from related workflow domains")
+            rec_counter += 1
+    
+    # Pattern-based recommendations (continue numbering)
     if patterns.get('common_nodes'):
         common_progression = list(patterns['common_nodes'].keys())[:3]
-        recommendations.append(f"2. **Follow Established Progression** (Common pattern: {' → '.join(common_progression)}):")
+        recommendations.append(f"{rec_counter}. **Follow Established Progression** (Common pattern: {' → '.join(common_progression)}):")
         recommendations.append("   - This progression pattern appears in similar workflows")
+        recommendations.append("   - Adapt the sequence to fit current task requirements")
+        rec_counter += 1
     
-    # Theme-based recommendations
-    if themes:
-        recommendations.append(f"3. **Apply Domain Insights** (Key themes: {', '.join(themes[:2])}):")
+    # Theme-based recommendations (continue numbering)
+    if themes and len(themes) >= 2:
+        recommendations.append(f"{rec_counter}. **Apply Domain Insights** (Key themes: {', '.join(themes[:3])}):")
         for theme in themes[:2]:
             recommendations.append(f"   - Consider {theme}-related approaches and patterns")
+        rec_counter += 1
     
     # Risk mitigation recommendations
     error_results = [r for r in results if r.metadata.status in ["ERROR", "CANCELLED"]]
     if error_results:
-        recommendations.append("4. **Mitigate Known Risks:**")
+        recommendations.append(f"{rec_counter}. **Mitigate Known Risks:**")
         recommendations.append(f"   - {len(error_results)} similar workflow(s) encountered issues - review for potential pitfalls")
+        recommendations.append("   - Plan additional validation steps for identified risk areas")
+        rec_counter += 1
     
-    # Default fallback if no specific recommendations generated
-    if not recommendations:
+    # Always provide actionable fallback recommendations
+    if len(recommendations) == 0:
         recommendations = [
             "1. **Build on Similar Context:** Use insights from related workflows as foundation",
             "2. **Document New Patterns:** This work will establish patterns for future similar tasks",
@@ -2109,9 +2157,27 @@ Cache mode is not enabled or not available. To enable semantic analysis:
                     "CANCELLED": "🚫"
                 }.get(metadata.status, "📋")
                 
+                # Extract task description from multiple sources
+                task_desc = None
+                if hasattr(metadata, 'current_item') and metadata.current_item:
+                    task_desc = metadata.current_item
+                elif hasattr(search_result, 'matching_text') and search_result.matching_text:
+                    # Extract first meaningful sentence from matching text
+                    text = search_result.matching_text.strip()
+                    if text:
+                        # Take first sentence or first 100 characters
+                        sentences = text.split('.')
+                        if sentences and len(sentences[0]) > 10:
+                            task_desc = sentences[0].strip()[:100] + ("..." if len(sentences[0]) > 100 else "")
+                        else:
+                            task_desc = text[:100] + ("..." if len(text) > 100 else "")
+                
+                if not task_desc:
+                    task_desc = "No description available"
+                
                 result += f"""**{i}. {metadata.workflow_name}** {status_emoji}
    - **Similarity:** {similarity_percentage:.1f}%
-   - **Task:** {metadata.current_item or "No description available"}
+   - **Task:** {task_desc}
    - **Status:** {metadata.status}
    - **Session:** {metadata.session_id}
    - **Node:** {metadata.current_node}
