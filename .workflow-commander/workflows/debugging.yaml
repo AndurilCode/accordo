@@ -112,6 +112,7 @@ workflow:
         contributing_factors: "Comprehensive identification of environmental and dependency factors"
         fix_strategy: "Well-defined strategy for fixing root cause without introducing side effects"
       next_allowed_nodes: [develop_fix]
+      needs_approval: true
 
     # Develop fix
     develop_fix:
