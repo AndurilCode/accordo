@@ -164,6 +164,11 @@ class NodeExecutor:
 
         # Update state execution context
         state.execution_context.update(execution_context)
+        
+        # Sync session after execution context update
+        if hasattr(state, 'session_id'):
+            from .session_id_utils import sync_session_after_modification
+            sync_session_after_modification(state.session_id)
 
         # Log acceptance criteria for user awareness
         if node.acceptance_criteria:

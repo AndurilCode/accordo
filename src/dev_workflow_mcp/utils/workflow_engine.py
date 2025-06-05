@@ -96,6 +96,11 @@ class WorkflowEngine:
             session.add_log_entry(
                 f"📍 Starting at root node: {workflow_def.workflow.root}"
             )
+            
+            # Sync session after initialization updates
+            if hasattr(session, 'session_id'):
+                from .session_id_utils import sync_session_after_modification
+                sync_session_after_modification(session.session_id)
 
             return True
 
