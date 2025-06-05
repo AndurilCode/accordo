@@ -398,11 +398,18 @@ class WorkflowCacheManager:
                 for key, value in metadata_dict.items():
                     if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                         with contextlib.suppress(ValueError, TypeError):
-                            metadata_dict[key] = datetime.fromisoformat(value)
+                            dt = datetime.fromisoformat(value)
+                            # Ensure timezone awareness - if naive, assume UTC
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=UTC)
+                            metadata_dict[key] = dt
                     elif isinstance(value, str) and key == 'node_outputs':
                         # Deserialize node_outputs JSON string back to dict
-                        with contextlib.suppress(ValueError, TypeError):
+                        try:
                             metadata_dict[key] = json.loads(value) if value else {}
+                        except (ValueError, TypeError, json.JSONDecodeError):
+                            # If JSON parsing fails, use empty dict as fallback
+                            metadata_dict[key] = {}
                 
                 metadata = CacheMetadata(**metadata_dict)
                 
@@ -493,11 +500,18 @@ class WorkflowCacheManager:
                     for key, value in metadata_dict.items():
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                             with contextlib.suppress(ValueError, TypeError):
-                                metadata_dict[key] = datetime.fromisoformat(value)
+                                dt = datetime.fromisoformat(value)
+                                # Ensure timezone awareness - if naive, assume UTC
+                                if dt.tzinfo is None:
+                                    dt = dt.replace(tzinfo=UTC)
+                                metadata_dict[key] = dt
                         elif isinstance(value, str) and key == 'node_outputs':
                             # Deserialize node_outputs JSON string back to dict
-                            with contextlib.suppress(ValueError, TypeError):
+                            try:
                                 metadata_dict[key] = json.loads(value) if value else {}
+                            except (ValueError, TypeError, json.JSONDecodeError):
+                                # If JSON parsing fails, use empty dict as fallback
+                                metadata_dict[key] = {}
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
                 # Calculate statistics
@@ -621,11 +635,18 @@ class WorkflowCacheManager:
                         for key, value in metadata_dict.items():
                             if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                                 with contextlib.suppress(ValueError, TypeError):
-                                    metadata_dict[key] = datetime.fromisoformat(value)
+                                    dt = datetime.fromisoformat(value)
+                                    # Ensure timezone awareness - if naive, assume UTC
+                                    if dt.tzinfo is None:
+                                        dt = dt.replace(tzinfo=UTC)
+                                    metadata_dict[key] = dt
                             elif isinstance(value, str) and key == 'node_outputs':
                                 # Deserialize node_outputs JSON string back to dict
-                                with contextlib.suppress(ValueError, TypeError):
+                                try:
                                     metadata_dict[key] = json.loads(value) if value else {}
+                                except (ValueError, TypeError, json.JSONDecodeError):
+                                    # If JSON parsing fails, use empty dict as fallback
+                                    metadata_dict[key] = {}
                         metadata = CacheMetadata(**metadata_dict)
                         
                         # Get matching text
@@ -708,13 +729,21 @@ class WorkflowCacheManager:
                     for key, value in metadata_dict.items():
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                             with contextlib.suppress(ValueError, TypeError):
-                                metadata_dict[key] = datetime.fromisoformat(value)
+                                dt = datetime.fromisoformat(value)
+                                # Ensure timezone awareness - if naive, assume UTC
+                                if dt.tzinfo is None:
+                                    dt = dt.replace(tzinfo=UTC)
+                                metadata_dict[key] = dt
                         elif isinstance(value, str) and key == 'node_outputs':
                             # Deserialize node_outputs JSON string back to dict
-                            with contextlib.suppress(ValueError, TypeError):
+                            try:
                                 metadata_dict[key] = json.loads(value) if value else {}
+                            except (ValueError, TypeError, json.JSONDecodeError):
+                                # If JSON parsing fails, use empty dict as fallback
+                                metadata_dict[key] = {}
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
+                # Sort by last_updated (now all timezone-aware)
                 metadatas.sort(key=lambda x: x.last_updated, reverse=True)
                 
                 return metadatas
@@ -804,7 +833,11 @@ class WorkflowCacheManager:
                         for key, value in metadata_dict.items():
                             if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                                 with contextlib.suppress(ValueError, TypeError):
-                                    metadata_dict[key] = datetime.fromisoformat(value)
+                                    dt = datetime.fromisoformat(value)
+                                    # Ensure timezone awareness - if naive, assume UTC
+                                    if dt.tzinfo is None:
+                                        dt = dt.replace(tzinfo=UTC)
+                                    metadata_dict[key] = dt
                         
                         metadata = CacheMetadata(**metadata_dict)
                         
