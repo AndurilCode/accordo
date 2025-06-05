@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 
 from ..utils.session_id_utils import add_session_id_to_response
 from ..utils.session_manager import (
-    clear_session_completely,
+    clear_all_client_sessions,
     detect_session_conflict,
     get_session_summary,
 )
@@ -293,7 +293,12 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         # First, check for existing session conflicts
         conflict_info = detect_session_conflict(client_id)
         if conflict_info:
-            session_summary = get_session_summary(client_id)
+            most_recent_session_id = conflict_info.get("most_recent_session", {}).get("session_id")
+            session_summary = (
+                get_session_summary(most_recent_session_id)
+                if most_recent_session_id
+                else "No session details available"
+            )
             return {
                 "status": "session_conflict_detected",
                 "message": "Active session detected. Resolve conflict before creating new workflow.",
@@ -632,19 +637,17 @@ workflow:
             }
 
         if action == "cleanup":
-            # Clear the session completely
-            cleanup_results = clear_session_completely(client_id)
+            # Clear all sessions for the client
+            cleanup_results = clear_all_client_sessions(client_id)
 
             if cleanup_results["success"]:
                 return {
                     "status": "cleanup_successful",
-                    "message": "Session cleared successfully. You can now start a new workflow.",
+                    "message": f"Cleared {cleanup_results['sessions_cleared']} session(s) successfully. You can now start a new workflow.",
                     "cleanup_details": {
-                        "previous_session_type": cleanup_results[
-                            "previous_session_type"
-                        ],
-                        "session_cleared": cleanup_results["session_cleared"],
-                        "cache_cleared": cleanup_results["cache_cleared"],
+                        "previous_session_type": cleanup_results["previous_session_type"],
+                        "sessions_cleared": cleanup_results["sessions_cleared"],
+                        "failed_sessions": cleanup_results["failed_sessions"],
                     },
                     "next_actions": [
                         "1. Call workflow_discovery to find available workflows",
@@ -654,14 +657,19 @@ workflow:
             else:
                 return {
                     "status": "cleanup_failed",
-                    "error": f"Failed to clear session: {cleanup_results.get('error', 'Unknown error')}",
+                    "error": f"Failed to clear sessions: {cleanup_results.get('error', 'Unknown error')}",
                     "cleanup_details": cleanup_results,
                     "recommendation": "Try manual session cleanup or contact support",
                 }
 
         elif action == "continue":
             # Continue with existing session
-            session_summary = get_session_summary(client_id)
+            most_recent_session_id = conflict_info.get("most_recent_session", {}).get("session_id")
+            session_summary = (
+                get_session_summary(most_recent_session_id)
+                if most_recent_session_id
+                else "No session details available"
+            )
             return {
                 "status": "continue_existing",
                 "message": "Continuing with existing workflow session.",
