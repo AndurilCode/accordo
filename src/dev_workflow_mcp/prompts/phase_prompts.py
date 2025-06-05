@@ -1363,6 +1363,69 @@ def _generate_content_driven_recommendations(results: list, analysis_type: str) 
     return "\n".join(recommendations)
 
 
+def _generate_imposing_next_steps(results: list, analysis_type: str, query: str) -> str:
+    """Generate specific, imposing next steps based on actual content and analysis."""
+    if not results:
+        return "• **START IMMEDIATELY:** Begin fresh implementation with comprehensive documentation\n• **ESTABLISH PATTERNS:** Create new workflow patterns for future reference"
+    
+    steps = []
+    themes = _extract_content_themes(results)
+    patterns = _analyze_workflow_patterns(results)
+    
+    # Extract key action items from the query and results
+    query_lower = query.lower()
+    
+    # Query-specific action steps
+    if 'yaml' in query_lower and 'approval' in query_lower:
+        steps.append("• **IMPLEMENT YAML STRUCTURE:** Add approval mechanism field to node-level YAML definitions")
+        steps.append("• **VALIDATE SCHEMA:** Ensure new approval field integrates with existing workflow validation")
+    elif 'node' in query_lower and 'execution' in query_lower:
+        steps.append("• **ENHANCE NODE EXECUTION:** Implement user confirmation mechanisms before proceeding")
+        steps.append("• **TEST VALIDATION:** Create test cases for new approval workflow interruptions")
+    elif themes:
+        # Generate steps based on identified themes
+        primary_themes = themes[:3]
+        if 'approval' in primary_themes:
+            steps.append("• **BUILD APPROVAL SYSTEM:** Implement user confirmation mechanisms identified in similar work")
+        if 'yaml' in primary_themes:
+            steps.append("• **MODIFY YAML SCHEMA:** Extend configuration structure based on discovered patterns")
+        if 'workflow' in primary_themes:
+            steps.append("• **OPTIMIZE WORKFLOW:** Apply workflow improvements from analyzed similar implementations")
+    
+    # Pattern-based steps
+    if patterns.get('common_nodes'):
+        most_common_node = max(patterns['common_nodes'].items(), key=lambda x: x[1])[0]
+        steps.append(f"• **FOLLOW PROGRESSION:** Start with '{most_common_node}' phase as evidenced in similar workflows")
+    
+    # Analysis type specific steps
+    if analysis_type == "similar_tasks":
+        if results:
+            top_result = max(results, key=lambda x: x.similarity_score)
+            if hasattr(top_result.metadata, 'session_id'):
+                steps.append(f"• **EXAMINE SESSION:** `workflow_cache_management(operation=\"list\")` then study session {top_result.metadata.session_id[:8]}...")
+                steps.append(f"• **EXTRACT PATTERNS:** Analyze {top_result.metadata.workflow_name} implementation approach immediately")
+    
+    elif analysis_type == "lessons_learned":
+        completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
+        if completed_results:
+            steps.append("• **APPLY LESSONS:** Implement proven solutions from completed similar workflows")
+        else:
+            steps.append("• **LEARN FROM PROGRESS:** Extract methodologies from in-progress similar work")
+    
+    # Always include a specific execution step
+    if not steps:
+        steps = [
+            "• **BEGIN ANALYSIS:** Start with comprehensive requirement analysis phase",
+            "• **DOCUMENT APPROACH:** Create detailed implementation plan based on discovered patterns",
+            "• **VALIDATE CONTINUOUSLY:** Implement with regular validation checkpoints"
+        ]
+    
+    # Add imposing completion step
+    steps.append("• **EXECUTE NOW:** Do not wait for additional confirmation - begin implementation immediately")
+    
+    return "\n".join(steps)
+
+
 def _generate_temporal_insights(results: list) -> str:
     """Generate enhanced temporal pattern insights with development context."""
     if not results:
@@ -2157,33 +2220,52 @@ Cache mode is not enabled or not available. To enable semantic analysis:
                     "CANCELLED": "🚫"
                 }.get(metadata.status, "📋")
                 
-                # Extract task description from multiple sources
+                # Extract comprehensive task description from multiple sources
                 task_desc = None
+                acceptance_criteria = None
+                
+                # Primary source: current_item (full description)
                 if hasattr(metadata, 'current_item') and metadata.current_item:
-                    task_desc = metadata.current_item
+                    full_desc = metadata.current_item.strip()
+                    # Don't truncate - show more of the description
+                    if len(full_desc) > 2000:
+                        task_desc = full_desc[:2000] + "..."
+                    else:
+                        task_desc = full_desc
+                
+                # Secondary source: matching_text for richer content
                 elif hasattr(search_result, 'matching_text') and search_result.matching_text:
-                    # Extract first meaningful sentence from matching text
                     text = search_result.matching_text.strip()
                     if text:
-                        # Take first sentence or first 100 characters
-                        sentences = text.split('.')
-                        if sentences and len(sentences[0]) > 10:
-                            task_desc = sentences[0].strip()[:100] + ("..." if len(sentences[0]) > 100 else "")
-                        else:
-                            task_desc = text[:100] + ("..." if len(text) > 100 else "")
+                        # Look for structured content or use more of the text
+                        task_desc = text[:200] + "..." if len(text) > 200 else text
+                
+                # Extract acceptance criteria if available
+                if hasattr(search_result, 'matching_text') and search_result.matching_text:
+                    text = search_result.matching_text.lower()
+                    if 'criteria' in text or 'requirement' in text or 'must' in text:
+                        # Extract acceptance criteria indicators
+                        acceptance_criteria = "Contains acceptance criteria or requirements"
                 
                 if not task_desc:
                     task_desc = "No description available"
                 
-                result += f"""**{i}. {metadata.workflow_name}** {status_emoji}
+                # Build comprehensive result entry
+                result_entry = f"""**{i}. {metadata.workflow_name}** {status_emoji}
    - **Similarity:** {similarity_percentage:.1f}%
-   - **Task:** {task_desc}
+   - **Task:** {task_desc}"""
+                
+                if acceptance_criteria:
+                    result_entry += f"\n   - **Requirements:** {acceptance_criteria}"
+                
+                result_entry += f"""
    - **Status:** {metadata.status}
    - **Session:** {metadata.session_id}
    - **Node:** {metadata.current_node}
    - **Last Updated:** {metadata.last_updated.strftime("%Y-%m-%d %H:%M")}
 
 """
+                result += result_entry
             
             # Add analysis insights
             result += f"""---
@@ -2203,10 +2285,9 @@ Cache mode is not enabled or not available. To enable semantic analysis:
 
 {_generate_content_driven_recommendations(results, analysis_type)}
 
-**🔗 Next Steps:**
-- Use `workflow_cache_management(operation="list")` to explore specific sessions
-- Reference successful patterns when planning current workflow
-- Document new approaches for future semantic discovery"""
+**🔗 Immediate Action Plan:**
+
+{_generate_imposing_next_steps(results, analysis_type, query)}"""
             
             return result
             
