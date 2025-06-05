@@ -1065,27 +1065,136 @@ def _handle_cache_restore_operation(client_id: str) -> str:
         return f"❌ Error restoring sessions from cache: {str(e)}"
 
 
+def _extract_content_themes(results: list) -> list[str]:
+    """Extract common themes from matching text content."""
+    if not results:
+        return []
+    
+    # Extract keywords from matching text content
+    keyword_counts = {}
+    
+    for result in results:
+        if hasattr(result, 'matching_text') and result.matching_text:
+            # Extract meaningful keywords (basic implementation)
+            words = result.matching_text.lower().split()
+            for word in words:
+                # Filter for meaningful terms (basic heuristic)
+                if (len(word) > 4 and 
+                    word not in ['workflow', 'analysis', 'implementation', 'requirements', 'system'] and
+                    word.isalpha()):
+                    keyword_counts[word] = keyword_counts.get(word, 0) + 1
+    
+    # Get top themes
+    sorted_themes = sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)
+    return [theme for theme, count in sorted_themes[:5] if count > 1]
+
+
+def _analyze_workflow_patterns(results: list) -> dict[str, any]:
+    """Analyze workflow progression and node patterns."""
+    if not results:
+        return {}
+    
+    patterns = {
+        'common_nodes': {},
+        'status_transitions': {},
+        'workflow_types': {},
+        'progression_patterns': []
+    }
+    
+    for result in results:
+        metadata = result.metadata
+        
+        # Track common nodes
+        if hasattr(metadata, 'current_node') and metadata.current_node:
+            patterns['common_nodes'][metadata.current_node] = patterns['common_nodes'].get(metadata.current_node, 0) + 1
+        
+        # Track workflow types
+        if hasattr(metadata, 'workflow_name') and metadata.workflow_name:
+            patterns['workflow_types'][metadata.workflow_name] = patterns['workflow_types'].get(metadata.workflow_name, 0) + 1
+        
+        # Track status patterns
+        if hasattr(metadata, 'status') and metadata.status:
+            patterns['status_transitions'][metadata.status] = patterns['status_transitions'].get(metadata.status, 0) + 1
+    
+    return patterns
+
+
+def _generate_confidence_assessment(results: list) -> str:
+    """Generate confidence level based on similarity scores and content quality."""
+    if not results:
+        return "No data"
+    
+    max_similarity = max(r.similarity_score for r in results)
+    
+    if max_similarity >= 0.8:
+        return f"High (best match {max_similarity:.1%})"
+    elif max_similarity >= 0.6:
+        return f"Medium (best match {max_similarity:.1%})"
+    elif max_similarity >= 0.4:
+        return f"Moderate (best match {max_similarity:.1%})"
+    else:
+        return f"Low (best match {max_similarity:.1%})"
+
+
 def _generate_similarity_distribution(results: list) -> str:
-    """Generate similarity distribution summary."""
+    """Generate enhanced similarity distribution with content insights."""
     if not results:
         return "No results to analyze"
     
-    high_sim = len([r for r in results if r.similarity_score >= 0.7])
-    med_sim = len([r for r in results if 0.4 <= r.similarity_score < 0.7])
-    low_sim = len([r for r in results if r.similarity_score < 0.4])
+    high_sim = [r for r in results if r.similarity_score >= 0.7]
+    med_sim = [r for r in results if 0.4 <= r.similarity_score < 0.7]
+    low_sim = [r for r in results if r.similarity_score < 0.4]
     
-    return f"• High similarity (≥70%): {high_sim} results\n• Medium similarity (40-69%): {med_sim} results\n• Lower similarity (<40%): {low_sim} results"
+    # Build basic distribution
+    distribution = f"• High similarity (≥70%): {len(high_sim)} results\n"
+    distribution += f"• Medium similarity (40-69%): {len(med_sim)} results\n"
+    distribution += f"• Lower similarity (<40%): {len(low_sim)} results"
+    
+    # Add content insights for medium and high similarity results
+    relevant_results = high_sim + med_sim
+    if relevant_results:
+        distribution += "\n\n**🔍 Similarity Insights:**\n"
+        
+        # Extract themes from most relevant results
+        themes = _extract_content_themes(relevant_results)
+        if themes:
+            distribution += f"• Key themes: {', '.join(themes)}\n"
+        
+        # Show top matches with context
+        top_matches = sorted(relevant_results, key=lambda x: x.similarity_score, reverse=True)[:2]
+        for match in top_matches:
+            workflow_name = match.metadata.workflow_name if hasattr(match.metadata, 'workflow_name') else "Unknown"
+            similarity = match.similarity_score * 100
+            distribution += f"• Most relevant: \"{workflow_name}\" ({similarity:.1f}%)\n"
+        
+        # Confidence assessment
+        confidence = _generate_confidence_assessment(results)
+        distribution += f"• Confidence level: {confidence}"
+    
+    return distribution
 
 
 def _generate_status_overview(results: list) -> str:
-    """Generate status overview of found workflows."""
+    """Generate enhanced status overview with workflow context."""
     if not results:
         return "No results to analyze"
     
     status_counts = {}
+    status_workflows = {}
+    
     for result in results:
         status = result.metadata.status
         status_counts[status] = status_counts.get(status, 0) + 1
+        
+        if status not in status_workflows:
+            status_workflows[status] = []
+        
+        workflow_info = {
+            'name': getattr(result.metadata, 'workflow_name', 'Unknown'),
+            'node': getattr(result.metadata, 'current_node', 'Unknown'),
+            'similarity': result.similarity_score
+        }
+        status_workflows[status].append(workflow_info)
     
     status_lines = []
     for status, count in sorted(status_counts.items()):
@@ -1093,26 +1202,167 @@ def _generate_status_overview(results: list) -> str:
             "ACTIVE": "🔄", "COMPLETED": "✅", "FINISHED": "✅", 
             "SUCCESS": "✅", "ERROR": "❌", "PAUSED": "⏸️", "CANCELLED": "🚫"
         }.get(status, "📋")
+        
         status_lines.append(f"• {status} {emoji}: {count} workflow(s)")
+        
+        # Add workflow details for most relevant results
+        workflows = sorted(status_workflows[status], key=lambda x: x['similarity'], reverse=True)[:2]
+        for workflow in workflows:
+            status_lines.append(f"  - {workflow['name']}: Currently in '{workflow['node']}' phase")
     
-    return "\n".join(status_lines)
+    # Add status insights
+    overview = "\n".join(status_lines)
+    
+    if results:
+        overview += "\n\n**🎯 Status Insights:**\n"
+        
+        # Completion rate analysis
+        completed_count = status_counts.get('COMPLETED', 0) + status_counts.get('FINISHED', 0) + status_counts.get('SUCCESS', 0)
+        total_count = len(results)
+        completion_rate = (completed_count / total_count) * 100 if total_count > 0 else 0
+        
+        if completion_rate > 0:
+            overview += f"• Completion rate: {completion_rate:.0f}% ({completed_count}/{total_count} workflows completed)\n"
+        else:
+            overview += "• Completion rate: 0% (no completed examples found)\n"
+        
+        # Activity patterns
+        active_count = status_counts.get('ACTIVE', 0) + status_counts.get('READY', 0)
+        if active_count > 0:
+            overview += f"• Available for reference: {active_count} active workflow(s) with similar objectives\n"
+        
+        # Common progression patterns
+        patterns = _analyze_workflow_patterns(results)
+        if patterns.get('common_nodes'):
+            common_nodes = sorted(patterns['common_nodes'].items(), key=lambda x: x[1], reverse=True)[:3]
+            node_list = [f"'{node}'" for node, count in common_nodes]
+            overview += f"• Active patterns: {' → '.join(node_list)} progression typical for this workflow type"
+    
+    return overview
+
+
+def _generate_content_driven_recommendations(results: list, analysis_type: str) -> str:
+    """Generate specific recommendations based on actual workflow content and patterns."""
+    if not results:
+        return "1. **No Similar Context Found:** This appears to be novel work - proceed with fresh analysis while documenting patterns for future reference"
+    
+    recommendations = []
+    patterns = _analyze_workflow_patterns(results)
+    themes = _extract_content_themes(results)
+    
+    # Analysis type specific recommendations
+    if analysis_type == "similar_tasks":
+        # Recommendations based on similar tasks
+        high_sim_results = [r for r in results if r.similarity_score >= 0.7]
+        med_sim_results = [r for r in results if 0.4 <= r.similarity_score < 0.7]
+        
+        if high_sim_results:
+            top_match = max(high_sim_results, key=lambda x: x.similarity_score)
+            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
+            similarity = top_match.similarity_score * 100
+            recommendations.append(f"1. **Follow Proven Patterns** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
+            recommendations.append("   - Apply similar workflow structure and progression patterns")
+            recommendations.append("   - Reference implementation approaches from this high-similarity match")
+        elif med_sim_results:
+            top_match = max(med_sim_results, key=lambda x: x.similarity_score)
+            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
+            similarity = top_match.similarity_score * 100
+            recommendations.append(f"1. **Adapt Similar Approaches** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
+            recommendations.append("   - Consider adapting patterns while accounting for context differences")
+    
+    elif analysis_type == "lessons_learned":
+        completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
+        if completed_results:
+            recommendations.append("1. **Apply Lessons from Completed Work:**")
+            for result in completed_results[:2]:
+                workflow_name = getattr(result.metadata, 'workflow_name', 'Unknown')
+                recommendations.append(f"   - Study successful patterns from \"{workflow_name}\"")
+        else:
+            recommendations.append("1. **Learn from In-Progress Work:**")
+            recommendations.append("   - No completed examples found, but can reference current approaches")
+    
+    elif analysis_type == "related_context":
+        if themes:
+            recommendations.append(f"1. **Leverage Domain Knowledge** (Common themes: {', '.join(themes[:3])}):")
+            recommendations.append("   - Apply cross-domain insights from related workflow contexts")
+        
+    # Pattern-based recommendations
+    if patterns.get('common_nodes'):
+        common_progression = list(patterns['common_nodes'].keys())[:3]
+        recommendations.append(f"2. **Follow Established Progression** (Common pattern: {' → '.join(common_progression)}):")
+        recommendations.append("   - This progression pattern appears in similar workflows")
+    
+    # Theme-based recommendations
+    if themes:
+        recommendations.append(f"3. **Apply Domain Insights** (Key themes: {', '.join(themes[:2])}):")
+        for theme in themes[:2]:
+            recommendations.append(f"   - Consider {theme}-related approaches and patterns")
+    
+    # Risk mitigation recommendations
+    error_results = [r for r in results if r.metadata.status in ["ERROR", "CANCELLED"]]
+    if error_results:
+        recommendations.append("4. **Mitigate Known Risks:**")
+        recommendations.append(f"   - {len(error_results)} similar workflow(s) encountered issues - review for potential pitfalls")
+    
+    # Default fallback if no specific recommendations generated
+    if not recommendations:
+        recommendations = [
+            "1. **Build on Similar Context:** Use insights from related workflows as foundation",
+            "2. **Document New Patterns:** This work will establish patterns for future similar tasks",
+            "3. **Apply Best Practices:** Follow systematic approach evidenced in historical workflows"
+        ]
+    
+    return "\n".join(recommendations)
 
 
 def _generate_temporal_insights(results: list) -> str:
-    """Generate temporal pattern insights."""
+    """Generate enhanced temporal pattern insights with development context."""
     if not results:
         return "No results to analyze"
     
     from datetime import datetime, timedelta
     
-    now = datetime.now()
+    # Use timezone-naive datetime for comparison
+    now = datetime.now()  # noqa: DTZ005
     recent = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)])
     this_month = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)])
     
     oldest = min(results, key=lambda x: x.metadata.last_updated)
     newest = max(results, key=lambda x: x.metadata.last_updated)
     
-    return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
+    # Basic temporal stats
+    temporal_info = f"• Recent activity (last 7 days): {recent} workflows\n"
+    temporal_info += f"• This month: {this_month} workflows\n"
+    temporal_info += f"• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
+    
+    # Add temporal insights
+    if results:
+        temporal_info += "\n\n**⏱️ Temporal Insights:**\n"
+        
+        # Development velocity analysis
+        if recent == len(results):
+            temporal_info += "• Fresh context: All results from recent development activity\n"
+        elif recent > len(results) * 0.7:
+            temporal_info += f"• Active development: {recent}/{len(results)} workflows show recent activity\n"
+        else:
+            temporal_info += f"• Mixed timeline: {recent} recent, {len(results) - recent} historical workflows\n"
+        
+        # Activity pattern analysis
+        patterns = _analyze_workflow_patterns(results)
+        if patterns.get('workflow_types'):
+            dominant_type = max(patterns['workflow_types'].items(), key=lambda x: x[1])
+            temporal_info += f"• Trending approaches: Active focus on {dominant_type[0].lower()} patterns\n"
+        
+        # Development cycle insights
+        timespan_days = (newest.metadata.last_updated - oldest.metadata.last_updated).days
+        if timespan_days <= 1:
+            temporal_info += "• Development velocity: Current session indicates active development cycle"
+        elif timespan_days <= 7:
+            temporal_info += f"• Development velocity: Week-long development cycle ({timespan_days} days)"
+        else:
+            temporal_info += f"• Development velocity: Extended development timeline ({timespan_days} days)"
+    
+    return temporal_info
 
 
 def _handle_cache_list_operation(client_id: str) -> str:
@@ -1874,12 +2124,9 @@ Cache mode is not enabled or not available. To enable semantic analysis:
 **Temporal Patterns:**
 {_generate_temporal_insights(results)}
 
-**💡 Recommendations for Current Analysis:**
+**💡 Content-Driven Recommendations:**
 
-1. **Review Similar Approaches:** Examine tasks with >70% similarity for proven patterns
-2. **Learn from Completed Work:** Study finished workflows for implementation insights  
-3. **Avoid Known Issues:** Check error states and cancelled workflows for pitfalls
-4. **Build on Past Context:** Leverage domain knowledge from related workflows
+{_generate_content_driven_recommendations(results, analysis_type)}
 
 **🔗 Next Steps:**
 - Use `workflow_cache_management(operation="list")` to explore specific sessions
