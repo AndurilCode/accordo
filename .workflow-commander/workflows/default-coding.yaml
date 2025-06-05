@@ -19,25 +19,10 @@ execution:
 workflow:
   goal: Complete coding task with thorough analysis, planning, implementation, and validation
 
-  root: analyze
+  root: semantic_analysis
 
   tree:
     # Analysis phase - understand requirements and codebase
-    analyze:
-      goal: |
-        **ANALYZE PHASE:** ${{ inputs.task_description }}
-
-        Thoroughly understand the task requirements, explore the codebase, and gather all necessary information before proceeding to planning. This is a discovery and understanding phase only - no code should be written or plans created.
-
-        **Focus:** Comprehensive information gathering and requirements analysis.
-      acceptance_criteria:
-        project_config_analysis: "MUST read `${{ inputs.project_config_path }}` completely and understand coding standards, dependencies, test commands, and project structure constraints"
-        codebase_exploration: "MUST use semantic search to find related code patterns, understand current architecture and design patterns, identify files that need modification, and examine similar implementations for consistency"
-        requirements_analysis: "MUST decompose task into specific actionable requirements, identify scope boundaries and what's in/out of scope, note any ambiguities requiring clarification, and identify potential risks and complexity factors"
-        documentation_review: "MUST summarize understanding of task requirements, list all affected components and files, identify integration points and dependencies, and note any constraints or special considerations"
-        understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
-      next_allowed_nodes: [semantic_analysis]
-
     semantic_analysis:
       goal: "Analyze with historical context"
       instructions: |
@@ -53,6 +38,21 @@ workflow:
         lessons_integration: "Integrated lessons from completed similar workflows"
         risk_assessment: "Identified risks based on historical patterns"
         synthesis_report: "Combined current understanding with historical insights"
+      next_allowed_nodes: [analyze]
+
+    analyze:
+      goal: |
+        **ANALYZE PHASE:** ${{ inputs.task_description }}
+
+        Thoroughly understand the task requirements, explore the codebase, and gather all necessary information before proceeding to planning. This is a discovery and understanding phase only - no code should be written or plans created.
+
+        **Focus:** Comprehensive information gathering and requirements analysis.
+      acceptance_criteria:
+        project_config_analysis: "MUST read `${{ inputs.project_config_path }}` completely and understand coding standards, dependencies, test commands, and project structure constraints"
+        codebase_exploration: "MUST use semantic search to find related code patterns, understand current architecture and design patterns, identify files that need modification, and examine similar implementations for consistency"
+        requirements_analysis: "MUST decompose task into specific actionable requirements, identify scope boundaries and what's in/out of scope, note any ambiguities requiring clarification, and identify potential risks and complexity factors"
+        documentation_review: "MUST summarize understanding of task requirements, list all affected components and files, identify integration points and dependencies, and note any constraints or special considerations"
+        understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
       next_allowed_nodes: [blueprint]
 
     # Blueprint phase - create implementation plan
