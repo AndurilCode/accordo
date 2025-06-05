@@ -40,27 +40,31 @@ def analyze_node_from_schema(
 def get_available_transitions(
     node: WorkflowNode, workflow: WorkflowDefinition
 ) -> list[dict[str, Any]]:
-    """Get all available transitions from current node.
+    """Get available transitions from current node with approval requirements.
 
     Args:
         node: Current workflow node
         workflow: The workflow definition
 
     Returns:
-        List of available transition options
+        List of available transitions with their details including approval requirements
     """
     transitions = []
 
     # Add node transitions
     for next_node_name in node.next_allowed_nodes or []:
-        next_node = workflow.workflow.tree.get(next_node_name)
+        next_node = workflow.workflow.get_node(next_node_name)
         if next_node:
+            # Check if the target node requires approval
+            needs_approval = getattr(next_node, "needs_approval", False)
+
             transitions.append(
                 {
                     "type": "node",
                     "name": next_node_name,
                     "goal": next_node.goal,
                     "description": f"Continue to: {next_node.goal}",
+                    "needs_approval": needs_approval,
                 }
             )
 
@@ -72,6 +76,7 @@ def get_available_transitions(
                 "name": next_workflow_name,
                 "goal": f"Switch to workflow: {next_workflow_name}",
                 "description": f"Transition to: {next_workflow_name}",
+                "needs_approval": False,  # Workflow transitions don't have approval requirements
             }
         )
 
@@ -105,25 +110,25 @@ def format_node_status(node: WorkflowNode, workflow: WorkflowDefinition) -> str:
     options_text = ""
     if transitions:
         # Check if this node requires approval before proceeding
-        needs_approval = getattr(node, 'needs_approval', False)
-        
+        needs_approval = getattr(node, "needs_approval", False)
+
         if needs_approval:
             options_text = "🚨 **APPROVAL REQUIRED BEFORE PROCEEDING** 🚨\n\n"
             options_text += "This node requires explicit user approval before transitioning to the next step.\n\n"
-        
+
         options_text += "**Available Next Steps:**\n"
         for transition in transitions:
             options_text += f"• **{transition['name']}**: {transition['goal']}\n"
 
         if needs_approval:
             # Special approval guidance
-            options_text += '\n⚠️ **MANDATORY APPROVAL PROCESS:**\n'
-            options_text += 'To proceed, you must provide explicit approval in your context:\n'
-            options_text += '📋 **Required Format:** Call workflow_guidance with context including "user_approval": true\n'
+            options_text += "\n⚠️ **MANDATORY APPROVAL PROCESS:**\n"
             options_text += (
-                "🚨 **CRITICAL:** ALWAYS provide both approval AND criteria evidence when transitioning:\n"
+                "To proceed, you must provide explicit approval in your context:\n"
             )
-            
+            options_text += '📋 **Required Format:** Call workflow_guidance with context including "user_approval": true\n'
+            options_text += "🚨 **CRITICAL:** ALWAYS provide both approval AND criteria evidence when transitioning:\n"
+
             if len(transitions) == 1:
                 # Single option - provide specific example
                 example_node = transitions[0]["name"]
@@ -134,9 +139,7 @@ def format_node_status(node: WorkflowNode, workflow: WorkflowDefinition) -> str:
         else:
             # Standard guidance without approval requirement
             options_text += '\n📋 **To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-            options_text += (
-                "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
-            )
+            options_text += "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
 
             if len(transitions) == 1:
                 # Single option - provide specific example

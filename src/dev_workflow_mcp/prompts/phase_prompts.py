@@ -50,18 +50,18 @@ def resolve_session_context(
     session_id: str, context: str, ctx: Context
 ) -> tuple[str | None, str]:
     """Resolve session from session_id with improved session-first approach.
-    
+
     This function prioritizes explicit session_id over client-based lookup to support
     the new session-independent architecture where each chat operates independently.
 
     Args:
         session_id: Optional session ID parameter (preferred method)
-        context: Context string that may contain session_id  
+        context: Context string that may contain session_id
         ctx: MCP Context object
 
     Returns:
         tuple: (resolved_session_id, client_id)
-        
+
     Note:
         - client_id is still returned for cache operations and semantic search filtering
         - session_id takes absolute priority for workflow operations
@@ -850,25 +850,62 @@ def format_enhanced_node_status(
     else:
         criteria_text = "   • No specific criteria defined"
 
-    # Format next options with manual choice requirement
+    # Format next options with approval enforcement checking
     options_text = ""
     if transitions:
-        options_text = "**🎯 Available Next Steps:**\n"
+        # Check if any target nodes require approval
+        approval_required_transitions = [
+            t for t in transitions if t.get("needs_approval", False)
+        ]
+
+        if approval_required_transitions:
+            # At least one target node requires approval - show prominent enforcement message
+            options_text = "🚨 **APPROVAL REQUIRED FOR NEXT TRANSITIONS** 🚨\n\n"
+            options_text += "One or more available next steps require explicit user approval before proceeding.\n\n"
+
+        options_text += "**🎯 Available Next Steps:**\n"
         for transition in transitions:
-            options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
+            if transition.get("needs_approval", False):
+                # Mark approval-required transitions clearly
+                options_text += f"   • **{transition['name']}** ⚠️ **(REQUIRES APPROVAL)**: {transition['goal']}\n"
+            else:
+                options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
 
-        options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += (
-            "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
-        )
+        if approval_required_transitions:
+            # Special approval guidance for nodes that require approval
+            options_text += "\n⚠️ **MANDATORY APPROVAL PROCESS:**\n"
+            options_text += "To proceed to nodes marked **(REQUIRES APPROVAL)**, you must provide explicit approval:\n"
+            options_text += '📋 **Required Format:** Include "user_approval": true in your context\n'
+            options_text += "🚨 **CRITICAL:** ALWAYS provide both approval AND criteria evidence when transitioning:\n"
 
-        if len(transitions) == 1:
-            # Single option - provide specific example
-            example_node = transitions[0]["name"]
-            options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+            if len(approval_required_transitions) == 1:
+                # Single approval-required option - provide specific example
+                example_node = approval_required_transitions[0]["name"]
+                options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "user_approval": true, "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')\n'
+            else:
+                # Multiple approval-required options - provide generic example
+                options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "user_approval": true, "criteria_evidence": {"criterion1": "detailed evidence"}}\')\n'
+
+            # Add guidance for non-approval transitions if any exist
+            non_approval_transitions = [
+                t for t in transitions if not t.get("needs_approval", False)
+            ]
+            if non_approval_transitions:
+                options_text += "\n📋 **For non-approval transitions:** Standard format without user_approval:\n"
+                example_node = non_approval_transitions[0]["name"]
+                options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
         else:
-            # Multiple options - provide generic example
-            options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
+            # Standard guidance without approval requirement
+            options_text += '\n📋 **To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
+            options_text += "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
+
+            if len(transitions) == 1:
+                # Single option - provide specific example
+                example_node = transitions[0]["name"]
+                options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
+            else:
+                # Multiple options - provide generic example
+                options_text += '**Example:** workflow_guidance(action="next", context=\'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\')'
     else:
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
@@ -916,7 +953,9 @@ def _handle_dynamic_workflow(
             and isinstance(context, str)
             and ("choose:" in context.lower() or context.strip().startswith("{"))
         ):
-            choice, criteria_evidence, user_approval = _parse_criteria_evidence_context(context)
+            choice, criteria_evidence, user_approval = _parse_criteria_evidence_context(
+                context
+            )
 
             if choice and validate_transition(current_node, choice, workflow_def):
                 # Valid transition - use workflow engine for proper approval handling
@@ -929,11 +968,11 @@ def _handle_dynamic_workflow(
 
                     # Use workflow engine for transition with approval validation
                     success = engine.execute_transition(
-                        session, 
-                        workflow_def, 
-                        choice, 
+                        session,
+                        workflow_def,
+                        choice,
                         outputs=completion_outputs,
-                        user_approval=user_approval
+                        user_approval=user_approval,
                     )
 
                     if success:
@@ -1086,8 +1125,6 @@ def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
     if not text:
         return []
 
-    criteria = []
-
     # Split text into sentences for analysis
     sentences = []
     for delimiter in [".", "!", "?"]:
@@ -1099,20 +1136,36 @@ def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
         if len(clean_sentence) > 10:  # Ignore very short fragments
             sentences.append(clean_sentence)
 
+    # Return the sentences as criteria
+    return sentences
+
+
 def _generate_temporal_insights(results: list) -> str:
     """Generate temporal pattern insights."""
     if not results:
         return "No results to analyze"
-    
+
     from datetime import datetime, timedelta
-    
+
     now = datetime.now(UTC)
-    recent = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)])
-    this_month = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)])
-    
+    recent = len(
+        [
+            r
+            for r in results
+            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)
+        ]
+    )
+    this_month = len(
+        [
+            r
+            for r in results
+            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)
+        ]
+    )
+
     oldest = min(results, key=lambda x: x.metadata.last_updated)
     newest = max(results, key=lambda x: x.metadata.last_updated)
-    
+
     return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
 
 
@@ -1638,11 +1691,14 @@ Cannot update state - no YAML workflow session is currently active.
                             add_log_to_session(
                                 update_session_id, update_data["log_entry"]
                             )
-                        
+
                         # Force immediate cache sync after state updates
                         from ..utils.session_manager import sync_session
+
                         sync_result = sync_session(update_session_id)
-                        print(f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}")
+                        print(
+                            f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}"
+                        )
 
                     return add_session_id_to_response(
                         "✅ **State updated successfully.**", update_session_id
@@ -1734,8 +1790,10 @@ Cannot update state - no YAML workflow session is currently active.
                         return "❌ Cache mode is not enabled or not available"
 
                     # Regenerate embeddings with enhanced semantic content
-                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search()
-                    
+                    regenerated_count = (
+                        cache_manager.regenerate_embeddings_for_enhanced_search()
+                    )
+
                     return f"""🔄 **Embedding Regeneration Complete:**
 
 **Results:**
@@ -1759,8 +1817,12 @@ Cannot update state - no YAML workflow session is currently active.
                         return "❌ Cache mode is not enabled or not available"
 
                     # Force regenerate all embeddings regardless of text changes
-                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search(force_regenerate=True)
-                    
+                    regenerated_count = (
+                        cache_manager.regenerate_embeddings_for_enhanced_search(
+                            force_regenerate=True
+                        )
+                    )
+
                     return f"""🔄 **Force Embedding Regeneration Complete:**
 
 **Results:**
@@ -1801,7 +1863,7 @@ Cannot update state - no YAML workflow session is currently active.
         ctx: Context = None,
     ) -> str:
         """Find all relevant past workflow contexts and provide the raw context for agent analysis.
-        
+
         Returns all findings without context cutting or analysis type filtering.
         """
         try:
@@ -1836,20 +1898,25 @@ Cannot update state - no YAML workflow session is currently active.
 
             # Build simple result list - just split the results properly
             result_parts = []
-            
+
             for i, search_result in enumerate(results, 1):
                 metadata = search_result.metadata
                 similarity_score = search_result.similarity_score
-                
+
                 # Get all available context without cutting
                 context_parts = []
-                
+
                 if hasattr(metadata, "current_item") and metadata.current_item:
                     context_parts.append(f"Current Item: {metadata.current_item}")
-                
-                if hasattr(search_result, "matching_text") and search_result.matching_text:
-                    context_parts.append(f"Matching Text: {search_result.matching_text}")
-                
+
+                if (
+                    hasattr(search_result, "matching_text")
+                    and search_result.matching_text
+                ):
+                    context_parts.append(
+                        f"Matching Text: {search_result.matching_text}"
+                    )
+
                 # Add node outputs (completed work and acceptance criteria evidence)
                 if hasattr(metadata, "node_outputs") and metadata.node_outputs:
                     node_outputs_text = []
@@ -1867,8 +1934,10 @@ Cannot update state - no YAML workflow session is currently active.
                                 value_str = str(value)
                             node_output_parts.append(f"  {key}: {value_str}")
                         node_outputs_text.append("\n".join(node_output_parts))
-                    context_parts.append(f"Node Outputs:\n{chr(10).join(node_outputs_text)}")
-                
+                    context_parts.append(
+                        f"Node Outputs:\n{chr(10).join(node_outputs_text)}"
+                    )
+
                 # Include ALL available metadata fields
                 result_entry = f"""--- Result {i} ---
 Workflow: {metadata.workflow_name}
@@ -1877,7 +1946,7 @@ Client ID: {metadata.client_id}
 Similarity: {similarity_score:.3f}
 Status: {metadata.status}
 Current Node: {metadata.current_node}
-Workflow File: {metadata.workflow_file if metadata.workflow_file else 'None'}
+Workflow File: {metadata.workflow_file if metadata.workflow_file else "None"}
 Created At: {metadata.created_at}
 Last Updated: {metadata.last_updated}
 Cache Created At: {metadata.cache_created_at}
