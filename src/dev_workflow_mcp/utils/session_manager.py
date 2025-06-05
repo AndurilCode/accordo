@@ -28,6 +28,10 @@ workflow_cache_lock = threading.Lock()
 _server_config = None
 _server_config_lock = threading.Lock()
 
+# Global cache manager for workflow state persistence
+_cache_manager = None
+_cache_manager_lock = threading.Lock()
+
 
 def set_server_config(server_config) -> None:
     """Set the server configuration for auto-sync functionality.
@@ -35,9 +39,143 @@ def set_server_config(server_config) -> None:
     Args:
         server_config: ServerConfig instance with session storage settings
     """
-    global _server_config
+    global _server_config, _cache_manager
     with _server_config_lock:
         _server_config = server_config
+        
+        # Initialize cache manager if cache mode is enabled
+        if server_config.enable_cache_mode:
+            _initialize_cache_manager(server_config)
+
+
+def _initialize_cache_manager(server_config) -> bool:
+    """Initialize the cache manager with server configuration.
+    
+    Args:
+        server_config: ServerConfig instance
+        
+    Returns:
+        bool: True if initialization successful
+    """
+    global _cache_manager
+    
+    with _cache_manager_lock:
+        if _cache_manager is not None:
+            return True  # Already initialized
+            
+        try:
+            from .cache_manager import WorkflowCacheManager
+            
+            # Ensure cache directory exists
+            if not server_config.ensure_cache_dir():
+                return False
+                
+            _cache_manager = WorkflowCacheManager(
+                db_path=str(server_config.cache_dir),
+                collection_name=server_config.cache_collection_name,
+                embedding_model=server_config.cache_embedding_model,
+                max_results=server_config.cache_max_results
+            )
+            
+            return True
+            
+        except Exception as e:
+            print(f"Warning: Failed to initialize cache manager: {e}")
+            return False
+
+
+def get_cache_manager():
+    """Get the global cache manager instance.
+    
+    Returns:
+        WorkflowCacheManager or None if not available
+    """
+    global _cache_manager
+    with _cache_manager_lock:
+        return _cache_manager
+
+
+def restore_sessions_from_cache(client_id: str | None = None) -> int:
+    """Restore workflow sessions from cache on startup.
+    
+    Args:
+        client_id: Optional client ID to restore sessions for specific client only
+        
+    Returns:
+        Number of sessions restored from cache
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        return 0
+        
+    try:
+        restored_count = 0
+        
+        if client_id:
+            # Restore sessions for specific client
+            client_session_metadata = cache_manager.get_all_sessions_for_client(client_id)
+            for metadata in client_session_metadata:
+                session_id = metadata.session_id
+                restored_state = cache_manager.retrieve_workflow_state(session_id)
+                if restored_state:
+                    with session_lock:
+                        sessions[session_id] = restored_state
+                        _register_session_for_client(client_id, session_id)
+                    restored_count += 1
+                    
+        return restored_count
+        
+    except Exception:
+        # Non-blocking: don't break startup on cache restoration failures
+        return 0
+
+
+def list_cached_sessions(client_id: str | None = None) -> list[dict]:
+    """List available sessions in cache for restoration.
+    
+    Args:
+        client_id: Optional client ID to filter sessions
+        
+    Returns:
+        List of session metadata dictionaries
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        return []
+        
+    try:
+        if client_id:
+            session_metadata_list = cache_manager.get_all_sessions_for_client(client_id)
+            sessions_info = []
+            
+            for metadata in session_metadata_list:
+                sessions_info.append({
+                    "session_id": metadata.session_id,
+                    "workflow_name": metadata.workflow_name,
+                    "status": metadata.status,
+                    "current_node": metadata.current_node,
+                    "created_at": metadata.created_at.isoformat(),
+                    "last_updated": metadata.last_updated.isoformat(),
+                    "task_description": metadata.current_item if metadata.current_item else "No description",
+                })
+            
+            return sessions_info
+        else:
+            # Get cache stats to show available sessions
+            cache_stats = cache_manager.get_cache_stats()
+            if cache_stats:
+                return [{
+                    "total_cached_sessions": cache_stats.total_entries,
+                    "active_sessions": cache_stats.active_sessions,
+                    "completed_sessions": cache_stats.completed_sessions,
+                    "oldest_entry": cache_stats.oldest_entry.isoformat() if cache_stats.oldest_entry else None,
+                    "newest_entry": cache_stats.newest_entry.isoformat() if cache_stats.newest_entry else None,
+                }]
+            
+        return []
+        
+    except Exception:
+        return []
 
 
 def _generate_unique_session_filename(
@@ -131,8 +269,39 @@ def _sync_session_to_file(
         return False
 
 
+def _sync_session_to_cache(session_id: str, session: DynamicWorkflowState | None = None) -> bool:
+    """Sync session to cache when enabled.
+    
+    Args:
+        session_id: Session ID for session lookup
+        session: Optional session object to avoid lock re-acquisition
+        
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        return True  # Skip if cache disabled or unavailable
+        
+    try:
+        # Get session if not provided
+        if session is None:
+            session = get_session(session_id)
+        if not session:
+            return False
+            
+        # Store in cache
+        result = cache_manager.store_workflow_state(session)
+        return result.success
+        
+    except Exception as e:
+        # Non-blocking: don't break workflow execution on cache failures
+        print(f"Warning: Failed to sync session to cache: {e}")
+        return False
+
+
 def sync_session(session_id: str) -> bool:
-    """Explicitly sync a session to filesystem after manual modifications.
+    """Explicitly sync a session to filesystem and cache after manual modifications.
     
     Use this function after directly modifying session fields outside of 
     session_manager functions to ensure changes are persisted.
@@ -143,7 +312,11 @@ def sync_session(session_id: str) -> bool:
     Returns:
         bool: True if sync succeeded or was skipped, False on error
     """
-    return _sync_session_to_file(session_id)
+    file_sync = _sync_session_to_file(session_id)
+    cache_sync = _sync_session_to_cache(session_id)
+    
+    # Return True if at least one sync method succeeded
+    return file_sync or cache_sync
 
 
 def get_session(session_id: str) -> DynamicWorkflowState | None:
@@ -237,8 +410,9 @@ def create_dynamic_session(
         # Register session for client
         _register_session_for_client(client_id, state.session_id)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(state.session_id, state)
+        _sync_session_to_cache(state.session_id, state)
 
         return state
 
@@ -258,8 +432,9 @@ def update_session(session_id: str, **kwargs) -> bool:
         # Update timestamp
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        _sync_session_to_cache(session_id, session)
 
         return True
 
@@ -307,9 +482,10 @@ def update_dynamic_session_node(
         if success and status:
             session.status = status
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         if success:
             _sync_session_to_file(session_id, session)
+            _sync_session_to_cache(session_id, session)
 
         return success
 
@@ -446,8 +622,9 @@ def add_log_to_session(session_id: str, entry: str) -> bool:
         session.add_log_entry(entry)
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        _sync_session_to_cache(session_id, session)
 
         return True
 
@@ -483,8 +660,9 @@ def add_item_to_session(session_id: str, description: str) -> bool:
         session.items.append(new_item)
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        _sync_session_to_cache(session_id, session)
 
         return True
 
@@ -499,8 +677,9 @@ def mark_item_completed_in_session(session_id: str, item_id: int) -> bool:
         result = session.mark_item_completed(item_id)
         if result:
             session.last_updated = datetime.now(UTC)
-            # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+            # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
             _sync_session_to_file(session_id, session)
+            _sync_session_to_cache(session_id, session)
 
         return result
 

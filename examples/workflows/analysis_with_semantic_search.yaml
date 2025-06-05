@@ -1,0 +1,319 @@
+name: "Enhanced Analysis with Semantic Search"
+description: "Demonstrates how agents can leverage semantic search for richer analysis phases"
+
+workflow:
+  tree:
+    # Enhanced Analysis Phase with Semantic Context
+    semantic_analysis:
+      goal: "Perform comprehensive analysis enriched with relevant historical context"
+      instructions: |
+        🔍 **ENHANCED ANALYSIS WITH SEMANTIC CONTEXT**
+        
+        This phase demonstrates how to leverage semantic search to enrich analysis with historical context.
+        
+        **PHASE OBJECTIVES:**
+        1. Understand the current task requirements
+        2. Find relevant past work and lessons learned  
+        3. Identify patterns and proven approaches
+        4. Analyze potential risks based on historical data
+        5. Create comprehensive analysis informed by past experiences
+        
+        **SEMANTIC ANALYSIS WORKFLOW:**
+        
+        **Step 1: Baseline Analysis**
+        - Analyze current requirements and constraints
+        - Document initial understanding and assumptions
+        - Identify key technical and business domains involved
+        
+        **Step 2: Historical Context Discovery**
+        Use semantic search to find relevant past work:
+        
+        ```
+        workflow_semantic_analysis(
+          query="[YOUR TASK DESCRIPTION]",
+          analysis_type="similar_tasks", 
+          max_results=5,
+          min_similarity=0.3
+        )
+        ```
+        
+        **Step 3: Lessons Learned Analysis**
+        Search for completed similar workflows:
+        
+        ```
+        workflow_semantic_analysis(
+          query="[YOUR TASK DESCRIPTION]",
+          analysis_type="lessons_learned",
+          max_results=3,
+          min_similarity=0.4
+        )
+        ```
+        
+        **Step 4: Domain Context Analysis**
+        Find related contexts and technologies:
+        
+        ```
+        workflow_semantic_analysis(
+          query="[TECHNOLOGY/DOMAIN KEYWORDS]",
+          analysis_type="related_context",
+          max_results=8,
+          min_similarity=0.2
+        )
+        ```
+        
+        **Step 5: Risk and Pattern Analysis**
+        - Review failed or cancelled workflows for risk insights
+        - Identify common patterns across similar successful projects
+        - Note any recurring challenges or solutions
+        
+        **Step 6: Enhanced Analysis Synthesis**
+        Combine current analysis with historical insights:
+        - Reference successful patterns and proven approaches
+        - Incorporate lessons learned from past failures
+        - Adapt solutions from related domains
+        - Document new insights for future reference
+        
+        **EXAMPLE ANALYSIS QUERIES:**
+        
+        For a **database optimization task**:
+        ```
+        workflow_semantic_analysis(
+          query="optimize database performance slow queries",
+          analysis_type="lessons_learned"
+        )
+        ```
+        
+        For a **React component development**:
+        ```
+        workflow_semantic_analysis(
+          query="React component user interface responsive design",
+          analysis_type="similar_tasks"
+        )
+        ```
+        
+        For **API security implementation**:
+        ```
+        workflow_semantic_analysis(
+          query="API authentication security JWT OAuth",
+          analysis_type="related_context"
+        )
+        ```
+        
+        **📊 ANALYSIS OUTPUT FORMAT:**
+        
+        Create comprehensive analysis including:
+        1. **Current Requirement Analysis** - Your baseline understanding
+        2. **Historical Context** - What similar work teaches us
+        3. **Proven Patterns** - Successful approaches from past work
+        4. **Risk Factors** - Issues encountered in related projects
+        5. **Recommended Approach** - Synthesis of current + historical insights
+        6. **Novel Considerations** - New aspects not covered by past work
+        
+        **🔗 TRANSITION TO NEXT PHASE:**
+        Your enriched analysis should inform planning and execution phases with:
+        - Validated approaches from successful past work
+        - Risk mitigation strategies from historical failures
+        - Domain expertise accumulated from related projects
+        - Confidence in recommended solutions backed by evidence
+      
+      acceptance_criteria:
+        comprehensive_analysis: "Complete current requirement analysis with clear understanding of scope, constraints, and objectives"
+        historical_context: "Successfully retrieve and analyze relevant past work using semantic search with at least 3 relevant results"
+        lessons_integration: "Document specific lessons learned from completed similar workflows and how they apply to current task"
+        risk_assessment: "Identify potential risks based on historical patterns and failed attempts in related work"
+        synthesis_report: "Create comprehensive analysis report that combines current understanding with historical insights"
+        actionable_recommendations: "Provide specific, evidence-based recommendations for next phases informed by past successes"
+      
+      next_allowed_nodes:
+        - enhanced_planning
+        - iterative_refinement
+        - implementation_strategy
+
+    # Enhanced Planning Phase with Historical Patterns
+    enhanced_planning:
+      goal: "Create implementation plan leveraging proven patterns from past work"
+      instructions: |
+        📋 **ENHANCED PLANNING WITH PROVEN PATTERNS**
+        
+        Use insights from semantic analysis to create robust implementation plans.
+        
+        **PLANNING APPROACH:**
+        1. **Reference Successful Patterns**: Use proven approaches from high-similarity past work
+        2. **Adapt Best Practices**: Modify successful patterns for current context
+        3. **Risk Mitigation**: Plan around known failure points from historical data
+        4. **Innovation Points**: Identify areas for new approaches not covered historically
+        
+        **EXAMPLE ENHANCED PLANNING:**
+        - Break down tasks using patterns from 85% similar past work
+        - Schedule buffer time for risks identified in 3 related failed attempts
+        - Adopt proven testing strategy from 92% similar completed project
+        - Plan documentation approach based on 5 related successful workflows
+        
+        **TOOLS TO USE:**
+        - Reference specific session IDs from semantic analysis results
+        - Use `workflow_cache_management(operation="list")` to explore relevant sessions
+        - Cross-reference multiple successful approaches for robustness
+      
+      acceptance_criteria:
+        pattern_based_plan: "Implementation plan references specific successful patterns from semantic analysis results"
+        risk_mitigation: "Plan addresses known risks identified in historical analysis with specific mitigation strategies"
+        resource_estimation: "Time and resource estimates informed by actual data from similar completed projects"
+        innovation_balance: "Plan balances proven approaches with necessary innovation for novel requirements"
+      
+      next_allowed_nodes:
+        - implementation_strategy
+        - validation_planning
+
+    # Implementation with Continuous Learning
+    implementation_strategy:
+      goal: "Execute implementation while contributing to organizational knowledge base"
+      instructions: |
+        🚀 **IMPLEMENTATION WITH KNOWLEDGE CONTRIBUTION**
+        
+        Execute your plan while documenting insights for future semantic discovery.
+        
+        **IMPLEMENTATION PRINCIPLES:**
+        1. **Follow Proven Patterns**: Implement using validated approaches from historical analysis
+        2. **Document Decisions**: Record why you chose specific approaches over alternatives
+        3. **Track Deviations**: Note when you deviate from historical patterns and why
+        4. **Capture New Insights**: Document lessons learned for future semantic searches
+        
+        **KNOWLEDGE CONTRIBUTION:**
+        - Your current work automatically becomes part of the semantic search corpus
+        - Future agents will find your solutions when working on similar problems
+        - Document key decisions and rationale in current_item updates
+        - Use clear, searchable descriptions of what you're implementing
+        
+        **EXAMPLE SEMANTIC-FRIENDLY DOCUMENTATION:**
+        Instead of: "Fixed the bug"
+        Use: "Resolved PostgreSQL connection timeout by implementing connection pooling with retry logic"
+        
+        Instead of: "Added new feature"
+        Use: "Implemented OAuth2 authentication with Google provider using JWT tokens for session management"
+      
+      acceptance_criteria:
+        historical_pattern_usage: "Implementation follows at least 2 proven patterns identified in semantic analysis"
+        decision_documentation: "Key implementation decisions documented with rationale for future reference"
+        searchable_descriptions: "Work descriptions use clear, semantic-search-friendly language"
+        knowledge_contribution: "Implementation adds valuable knowledge to organizational corpus for future discovery"
+      
+      next_allowed_nodes:
+        - validation_planning
+        - completion_review
+
+    # Iterative Refinement with Cross-Reference
+    iterative_refinement:
+      goal: "Refine approach based on additional semantic insights"
+      instructions: |
+        🔄 **ITERATIVE REFINEMENT WITH SEMANTIC INSIGHTS**
+        
+        Use semantic search iteratively to refine your approach as understanding deepens.
+        
+        **REFINEMENT PROCESS:**
+        1. **Deeper Queries**: Search with more specific terms as you learn domain details
+        2. **Cross-Domain Search**: Look for solutions in adjacent domains for innovative approaches
+        3. **Error Pattern Analysis**: If encountering issues, search for similar problems and solutions
+        4. **Success Validation**: Find multiple examples of similar successful approaches
+        
+        **EXAMPLE ITERATIVE QUERIES:**
+        - Initial: "user authentication system"
+        - Refined: "JWT token refresh mechanism secure storage"
+        - Cross-domain: "session management mobile applications"
+        - Problem-specific: "JWT token expiry handling graceful degradation"
+      
+      acceptance_criteria:
+        iterative_search: "Performed at least 2 additional semantic searches with refined queries"
+        cross_domain_insights: "Explored solutions from related but different domains"
+        approach_validation: "Validated chosen approach against multiple similar successful examples"
+      
+      next_allowed_nodes:
+        - enhanced_planning
+        - implementation_strategy
+
+    # Validation with Historical Benchmarking
+    validation_planning:
+      goal: "Validate implementation against historical benchmarks and patterns"
+      instructions: |
+        ✅ **VALIDATION WITH HISTORICAL BENCHMARKING**
+        
+        Compare your implementation results with similar past work for validation.
+        
+        **VALIDATION APPROACH:**
+        1. **Pattern Compliance**: Verify implementation follows successful historical patterns
+        2. **Performance Benchmarking**: Compare results with similar past projects
+        3. **Risk Coverage**: Confirm identified historical risks were properly addressed
+        4. **Innovation Assessment**: Evaluate new approaches for future knowledge base
+        
+        **SEMANTIC VALIDATION QUERIES:**
+        - Search for performance metrics from similar implementations
+        - Find quality criteria used in comparable successful projects
+        - Identify testing approaches from related workflows
+        - Reference deployment strategies from similar contexts
+      
+      acceptance_criteria:
+        pattern_compliance: "Implementation verified to follow successful historical patterns"
+        benchmark_comparison: "Results compared against performance/quality metrics from similar past work"
+        risk_validation: "Confirmed that historical risks were properly addressed in implementation"
+        knowledge_validation: "New approaches validated and documented for future reference"
+      
+      next_allowed_nodes:
+        - completion_review
+
+    # Completion with Knowledge Synthesis  
+    completion_review:
+      goal: "Complete project with comprehensive knowledge synthesis for future discovery"
+      instructions: |
+        🎯 **COMPLETION WITH KNOWLEDGE SYNTHESIS**
+        
+        Finalize the project while ensuring maximum value for future semantic discovery.
+        
+        **COMPLETION ACTIVITIES:**
+        1. **Comprehensive Documentation**: Ensure all work is documented with semantic-search-friendly descriptions
+        2. **Pattern Documentation**: Document new patterns discovered for future reference
+        3. **Lessons Learned**: Record key insights that weren't available in historical data
+        4. **Success Metrics**: Document measurable outcomes for future benchmarking
+        
+        **KNOWLEDGE SYNTHESIS:**
+        Your completed work will now be available for future agents through semantic search:
+        - Clear task descriptions become searchable patterns
+        - Implementation decisions become lessons learned
+        - Success metrics become benchmarks
+        - Challenges overcome become risk mitigation strategies
+        
+        **FINAL SEMANTIC VALIDATION:**
+        Test that your work will be discoverable by performing a semantic search
+        for your own task to see how it appears in results.
+      
+      acceptance_criteria:
+        comprehensive_documentation: "All work comprehensively documented with clear, searchable descriptions"
+        pattern_synthesis: "New patterns and approaches documented for future reference"
+        metrics_recorded: "Success metrics and performance data recorded for future benchmarking"
+        discoverability_test: "Semantic search successfully finds current work as relevant result"
+        knowledge_contribution: "Work contributes valuable, searchable knowledge to organizational corpus"
+
+  start_node: "semantic_analysis"
+
+metadata:
+  version: "1.0"
+  author: "Workflow Commander"
+  tags: ["analysis", "semantic-search", "knowledge-management", "enhanced-workflow"]
+  use_cases:
+    - "Complex analysis requiring historical context"
+    - "Projects in domains with substantial past work"
+    - "Knowledge-driven development workflows"
+    - "Continuous learning and improvement processes"
+  
+  integration_notes: |
+    This workflow demonstrates advanced integration with the semantic search cache system.
+    It shows how agents can:
+    
+    1. **Enrich Analysis**: Use past work to inform current analysis
+    2. **Reduce Risk**: Learn from historical failures and successes  
+    3. **Accelerate Development**: Leverage proven patterns and approaches
+    4. **Contribute Knowledge**: Document work for future semantic discovery
+    5. **Enable Continuous Learning**: Build organizational knowledge over time
+    
+    **Cache Mode Required**: This workflow requires cache mode to be enabled:
+    ```bash
+    --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
+    ``` 

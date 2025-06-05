@@ -1045,6 +1045,113 @@ def _generate_node_completion_outputs(
 # =============================================================================
 
 
+# =============================================================================
+# CACHE MANAGEMENT FUNCTIONS  
+# =============================================================================
+
+
+def _handle_cache_restore_operation(client_id: str) -> str:
+    """Handle cache restore operation."""
+    try:
+        from ..utils.session_manager import restore_sessions_from_cache
+        
+        restored_count = restore_sessions_from_cache(client_id)
+        if restored_count > 0:
+            return f"✅ Successfully restored {restored_count} workflow session(s) from cache for client '{client_id}'"
+        else:
+            return f"📭 No workflow sessions found in cache for client '{client_id}'"
+            
+    except Exception as e:
+        return f"❌ Error restoring sessions from cache: {str(e)}"
+
+
+def _generate_similarity_distribution(results: list) -> str:
+    """Generate similarity distribution summary."""
+    if not results:
+        return "No results to analyze"
+    
+    high_sim = len([r for r in results if r.similarity_score >= 0.7])
+    med_sim = len([r for r in results if 0.4 <= r.similarity_score < 0.7])
+    low_sim = len([r for r in results if r.similarity_score < 0.4])
+    
+    return f"• High similarity (≥70%): {high_sim} results\n• Medium similarity (40-69%): {med_sim} results\n• Lower similarity (<40%): {low_sim} results"
+
+
+def _generate_status_overview(results: list) -> str:
+    """Generate status overview of found workflows."""
+    if not results:
+        return "No results to analyze"
+    
+    status_counts = {}
+    for result in results:
+        status = result.metadata.status
+        status_counts[status] = status_counts.get(status, 0) + 1
+    
+    status_lines = []
+    for status, count in sorted(status_counts.items()):
+        emoji = {
+            "ACTIVE": "🔄", "COMPLETED": "✅", "FINISHED": "✅", 
+            "SUCCESS": "✅", "ERROR": "❌", "PAUSED": "⏸️", "CANCELLED": "🚫"
+        }.get(status, "📋")
+        status_lines.append(f"• {status} {emoji}: {count} workflow(s)")
+    
+    return "\n".join(status_lines)
+
+
+def _generate_temporal_insights(results: list) -> str:
+    """Generate temporal pattern insights."""
+    if not results:
+        return "No results to analyze"
+    
+    from datetime import datetime, timedelta
+    
+    now = datetime.now()
+    recent = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)])
+    this_month = len([r for r in results if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)])
+    
+    oldest = min(results, key=lambda x: x.metadata.last_updated)
+    newest = max(results, key=lambda x: x.metadata.last_updated)
+    
+    return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
+
+
+def _handle_cache_list_operation(client_id: str) -> str:
+    """Handle cache list operation."""
+    try:
+        from ..utils.session_manager import list_cached_sessions
+        
+        sessions = list_cached_sessions(client_id)
+        if not sessions:
+            return f"📭 No cached sessions found for client '{client_id}'"
+            
+        result = f"📋 **Cached Sessions for client '{client_id}':**\n\n"
+        for session in sessions:
+            if "total_cached_sessions" in session:
+                # This is cache stats
+                result += "**Cache Statistics:**\n"
+                result += f"- Total cached sessions: {session.get('total_cached_sessions', 0)}\n"
+                result += f"- Active sessions: {session.get('active_sessions', 0)}\n"
+                result += f"- Completed sessions: {session.get('completed_sessions', 0)}\n"
+                if session.get('oldest_entry'):
+                    result += f"- Oldest entry: {session['oldest_entry']}\n"
+                if session.get('newest_entry'):
+                    result += f"- Newest entry: {session['newest_entry']}\n"
+            else:
+                # Individual session info
+                result += f"**Session: {session['session_id'][:8]}...**\n"
+                result += f"- Workflow: {session.get('workflow_name', 'Unknown')}\n"
+                result += f"- Status: {session.get('status', 'Unknown')}\n"
+                result += f"- Current Node: {session.get('current_node', 'Unknown')}\n"
+                result += f"- Task: {session.get('task_description', 'No description')}\n"
+                result += f"- Created: {session.get('created_at', 'Unknown')}\n"
+                result += f"- Updated: {session.get('last_updated', 'Unknown')}\n\n"
+                
+        return result
+        
+    except Exception as e:
+        return f"❌ Error listing cached sessions: {str(e)}"
+
+
 def register_phase_prompts(app: FastMCP, config=None):
     """Register purely schema-driven workflow prompts.
 
@@ -1553,3 +1660,233 @@ Cannot update state - no YAML workflow session is currently active.
             return add_session_id_to_response(
                 f"❌ **Error in workflow_state:** {str(e)}", target_session_id
             )
+
+    @app.tool()
+    def workflow_cache_management(
+        operation: str = Field(
+            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics)"
+        ),
+        client_id: str = Field(
+            default="default",
+            description="Client ID for cache operations. Defaults to 'default' if not specified."
+        ),
+        ctx: Context = None,
+    ) -> str:
+        """Manage workflow session cache for persistence across MCP restarts."""
+        try:
+            # Resolve client ID from context if available
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
+                        client_id = ctx.client_id
+                except AttributeError:
+                    pass  # Use default client_id
+            
+            if operation == "restore":
+                return _handle_cache_restore_operation(client_id)
+            elif operation == "list":
+                return _handle_cache_list_operation(client_id)
+            elif operation == "stats":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+                    
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+                    
+                    stats = cache_manager.get_cache_stats()
+                    if not stats:
+                        return "❌ Unable to retrieve cache statistics"
+                    
+                    return f"""📊 **Cache Statistics:**
+
+**Cache State:**
+- Collection: {stats.collection_name}
+- Total entries: {stats.total_entries}
+- Active sessions: {stats.active_sessions} 
+- Completed sessions: {stats.completed_sessions}
+- Cache size: {stats.cache_size_mb:.2f} MB
+
+**Entry Timeline:**
+- Oldest entry: {stats.oldest_entry.isoformat() if stats.oldest_entry else "None"}
+- Newest entry: {stats.newest_entry.isoformat() if stats.newest_entry else "None"}
+
+**Cache Availability:** ✅ ChromaDB cache is active and available"""
+                    
+                except Exception as e:
+                    return f"❌ Error getting cache statistics: {str(e)}"
+            else:
+                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats'"
+                
+        except Exception as e:
+            return f"❌ **Error in workflow_cache_management:** {str(e)}"
+
+    @app.tool()
+    def workflow_semantic_analysis(
+        query: str = Field(
+            description="Description of current task, problem, or context to find related past work"
+        ),
+        analysis_type: str = Field(
+            default="similar_tasks",
+            description="Type of analysis: 'similar_tasks' (find similar past work), 'related_context' (find related contexts), 'lessons_learned' (find completed similar workflows)"
+        ),
+        client_id: str = Field(
+            default="default",
+            description="Client ID to search within. Defaults to 'default' if not specified."
+        ),
+        max_results: int = Field(
+            default=5,
+            description="Maximum number of results to return (1-20)"
+        ),
+        min_similarity: float = Field(
+            default=0.3,
+            description="Minimum similarity threshold (0.0-1.0, higher means more similar)"
+        ),
+        ctx: Context = None,
+    ) -> str:
+        """Perform semantic analysis to find relevant past workflow contexts, similar tasks, and lessons learned.
+        
+        This tool enhances analysis phases by providing historical context from similar past work.
+        """
+        try:
+            # Resolve client ID from context if available
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
+                        client_id = ctx.client_id
+                except AttributeError:
+                    pass
+            
+            # Validate parameters
+            max_results = max(1, min(20, max_results))
+            min_similarity = max(0.0, min(1.0, min_similarity))
+            
+            from ..utils.session_manager import get_cache_manager
+            
+            cache_manager = get_cache_manager()
+            if not cache_manager or not cache_manager.is_available():
+                return """❌ **Semantic Analysis Unavailable**
+
+Cache mode is not enabled or not available. To enable semantic analysis:
+
+1. Start the MCP server with cache mode enabled:
+   ```bash
+   --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
+   ```
+
+2. Semantic analysis helps find:
+   - Similar past tasks and solutions
+   - Related workflow contexts  
+   - Lessons learned from completed work
+   - Relevant historical patterns"""
+            
+            # Perform semantic search
+            results = cache_manager.semantic_search(
+                search_text=query,
+                client_id=client_id,
+                min_similarity=min_similarity,
+                max_results=max_results
+            )
+            
+            if not results:
+                return f"""📭 **No Similar Past Work Found**
+
+**Query:** {query}
+**Analysis Type:** {analysis_type}
+**Search Criteria:** Similarity ≥ {min_similarity:.1%}
+
+**Insights:**
+- This appears to be a novel task or context
+- No similar historical patterns found in cache
+- Consider this as new ground to explore
+- Results will be cached for future reference
+
+**Recommendation:** Proceed with fresh analysis while documenting key decisions for future similar work."""
+            
+            # Format results based on analysis type
+            if analysis_type == "similar_tasks":
+                result_header = "🔍 **Similar Past Tasks Found**"
+                insight_focus = "Tasks with similar objectives or approaches"
+            elif analysis_type == "related_context":
+                result_header = "🌐 **Related Workflow Contexts**"
+                insight_focus = "Workflows with related domains or technologies"
+            elif analysis_type == "lessons_learned":
+                # Filter for completed workflows
+                completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
+                if completed_results:
+                    results = completed_results
+                    result_header = "📚 **Lessons from Completed Similar Work**"
+                    insight_focus = "Completed workflows with relevant lessons"
+                else:
+                    result_header = "⚠️ **Similar Work Found (No Completed Examples)**"
+                    insight_focus = "Related work still in progress"
+            else:
+                result_header = "🔍 **Semantic Analysis Results**"
+                insight_focus = "Related past workflow activity"
+                
+            # Build detailed response
+            result = f"""{result_header}
+
+**Current Query:** {query}
+**Analysis Focus:** {insight_focus}
+**Found:** {len(results)} relevant result(s)
+
+---
+
+"""
+            
+            for i, search_result in enumerate(results, 1):
+                metadata = search_result.metadata
+                similarity_percentage = search_result.similarity_score * 100
+                
+                # Determine status emoji
+                status_emoji = {
+                    "ACTIVE": "🔄",
+                    "COMPLETED": "✅", 
+                    "FINISHED": "✅",
+                    "SUCCESS": "✅",
+                    "ERROR": "❌",
+                    "PAUSED": "⏸️",
+                    "CANCELLED": "🚫"
+                }.get(metadata.status, "📋")
+                
+                result += f"""**{i}. {metadata.workflow_name}** {status_emoji}
+   - **Similarity:** {similarity_percentage:.1f}%
+   - **Task:** {metadata.current_item or "No description available"}
+   - **Status:** {metadata.status}
+   - **Session:** {metadata.session_id}
+   - **Node:** {metadata.current_node}
+   - **Last Updated:** {metadata.last_updated.strftime("%Y-%m-%d %H:%M")}
+
+"""
+            
+            # Add analysis insights
+            result += f"""---
+
+**📊 Analysis Insights:**
+
+**Similarity Distribution:**
+{_generate_similarity_distribution(results)}
+
+**Status Overview:**
+{_generate_status_overview(results)}
+
+**Temporal Patterns:**
+{_generate_temporal_insights(results)}
+
+**💡 Recommendations for Current Analysis:**
+
+1. **Review Similar Approaches:** Examine tasks with >70% similarity for proven patterns
+2. **Learn from Completed Work:** Study finished workflows for implementation insights  
+3. **Avoid Known Issues:** Check error states and cancelled workflows for pitfalls
+4. **Build on Past Context:** Leverage domain knowledge from related workflows
+
+**🔗 Next Steps:**
+- Use `workflow_cache_management(operation="list")` to explore specific sessions
+- Reference successful patterns when planning current workflow
+- Document new approaches for future semantic discovery"""
+            
+            return result
+            
+        except Exception as e:
+            return f"❌ **Error in workflow_semantic_analysis:** {str(e)}"
