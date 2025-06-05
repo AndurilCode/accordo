@@ -217,11 +217,13 @@ class WorkflowCacheManager:
     def _generate_embedding_text(self, state: DynamicWorkflowState) -> str:
         """Generate text for embedding from workflow state.
         
+        Enhanced to include rich semantic content from node outputs for better similarity matching.
+        
         Args:
             state: Workflow state to generate text from
             
         Returns:
-            str: Text suitable for embedding generation
+            str: Text suitable for embedding generation with rich semantic content
         """
         # Combine key state information for semantic search
         text_parts = [
@@ -234,9 +236,9 @@ class WorkflowCacheManager:
         if state.current_item:
             text_parts.append(f"Current task: {state.current_item}")
             
-        # Add recent log entries (last 3)
+        # Add recent log entries (last 5 for more context)
         if state.log:
-            recent_logs = state.log[-3:]
+            recent_logs = state.log[-5:]
             text_parts.append(f"Recent activity: {' '.join(recent_logs)}")
             
         # Add execution context if available
@@ -244,19 +246,47 @@ class WorkflowCacheManager:
             context_summary = ', '.join(f"{k}: {v}" for k, v in state.execution_context.items())
             text_parts.append(f"Context: {context_summary}")
             
-        # Add node outputs (completed work and acceptance criteria evidence)
+        # Enhanced node outputs processing for semantic richness
         if state.node_outputs:
-            outputs_summary = []
+            semantic_content = []
+            detailed_work = []
+            
             for node_name, outputs in state.node_outputs.items():
-                node_parts = [f"Node {node_name}"]
+                # Extract completed criteria details for semantic search
+                if "completed_criteria" in outputs and isinstance(outputs["completed_criteria"], dict):
+                    criteria_content = []
+                    for criterion_name, criterion_evidence in outputs["completed_criteria"].items():
+                        # Include both criterion name and detailed evidence
+                        criteria_content.append(f"{criterion_name}: {criterion_evidence}")
+                    
+                    if criteria_content:
+                        semantic_content.append(f"Node {node_name} completed work: {' | '.join(criteria_content)}")
+                
+                # Include other output types that provide semantic value
                 for key, value in outputs.items():
-                    # Include full values without truncation
-                    if isinstance(value, dict):
-                        # For criteria evidence, include all keys and full values
-                        value = ', '.join(f"{k}: {v}" for k, v in value.items())
-                    node_parts.append(f"{key}: {value}")
-                outputs_summary.append(' - '.join(node_parts))
-            text_parts.append(f"Completed outputs: {' | '.join(outputs_summary)}")
+                    if key != "completed_criteria" and isinstance(value, str) and len(value) > 10:
+                        # Include substantial text content that adds semantic value
+                        detailed_work.append(f"{node_name} {key}: {value}")
+            
+            # Add semantic content (high priority for embeddings)
+            if semantic_content:
+                text_parts.extend(semantic_content)
+            
+            # Add other detailed work content
+            if detailed_work:
+                text_parts.append(f"Additional work details: {' | '.join(detailed_work[:3])}")  # Limit to prevent bloat
+            
+            # Fallback to original format if no rich content available
+            if not semantic_content and not detailed_work:
+                outputs_summary = []
+                for node_name, outputs in state.node_outputs.items():
+                    node_parts = [f"Node {node_name}"]
+                    for key, value in outputs.items():
+                        if isinstance(value, dict):
+                            value = ', '.join(f"{k}: {v}" for k, v in value.items())
+                        node_parts.append(f"{key}: {value}")
+                    outputs_summary.append(' - '.join(node_parts))
+                text_parts.append(f"Completed outputs: {' | '.join(outputs_summary)}")
             
         return " | ".join(text_parts)
 
@@ -713,6 +743,89 @@ class WorkflowCacheManager:
                 
         except Exception as e:
             print(f"Warning: Failed to cleanup old entries: {e}")
+            return 0
+
+    def regenerate_embeddings_for_enhanced_search(self) -> int:
+        """Regenerate embeddings for existing cache entries using enhanced text generation.
+        
+        This method should be called after updating the _generate_embedding_text method
+        to ensure existing cached states benefit from improved semantic content.
+        
+        Returns:
+            Number of embeddings regenerated
+        """
+        if not self._ensure_initialized():
+            return 0
+            
+        try:
+            with self._lock:
+                # Get all existing entries
+                results = self._collection.get(include=["metadatas", "documents"])
+                
+                if not results["ids"]:
+                    return 0
+                
+                model = self._get_embedding_model()
+                if model is None:
+                    print("Warning: Cannot regenerate embeddings - model not available")
+                    return 0
+                
+                regenerated_count = 0
+                
+                for i, session_id in enumerate(results["ids"]):
+                    try:
+                        # Reconstruct state from metadata to generate enhanced embedding text
+                        metadata_dict = dict(results["metadatas"][i])
+                        
+                        # Convert ISO datetime strings back to datetime objects
+                        for key, value in metadata_dict.items():
+                            if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                                with contextlib.suppress(ValueError, TypeError):
+                                    metadata_dict[key] = datetime.fromisoformat(value)
+                        
+                        metadata = CacheMetadata(**metadata_dict)
+                        
+                        # Create a minimal workflow state for embedding generation
+                        state = DynamicWorkflowState(
+                            session_id=metadata.session_id,
+                            client_id=metadata.client_id,
+                            workflow_name=metadata.workflow_name,
+                            workflow_file=metadata.workflow_file,
+                            current_node=metadata.current_node,
+                            current_item=metadata.current_item,
+                            status=metadata.status,
+                            node_outputs=metadata.node_outputs,
+                            created_at=metadata.created_at,
+                            last_updated=metadata.last_updated,
+                        )
+                        
+                        # Generate enhanced embedding text
+                        enhanced_text = self._generate_embedding_text(state)
+                        
+                        # Only update if the text has changed significantly
+                        original_text = results["documents"][i]
+                        if enhanced_text != original_text:
+                            # Generate new embedding
+                            embedding = model.encode([enhanced_text])[0].tolist()
+                            
+                            # Update the entry with new embedding and text
+                            self._collection.upsert(
+                                ids=[session_id],
+                                embeddings=[embedding],
+                                documents=[enhanced_text],
+                                metadatas=[metadata_dict]
+                            )
+                            
+                            regenerated_count += 1
+                            
+                    except Exception as e:
+                        print(f"Warning: Failed to regenerate embedding for {session_id}: {e}")
+                        continue
+                
+                return regenerated_count
+                
+        except Exception as e:
+            print(f"Warning: Failed to regenerate embeddings: {e}")
             return 0
 
     def cleanup(self) -> None:
