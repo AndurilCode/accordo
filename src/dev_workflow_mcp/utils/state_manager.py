@@ -83,16 +83,12 @@ Content to write:
 class StateManager:
     """Manages workflow state with session-based backend."""
 
-    def __init__(
-        self, state_file: str = "workflow_state.md", client_id: str = "default"
-    ):
+    def __init__(self, client_id: str = "default"):
         """Initialize state manager with client ID.
 
         Args:
-            state_file: Deprecated parameter kept for backward compatibility, ignored.
             client_id: Client ID for session management.
         """
-        # state_file parameter is kept for backward compatibility but ignored
         self.client_id = client_id
 
     def create_initial_state(self, task_description: str) -> None:
@@ -125,16 +121,3 @@ class StateManager:
     def set_client_id(self, client_id: str) -> None:
         """Set the client ID for this state manager."""
         self.client_id = client_id
-
-
-# Legacy compatibility function - maintained for existing code
-def create_state_manager(
-    state_file: str = "workflow_state.md", client_id: str = "default"
-) -> StateManager:
-    """Create a state manager instance with session backend.
-
-    Args:
-        state_file: Deprecated parameter kept for backward compatibility, ignored.
-        client_id: Client ID for session management.
-    """
-    return StateManager(state_file, client_id)
