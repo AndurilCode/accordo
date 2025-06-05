@@ -156,7 +156,7 @@ class WorkflowCacheManager:
                     embedding = embedding / np.linalg.norm(embedding)
                     embeddings.append(embedding)
                     
-                return np.array(embeddings) if len(embeddings) > 1 else embeddings[0]
+                return np.array(embeddings)
                 
         return MockEmbeddingModel()
 
@@ -338,11 +338,14 @@ class WorkflowCacheManager:
                     
                 embedding = model.encode([embedding_text])[0].tolist()
                 
-                # Serialize metadata for ChromaDB (convert datetime to string)
+                # Serialize metadata for ChromaDB (convert datetime to string and serialize complex objects)
                 metadata_dict = metadata.model_dump()
                 for key, value in metadata_dict.items():
                     if isinstance(value, datetime):
                         metadata_dict[key] = value.isoformat()
+                    elif isinstance(value, dict):
+                        # Serialize complex dictionaries like node_outputs to JSON string
+                        metadata_dict[key] = json.dumps(value) if value else "{}"
                 
                 # Store in ChromaDB
                 self._collection.upsert(
@@ -391,11 +394,15 @@ class WorkflowCacheManager:
                 # Get metadata and deserialize datetime strings
                 metadata_dict = results["metadatas"][0]
                 
-                # Convert ISO datetime strings back to datetime objects
+                # Convert ISO datetime strings back to datetime objects and deserialize JSON
                 for key, value in metadata_dict.items():
                     if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                         with contextlib.suppress(ValueError, TypeError):
                             metadata_dict[key] = datetime.fromisoformat(value)
+                    elif isinstance(value, str) and key == 'node_outputs':
+                        # Deserialize node_outputs JSON string back to dict
+                        with contextlib.suppress(ValueError, TypeError):
+                            metadata_dict[key] = json.loads(value) if value else {}
                 
                 metadata = CacheMetadata(**metadata_dict)
                 
@@ -479,7 +486,7 @@ class WorkflowCacheManager:
                         collection_name=self.collection_name
                     )
                 
-                # Convert ISO datetime strings back to datetime objects for each metadata
+                # Convert ISO datetime strings back to datetime objects and deserialize JSON for each metadata
                 metadatas = []
                 for m in results["metadatas"]:
                     metadata_dict = dict(m)
@@ -487,6 +494,10 @@ class WorkflowCacheManager:
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                             with contextlib.suppress(ValueError, TypeError):
                                 metadata_dict[key] = datetime.fromisoformat(value)
+                        elif isinstance(value, str) and key == 'node_outputs':
+                            # Deserialize node_outputs JSON string back to dict
+                            with contextlib.suppress(ValueError, TypeError):
+                                metadata_dict[key] = json.loads(value) if value else {}
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
                 # Calculate statistics
@@ -605,12 +616,16 @@ class WorkflowCacheManager:
                         if similarity_score < min_similarity:
                             continue
                             
-                        # Create metadata object (deserialize datetime strings)
+                        # Create metadata object (deserialize datetime strings and JSON)
                         metadata_dict = dict(search_results["metadatas"][0][i])
                         for key, value in metadata_dict.items():
                             if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                                 with contextlib.suppress(ValueError, TypeError):
                                     metadata_dict[key] = datetime.fromisoformat(value)
+                            elif isinstance(value, str) and key == 'node_outputs':
+                                # Deserialize node_outputs JSON string back to dict
+                                with contextlib.suppress(ValueError, TypeError):
+                                    metadata_dict[key] = json.loads(value) if value else {}
                         metadata = CacheMetadata(**metadata_dict)
                         
                         # Get matching text
@@ -686,7 +701,7 @@ class WorkflowCacheManager:
                 if not results["metadatas"]:
                     return []
                     
-                # Convert to metadata objects (deserialize datetime strings) and sort by last_updated
+                # Convert to metadata objects (deserialize datetime strings and JSON) and sort by last_updated
                 metadatas = []
                 for m in results["metadatas"]:
                     metadata_dict = dict(m)
@@ -694,6 +709,10 @@ class WorkflowCacheManager:
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
                             with contextlib.suppress(ValueError, TypeError):
                                 metadata_dict[key] = datetime.fromisoformat(value)
+                        elif isinstance(value, str) and key == 'node_outputs':
+                            # Deserialize node_outputs JSON string back to dict
+                            with contextlib.suppress(ValueError, TypeError):
+                                metadata_dict[key] = json.loads(value) if value else {}
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
                 metadatas.sort(key=lambda x: x.last_updated, reverse=True)

@@ -1688,6 +1688,11 @@ Cannot update state - no YAML workflow session is currently active.
                             add_log_to_session(
                                 update_session_id, update_data["log_entry"]
                             )
+                        
+                        # Force immediate cache sync after state updates
+                        from ..utils.session_manager import sync_session
+                        sync_result = sync_session(update_session_id)
+                        print(f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}")
 
                     return add_session_id_to_response(
                         "✅ **State updated successfully.**", update_session_id

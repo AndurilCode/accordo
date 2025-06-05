@@ -252,7 +252,14 @@ def get_cache_manager():
         # Check if cache manager is uninitialized due to module reimport
         # but we can detect cache mode should be enabled from environment
         if _cache_manager is None and _should_initialize_cache_from_environment():
-            _reinitialize_cache_from_environment()
+            print("Debug: Attempting cache manager reinitialization from environment")
+            success = _reinitialize_cache_from_environment()
+            print(f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}")
+        
+        if _cache_manager is None:
+            print("Debug: Cache manager unavailable - skipping cache operations")
+        else:
+            print(f"Debug: Cache manager available - is_available: {_cache_manager.is_available()}")
         
         return _cache_manager
 
@@ -443,6 +450,8 @@ def _sync_session_to_cache(session_id: str, session: DynamicWorkflowState | None
     """
     cache_manager = get_cache_manager()
     if not cache_manager or not cache_manager.is_available():
+        # DEBUG: Log cache availability for troubleshooting
+        print(f"Debug: Cache sync skipped for session {session_id[:8]} - cache_manager: {cache_manager is not None}, available: {cache_manager.is_available() if cache_manager else False}")
         return True  # Skip if cache disabled or unavailable
         
     try:
@@ -450,10 +459,12 @@ def _sync_session_to_cache(session_id: str, session: DynamicWorkflowState | None
         if session is None:
             session = get_session(session_id)
         if not session:
+            print(f"Debug: Cache sync failed for session {session_id[:8]} - session not found")
             return False
             
         # Store in cache
         result = cache_manager.store_workflow_state(session)
+        print(f"Debug: Cache sync for session {session_id[:8]} - success: {result.success}")
         return result.success
         
     except Exception as e:
@@ -474,11 +485,64 @@ def sync_session(session_id: str) -> bool:
     Returns:
         bool: True if sync succeeded or was skipped, False on error
     """
+    print(f"Debug: Explicit sync requested for session {session_id[:8]}")
     file_sync = _sync_session_to_file(session_id)
     cache_sync = _sync_session_to_cache(session_id)
     
+    print(f"Debug: Explicit sync results - file: {file_sync}, cache: {cache_sync}")
+    
     # Return True if at least one sync method succeeded
     return file_sync or cache_sync
+
+
+def force_cache_sync_session(session_id: str) -> dict[str, any]:
+    """Force cache sync for a specific session with detailed diagnostics.
+    
+    Args:
+        session_id: The session identifier
+        
+    Returns:
+        dict: Detailed sync results and diagnostics
+    """
+    results = {
+        "session_id": session_id,
+        "session_found": False,
+        "cache_manager_available": False,
+        "cache_sync_attempted": False,
+        "cache_sync_success": False,
+        "error": None
+    }
+    
+    try:
+        # Check session existence
+        session = get_session(session_id)
+        results["session_found"] = session is not None
+        
+        if not session:
+            results["error"] = "Session not found in memory"
+            return results
+        
+        # Check cache manager
+        cache_manager = get_cache_manager()
+        results["cache_manager_available"] = cache_manager is not None and (cache_manager.is_available() if cache_manager else False)
+        
+        if not cache_manager or not cache_manager.is_available():
+            results["error"] = "Cache manager not available"
+            return results
+        
+        # Attempt cache sync
+        results["cache_sync_attempted"] = True
+        result = cache_manager.store_workflow_state(session)
+        results["cache_sync_success"] = result.success
+        
+        if not result.success:
+            results["error"] = result.error_message
+            
+        return results
+        
+    except Exception as e:
+        results["error"] = str(e)
+        return results
 
 
 def get_session(session_id: str) -> DynamicWorkflowState | None:
@@ -596,7 +660,16 @@ def update_session(session_id: str, **kwargs) -> bool:
 
         # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
-        _sync_session_to_cache(session_id, session)
+        cache_sync_result = _sync_session_to_cache(session_id, session)
+        
+        # Force cache sync for completed workflows
+        if kwargs.get('status') in ['COMPLETED', 'FINISHED'] and not cache_sync_result:
+            print(f"Debug: Workflow completion detected for {session_id[:8]}, forcing cache sync")
+            # Try cache sync again after brief delay to allow for cache initialization
+            import time
+            time.sleep(0.1)
+            cache_sync_result = _sync_session_to_cache(session_id, session)
+            print(f"Debug: Forced cache sync result: {cache_sync_result}")
 
         return True
 
