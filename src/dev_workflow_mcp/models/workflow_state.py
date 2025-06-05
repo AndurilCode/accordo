@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .yaml_workflow import WorkflowDefinition
 
@@ -21,6 +21,7 @@ class DynamicWorkflowState(BaseModel):
     """Dynamic workflow state that can work with any YAML-defined workflow."""
 
     # Session identification
+    session_id: str = Field(description="Unique session identifier (UUID)")
     client_id: str = Field(default="default", description="Client session identifier")
     created_at: datetime = Field(
         default_factory=datetime.now, description="Session creation time"
@@ -59,7 +60,7 @@ class DynamicWorkflowState(BaseModel):
     plan: str = Field(
         default="",
         description="DEPRECATED: Plan field is unused in YAML workflows. "
-                   "Workflow structure is defined by YAML definition instead."
+        "Workflow structure is defined by YAML definition instead.",
     )
     items: list[WorkflowItem] = Field(default_factory=list)
     log: list[str] = Field(default_factory=list)
@@ -70,26 +71,38 @@ class DynamicWorkflowState(BaseModel):
         default_factory=list, description="History of visited nodes"
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_session_id(cls, data: Any) -> Any:
+        """Ensure session_id is present, auto-generating if needed."""
+        if isinstance(data, dict) and (
+            "session_id" not in data or not data["session_id"]
+        ):
+            # Lazy import to avoid circular dependency
+            from ..utils.session_id_utils import generate_session_id
+            data["session_id"] = generate_session_id()
+        return data
+
     @field_validator("node_outputs")
     @classmethod
     def validate_node_outputs(cls, v):
         """Validate node_outputs structure and provide guidance."""
         if not isinstance(v, dict):
             return {}
-        
+
         # Validate each node's outputs
         validated_outputs = {}
         for node_name, outputs in v.items():
             if not isinstance(outputs, dict):
                 continue
-                
+
             # If outputs exist, ensure they have the expected structure
             if outputs and "completed_criteria" not in outputs:
                 # Could add logging here, but keeping validation pure
                 pass
-                    
+
             validated_outputs[node_name] = outputs
-        
+
         return validated_outputs
 
     def add_log_entry(self, entry: str) -> None:
@@ -158,41 +171,51 @@ class DynamicWorkflowState(BaseModel):
         """Mark the current node as completed with optional outputs.
 
         Args:
-            outputs: Optional outputs from the completed node. Should include 
+            outputs: Optional outputs from the completed node. Should include
                     'completed_criteria' dict with evidence for acceptance criteria
                     and 'goal_achieved' boolean indicating goal completion.
         """
         if not self.current_node:
             # Edge case: No current node to complete
-            self.add_log_entry("⚠️ Warning: Attempted to complete node but no current_node set")
+            self.add_log_entry(
+                "⚠️ Warning: Attempted to complete node but no current_node set"
+            )
             return
-            
+
         if outputs:
             # Validate outputs structure for better debugging
             if not isinstance(outputs, dict):
-                self.add_log_entry(f"⚠️ Warning: Node outputs for {self.current_node} are not a dict, converting")
+                self.add_log_entry(
+                    f"⚠️ Warning: Node outputs for {self.current_node} are not a dict, converting"
+                )
                 outputs = {"raw_output": str(outputs)}
-                
+
             self.node_outputs[self.current_node] = outputs
-            
+
             # Log detailed completion if criteria evidence provided
             criteria_evidence = outputs.get("completed_criteria", {})
             if criteria_evidence:
-                self.add_log_entry(f"✅ Completed node: {self.current_node} with {len(criteria_evidence)} criteria satisfied")
+                self.add_log_entry(
+                    f"✅ Completed node: {self.current_node} with {len(criteria_evidence)} criteria satisfied"
+                )
                 # Debug logging for troubleshooting
                 for criterion in criteria_evidence:
                     self.add_log_entry(f"   📋 Criterion satisfied: {criterion}")
             else:
-                self.add_log_entry(f"✅ Completed node: {self.current_node} (no detailed criteria recorded)")
+                self.add_log_entry(
+                    f"✅ Completed node: {self.current_node} (no detailed criteria recorded)"
+                )
         else:
             # Store empty outputs to track completion - this was the bug!
             # Before the fix, this case would result in empty node_outputs
             self.node_outputs[self.current_node] = {
                 "completion_status": "completed_without_outputs",
-                "completion_timestamp": datetime.now(UTC).isoformat()
+                "completion_timestamp": datetime.now(UTC).isoformat(),
             }
-            self.add_log_entry(f"✅ Completed node: {self.current_node} (no outputs provided, basic tracking added)")
-            
+            self.add_log_entry(
+                f"✅ Completed node: {self.current_node} (no outputs provided, basic tracking added)"
+            )
+
         # Update last_updated timestamp
         self.last_updated = datetime.now(UTC)
 
@@ -209,39 +232,41 @@ class DynamicWorkflowState(BaseModel):
         if not current_node:
             return []
         return current_node.next_allowed_nodes
-    
+
     def has_node_completion_evidence(self, node_name: str) -> bool:
         """Check if a node has proper completion evidence.
-        
+
         Args:
             node_name: Name of the node to check
-            
+
         Returns:
             bool: True if node has completion evidence
         """
         if node_name not in self.node_outputs:
             return False
-            
+
         outputs = self.node_outputs[node_name]
         return isinstance(outputs, dict) and bool(outputs)
-    
+
     def get_node_completion_summary(self, node_name: str) -> str:
         """Get a summary of node completion status.
-        
+
         Args:
             node_name: Name of the node to summarize
-            
+
         Returns:
             str: Human-readable completion summary
         """
         if not self.has_node_completion_evidence(node_name):
             return f"Node '{node_name}' completed without detailed evidence"
-        
+
         outputs = self.node_outputs[node_name]
         criteria_count = len(outputs.get("completed_criteria", {}))
-        
+
         if criteria_count > 0:
-            return f"Node '{node_name}' completed with {criteria_count} criteria satisfied"
+            return (
+                f"Node '{node_name}' completed with {criteria_count} criteria satisfied"
+            )
         else:
             return f"Node '{node_name}' completed with basic outputs recorded"
 

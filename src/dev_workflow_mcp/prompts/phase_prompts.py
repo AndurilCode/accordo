@@ -21,12 +21,17 @@ from ..utils.schema_analyzer import (
     get_workflow_summary,
     validate_transition,
 )
+from ..utils.session_id_utils import (
+    add_session_id_to_response,
+    extract_session_id_from_context,
+)
 from ..utils.session_manager import (
     add_log_to_session,
     create_dynamic_session,
     export_session_to_markdown,
     get_dynamic_session_workflow_def,
     get_or_create_dynamic_session,
+    get_session,
     get_session_type,
     store_workflow_definition_in_cache,
     update_dynamic_session_node,
@@ -35,6 +40,57 @@ from ..utils.session_manager import (
 from ..utils.workflow_engine import WorkflowEngine
 from ..utils.yaml_loader import WorkflowLoader
 from .discovery_prompts import get_cached_workflow
+
+# =============================================================================
+# SESSION RESOLUTION FUNCTIONS
+# =============================================================================
+
+
+def resolve_session_context(
+    session_id: str, context: str, ctx: Context
+) -> tuple[str | None, str]:
+    """Resolve session from session_id or fallback to client-based lookup.
+
+    Args:
+        session_id: Optional session ID parameter
+        context: Context string that may contain session_id
+        ctx: MCP Context object
+
+    Returns:
+        tuple: (resolved_session_id, client_id)
+    """
+    client_id = "default"  # consistent fallback for session continuity
+
+    # Extract client_id from MCP Context with defensive handling
+    if ctx is not None:
+        try:
+            if hasattr(ctx, "client_id") and ctx.client_id:
+                client_id = ctx.client_id
+        except AttributeError:
+            pass  # Context object exists but doesn't have expected attributes
+
+    # Handle direct function calls where Field defaults may be FieldInfo objects
+    if hasattr(session_id, "default"):  # FieldInfo object
+        session_id = session_id.default if session_id.default else ""
+    if hasattr(context, "default"):  # FieldInfo object  
+        context = context.default if context.default else ""
+
+    # Ensure session_id and context are strings
+    session_id = str(session_id) if session_id is not None else ""
+    context = str(context) if context is not None else ""
+
+    # Priority 1: Explicit session_id parameter
+    if session_id and session_id.strip():
+        return session_id.strip(), client_id
+
+    # Priority 2: session_id in context string
+    extracted_session_id = extract_session_id_from_context(context)
+    if extracted_session_id:
+        return extracted_session_id, client_id
+
+    # Priority 3: No explicit session - return None for client-based resolution
+    return None, client_id
+
 
 # =============================================================================
 # VALIDATION FUNCTIONS
@@ -787,11 +843,13 @@ def format_enhanced_node_status(
             options_text += f"   • **{transition['name']}**: {transition['goal']}\n"
 
         options_text += '\n**📋 To Proceed:** Call workflow_guidance with context="choose: <option_name>"\n'
-        options_text += '🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n'
-        
+        options_text += (
+            "🚨 **CRITICAL:** ALWAYS provide criteria evidence when transitioning:\n"
+        )
+
         if len(transitions) == 1:
             # Single option - provide specific example
-            example_node = transitions[0]['name']
+            example_node = transitions[0]["name"]
             options_text += f'**Example:** workflow_guidance(action="next", context=\'{{"choose": "{example_node}", "criteria_evidence": {{"criterion1": "detailed evidence"}}}}\')'
         else:
             # Multiple options - provide generic example
@@ -1012,13 +1070,17 @@ def register_phase_prompts(app: FastMCP, config=None):
         context: str = Field(
             default="",
             description="🚨 MANDATORY CONTEXT FORMAT: When transitioning nodes, ALWAYS use JSON format with criteria evidence. "
-            "PREFERRED: JSON format: '{\"choose\": \"node_name\", \"criteria_evidence\": {\"criterion1\": \"detailed evidence\"}}' - "
+            'PREFERRED: JSON format: \'{"choose": "node_name", "criteria_evidence": {"criterion1": "detailed evidence"}}\' - '
             "LEGACY: String format 'choose: node_name' (DISCOURAGED - provides poor work tracking). "
             "REQUIREMENT: Include specific evidence of actual work completed, not generic confirmations.",
         ),
         options: str = Field(
             default="",
             description="Optional parameters like project_config_path for specific actions",
+        ),
+        session_id: str = Field(
+            default="",
+            description="Optional session ID to target specific workflow session. If not provided, determines session from client context.",
         ),
         ctx: Context = None,
     ) -> str:
@@ -1044,53 +1106,60 @@ def register_phase_prompts(app: FastMCP, config=None):
         - Use JSON format for ALL node transitions to capture real work details
         """
         try:
-            # Extract client_id from MCP Context with defensive handling
-            client_id = "default"  # consistent fallback for session continuity
-
-            # Defensive Context handling to prevent hanging
-            if ctx is not None:
-                try:
-                    if hasattr(ctx, "client_id") and ctx.client_id:
-                        client_id = ctx.client_id
-                    # Note: Do NOT use request_id as fallback since it changes per request
-                    # and would break workflow session continuity
-                except AttributeError:
-                    # Context object exists but doesn't have expected attributes
-                    # This is unusual but could happen with different FastMCP versions
-                    pass
-
-            # If we still have "default", this is expected behavior for:
-            # 1. Missing Context injection
-            # 2. Context without client_id
-            # 3. Empty/None client_id values
-            # All these cases should work fine with session continuity
+            # Resolve session using new session ID approach
+            target_session_id, client_id = resolve_session_context(
+                session_id, context, ctx
+            )
 
             # Initialize workflow engine and loader
             engine = WorkflowEngine()
             loader = WorkflowLoader()
 
-            # Check if we have a dynamic session already
-            session_type = get_session_type(client_id)
+            # Determine session handling approach
+            if target_session_id:
+                # Explicit session ID provided - work with specific session
+                session = get_session(target_session_id)
+                if not session:
+                    return add_session_id_to_response(
+                        f"❌ **Session Not Found:** {target_session_id}\n\nThe specified session does not exist.",
+                        target_session_id,
+                    )
+                session_type = "dynamic" if session else None
+            else:
+                # No explicit session - check for client sessions (backward compatibility)
+                session_type = (
+                    get_session_type(client_id) if client_id != "default" else None
+                )
 
-            if session_type == "dynamic":
+                # For backward compatibility, try to get any existing client session
+                if session_type == "dynamic":
+                    session = get_or_create_dynamic_session(client_id, task_description)
+                    target_session_id = session.session_id if session else None
+                else:
+                    session = None
+
+            if session_type == "dynamic" and session:
                 # Continue with existing dynamic workflow
-                session = get_or_create_dynamic_session(client_id, task_description)
-                workflow_def = get_dynamic_session_workflow_def(client_id)
+                workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
                 if not workflow_def:
                     # No workflow definition available - force discovery
-                    return f"""❌ **Missing Workflow Definition**
+                    return add_session_id_to_response(
+                        f"""❌ **Missing Workflow Definition**
 
 Dynamic session exists but workflow definition is missing.
 
 **⚠️ DISCOVERY REQUIRED:**
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
+                        target_session_id,
+                    )
 
-                return _handle_dynamic_workflow(
+                result = _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
                 )
+                return add_session_id_to_response(result, target_session_id)
 
             else:
                 # session_type is None - NO SESSION EXISTS
@@ -1119,7 +1188,7 @@ Dynamic session exists but workflow definition is missing.
 
                                 # Store workflow definition in cache for later retrieval
                                 store_workflow_definition_in_cache(
-                                    client_id, cached_workflow
+                                    session.session_id, cached_workflow
                                 )
 
                                 # Get current node info
@@ -1130,13 +1199,16 @@ Dynamic session exists but workflow definition is missing.
                                     current_node, cached_workflow
                                 )
 
-                                return f"""🚀 **Workflow Started:** {cached_workflow.name}
+                                return add_session_id_to_response(
+                                    f"""🚀 **Workflow Started:** {cached_workflow.name}
 
 **Task:** {task_description}
 
 **Source:** Server-side discovery cache
 
-{status}"""
+{status}""",
+                                    session.session_id,
+                                )
 
                             except Exception as e:
                                 return _format_yaml_error_guidance(
@@ -1325,40 +1397,46 @@ You called workflow_guidance with action="{action}" but there's no active workfl
             default="",
             description='JSON string with state updates for \'update\' operation. Example: \'{"phase": "CONSTRUCT", "status": "RUNNING"}\'',
         ),
+        session_id: str = Field(
+            default="",
+            description="Optional session ID to target specific workflow session. If not provided, determines session from client context.",
+        ),
         ctx: Context = None,
     ) -> str:
         """Get or update workflow state."""
         try:
-            # Extract client_id from MCP Context with defensive handling
-            client_id = "default"  # consistent fallback for session continuity
-
-            # Defensive Context handling to prevent hanging
-            if ctx is not None:
-                try:
-                    if hasattr(ctx, "client_id") and ctx.client_id:
-                        client_id = ctx.client_id
-                    # Note: Do NOT use request_id as fallback since it changes per request
-                    # and would break workflow session continuity
-                except AttributeError:
-                    # Context object exists but doesn't have expected attributes
-                    # This is unusual but could happen with different FastMCP versions
-                    pass
+            # Resolve session using new session ID approach
+            target_session_id, client_id = resolve_session_context(session_id, "", ctx)
 
             if operation == "get":
-                # Check session type first
-                session_type = get_session_type(client_id)
-
-                if session_type == "dynamic":
-                    session = get_or_create_dynamic_session(client_id, "")
-                    workflow_def = get_dynamic_session_workflow_def(client_id)
-
-                    if workflow_def:
-                        current_node = workflow_def.workflow.tree.get(
-                            session.current_node
+                # Determine which session to work with
+                if target_session_id:
+                    # Explicit session ID provided
+                    session = get_session(target_session_id)
+                    if not session:
+                        return add_session_id_to_response(
+                            f"❌ **Session Not Found:** {target_session_id}",
+                            target_session_id,
                         )
-                        summary = get_workflow_summary(workflow_def)
+                    workflow_def = get_dynamic_session_workflow_def(target_session_id)
+                else:
+                    # Fallback to client-based session (backward compatibility)
+                    session_type = get_session_type(client_id)
+                    if session_type == "dynamic":
+                        session = get_or_create_dynamic_session(client_id, "")
+                        workflow_def = get_dynamic_session_workflow_def(
+                            session.session_id if session else None
+                        )
+                        target_session_id = session.session_id if session else None
+                    else:
+                        session = None
+                        workflow_def = None
 
-                        return f"""📊 **DYNAMIC WORKFLOW STATE**
+                if session and workflow_def:
+                    current_node = workflow_def.workflow.tree.get(session.current_node)
+                    summary = get_workflow_summary(workflow_def)
+
+                    result = f"""📊 **DYNAMIC WORKFLOW STATE**
 
 **Workflow:** {summary["name"]}
 **Current Node:** {session.current_node}
@@ -1376,12 +1454,14 @@ You called workflow_guidance with action="{action}" but there's no active workfl
 
 **Session State:**
 ```markdown
-{export_session_to_markdown(client_id)}
+{export_session_to_markdown(target_session_id)}
 ```"""
-                    else:
-                        return (
-                            "❌ **Error:** Dynamic session has no workflow definition."
-                        )
+                    return add_session_id_to_response(result, target_session_id)
+                elif session:
+                    return add_session_id_to_response(
+                        "❌ **Error:** Dynamic session has no workflow definition.",
+                        target_session_id,
+                    )
 
                 else:
                     # No dynamic session found
@@ -1396,46 +1476,72 @@ No YAML workflow session is currently active.
 
             elif operation == "update":
                 if not updates:
-                    return "❌ **Error:** No updates provided."
+                    return add_session_id_to_response(
+                        "❌ **Error:** No updates provided.", target_session_id
+                    )
 
                 try:
                     update_data = json.loads(updates)
 
-                    # Update based on session type
-                    session_type = get_session_type(client_id)
-
-                    if session_type == "dynamic":
-                        # Update dynamic session
-                        if "node" in update_data:
-                            update_dynamic_session_node(client_id, update_data["node"])
-                        if "status" in update_data:
-                            update_dynamic_session_status(
-                                client_id, update_data["status"]
-                            )
-                        if "log_entry" in update_data:
-                            add_log_to_session(client_id, update_data["log_entry"])
-                    else:
-                        # No dynamic session found
-                        return """❌ **No Active Workflow Session**
+                    # Determine which session to update
+                    update_session_id = target_session_id
+                    if not update_session_id:
+                        # Fallback to client-based session (backward compatibility)
+                        session_type = get_session_type(client_id)
+                        if session_type == "dynamic":
+                            session = get_or_create_dynamic_session(client_id, "")
+                            update_session_id = session.session_id if session else None
+                        else:
+                            return add_session_id_to_response(
+                                """❌ **No Active Workflow Session**
 
 Cannot update state - no YAML workflow session is currently active.
 
 **⚠️ DISCOVERY REQUIRED:**
 
 1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
+                                None,
+                            )
 
-                    return "✅ **State updated successfully.**"
+                    if update_session_id:
+                        # Update dynamic session
+                        if "node" in update_data:
+                            update_dynamic_session_node(
+                                update_session_id, update_data["node"]
+                            )
+                        if "status" in update_data:
+                            update_dynamic_session_status(
+                                update_session_id, update_data["status"]
+                            )
+                        if "log_entry" in update_data:
+                            add_log_to_session(
+                                update_session_id, update_data["log_entry"]
+                            )
+
+                    return add_session_id_to_response(
+                        "✅ **State updated successfully.**", update_session_id
+                    )
 
                 except json.JSONDecodeError:
-                    return "❌ **Error:** Invalid JSON in updates parameter."
+                    return add_session_id_to_response(
+                        "❌ **Error:** Invalid JSON in updates parameter.",
+                        target_session_id,
+                    )
 
             elif operation == "reset":
                 # Reset session (implementation depends on session manager)
-                return "✅ **State reset - ready for new workflow.**"
+                return add_session_id_to_response(
+                    "✅ **State reset - ready for new workflow.**", target_session_id
+                )
 
             else:
-                return f"❌ **Invalid operation:** {operation}. Use 'get', 'update', or 'reset'."
+                return add_session_id_to_response(
+                    f"❌ **Invalid operation:** {operation}. Use 'get', 'update', or 'reset'.",
+                    target_session_id,
+                )
 
         except Exception as e:
-            return f"❌ **Error in workflow_state:** {str(e)}"
+            return add_session_id_to_response(
+                f"❌ **Error in workflow_state:** {str(e)}", target_session_id
+            )
