@@ -120,6 +120,7 @@ workflow:
         style_guide: "Documentation style guide, formatting standards, and consistency requirements"
         validation_criteria: "Clear criteria for content accuracy, completeness, and quality validation"
       next_allowed_nodes: [create_docs]
+      needs_approval: true
 
     # Create documentation content
     create_docs:
