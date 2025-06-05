@@ -1052,66 +1052,35 @@ def clear_workflow_definition_cache(session_id: str) -> None:
 
 def detect_session_conflict(client_id: str) -> dict[str, any] | None:
     """Detect if there are existing sessions for a client.
+    
+    NOTE: This function has been disabled to fix multi-chat environment conflicts.
+    In environments like Cursor with multiple chat windows, client_id-based conflict 
+    detection creates false positives. Each chat should operate independently.
+    
+    DEPRECATED: Client-based conflict detection is disabled.
+    Use session-specific operations with explicit session_id instead.
 
     Args:
-        client_id: The client identifier
+        client_id: The client identifier (preserved for backward compatibility)
 
     Returns:
-        dict: Session conflict information if sessions exist, None if no sessions
-
-    The returned dict contains:
-        - has_conflict: bool - Whether there are existing sessions
-        - session_count: int - Number of existing sessions
-        - sessions: list - List of session summaries
-        - most_recent_session: dict - Details of most recent session
-        - session_type: str - Type of the most recent session
-        - workflow_name: str - Name of the workflow in the most recent session
-        - phase_or_node: str - Current node/phase of the most recent session
-        - status: str - Status of the most recent session
-        - current_item: str - Current item in the most recent session
-        - last_updated: str - Last updated timestamp of the most recent session
+        None: Always returns None - no conflicts detected
+        
+    MIGRATION: Code using this function should transition to:
+    - Direct session_id management for resuming specific sessions
+    - Independent session creation per conversation/chat
+    - Optional: Context-aware session discovery for smart resumption
     """
-    existing_sessions = get_sessions_by_client(client_id)
-
-    if not existing_sessions:
-        return None
-
-    # Get most recent session
-    most_recent = max(existing_sessions, key=lambda s: s.last_updated)
-
-    session_summaries = []
-    for session in existing_sessions:
-        session_summaries.append(
-            {
-                "session_id": session.session_id,
-                "workflow_name": session.workflow_name,
-                "current_node": session.current_node,
-                "status": session.status,
-                "current_item": session.current_item or "No current item",
-                "last_updated": session.last_updated.isoformat(),
-            }
-        )
-
-    return {
-        "has_conflict": True,
-        "session_count": len(existing_sessions),
-        "sessions": session_summaries,
-        "most_recent_session": {
-            "session_id": most_recent.session_id,
-            "workflow_name": most_recent.workflow_name,
-            "current_node": most_recent.current_node,
-            "status": most_recent.status,
-            "current_item": most_recent.current_item or "No current item",
-            "last_updated": most_recent.last_updated.isoformat(),
-        },
-        # Top-level fields expected by discovery_prompts.py
-        "session_type": "dynamic",  # All current sessions are dynamic type
-        "workflow_name": most_recent.workflow_name,
-        "phase_or_node": most_recent.current_node,
-        "status": most_recent.status,
-        "current_item": most_recent.current_item or "No current item",
-        "last_updated": most_recent.last_updated.isoformat(),
-    }
+    # DISABLED: Always return None to prevent false conflicts in multi-chat environments
+    # This fixes the core issue where multiple chat windows in Cursor share the same client_id
+    # but should operate independently without conflict detection.
+    return None
+    
+    # ORIGINAL LOGIC (preserved for reference, now commented out):
+    # existing_sessions = get_sessions_by_client(client_id)
+    # if not existing_sessions:
+    #     return None
+    # [... rest of original logic would be here ...]
 
 
 def get_session_summary(session_id: str) -> str:
