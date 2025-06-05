@@ -63,13 +63,19 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         The MCP server now performs server-side workflow discovery and provides
         the actual workflow content to the agent for selection.
 
+        🎯 **SESSION_ID WORKFLOW**: When starting workflows, they auto-generate unique session_ids 
+        that are returned in all responses. Use these session_ids for multi-session support:
+        - workflow_guidance(session_id='returned-uuid', ...) to target specific sessions
+        - workflow_state(session_id='returned-uuid', ...) to check specific session status
+
         Args:
             task_description: Description of the task to be performed
             workflows_dir: Directory containing workflow YAML files (optional, uses config if available)
             client_id: Client session identifier
 
         Returns:
-            dict: Available workflows with their content or session conflict information
+            dict: Available workflows with their content or session conflict information.
+                  All responses include session_id when workflows are started.
         """
         # First, check for existing session conflicts
         conflict_info = detect_session_conflict(client_id)
@@ -216,6 +222,15 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                         ],
                         "start_command": "workflow_guidance(action='start', context='workflow: <workflow_name>')",
                         "note": "⚠️ Just provide the workflow name - the server will look up the YAML content automatically",
+                        "session_tracking": {
+                            "auto_generation": "🎯 Workflows auto-generate unique session_ids when started",
+                            "usage_pattern": "Save the returned session_id and use it in subsequent calls:",
+                            "examples": [
+                                "workflow_guidance(session_id='returned-uuid', action='next', ...)",
+                                "workflow_state(session_id='returned-uuid', operation='get')",
+                            ],
+                            "multi_session": "🔄 This enables multiple concurrent workflows per client",
+                        },
                     },
                     "fallback": {
                         "option": "If none of these workflows fit, create a custom one",
@@ -260,6 +275,12 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         workflow needs to be created. This tool provides comprehensive guidance on workflow
         structure, format, and best practices.
 
+        🎯 **SESSION_ID INTEGRATION**: When you start the custom workflow with:
+        workflow_guidance(action="start", context="workflow: MyWorkflow\\nyaml: <content>")
+        The response will include a session_id for tracking. Use this session_id in subsequent calls:
+        - workflow_guidance(session_id='abc-123', action='next', ...)
+        - workflow_state(session_id='abc-123', operation='get')
+
         Args:
             task_description: Description of the task requiring a custom workflow
             workflow_type: Type of workflow (coding, documentation, debugging, testing, analysis, etc.)
@@ -267,7 +288,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
             client_id: Client session identifier
 
         Returns:
-            dict: Comprehensive guidance for creating a YAML workflow
+            dict: Comprehensive guidance for creating a YAML workflow that will auto-generate session_ids
         """
         # First, check for existing session conflicts
         conflict_info = detect_session_conflict(client_id)

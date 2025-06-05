@@ -105,7 +105,33 @@ The workflow system operates on these principles:
 2. **ALWAYS start with `workflow_discovery()`** before other workflow tools
 3. **NEVER use legacy approaches** when workflow tools are available
 4. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
-5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)'''
+5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
+
+### 🆔 SESSION ID MANAGEMENT (NEW)
+**All workflows auto-generate unique session IDs for multi-session support:**
+
+#### Session ID Usage Patterns:
+```
+# Start workflow - returns session_id in response
+workflow_discovery(task_description="Your task")
+workflow_guidance(action="start", context="workflow: Selected Workflow")
+
+# Continue with session_id for targeted operations
+workflow_guidance(session_id="abc-123", action="next", context='{"choose": "option"}')
+workflow_state(session_id="abc-123", operation="get")
+```
+
+#### Multi-Session Benefits:
+- **Parallel Workflows**: Run multiple workflows simultaneously
+- **Session Continuity**: Resume specific workflows after interruption  
+- **Session Isolation**: Keep different tasks completely separate
+- **Session Tracking**: Monitor progress of individual workflows
+
+#### Best Practices:
+- **ALWAYS save session_id** from workflow start responses
+- **ALWAYS include session_id** in subsequent workflow calls
+- **Use session_id** when managing multiple concurrent workflows
+- **Fallback handling**: System supports backward compatibility without session_id'''
 
     # Core content without YAML frontmatter for other assistants
     CORE_CONTENT = '''## Task Execution Guidelines
@@ -194,7 +220,33 @@ The workflow system operates on these principles:
 2. **ALWAYS start with `workflow_discovery()`** before other workflow tools
 3. **NEVER use legacy approaches** when workflow tools are available
 4. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
-5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)'''
+5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
+
+### 🆔 SESSION ID MANAGEMENT (NEW)
+**All workflows auto-generate unique session IDs for multi-session support:**
+
+#### Session ID Usage Patterns:
+```
+# Start workflow - returns session_id in response
+workflow_discovery(task_description="Your task")
+workflow_guidance(action="start", context="workflow: Selected Workflow")
+
+# Continue with session_id for targeted operations
+workflow_guidance(session_id="abc-123", action="next", context='{"choose": "option"}')
+workflow_state(session_id="abc-123", operation="get")
+```
+
+#### Multi-Session Benefits:
+- **Parallel Workflows**: Run multiple workflows simultaneously
+- **Session Continuity**: Resume specific workflows after interruption  
+- **Session Isolation**: Keep different tasks completely separate
+- **Session Tracking**: Monitor progress of individual workflows
+
+#### Best Practices:
+- **ALWAYS save session_id** from workflow start responses
+- **ALWAYS include session_id** in subsequent workflow calls
+- **Use session_id** when managing multiple concurrent workflows
+- **Fallback handling**: System supports backward compatibility without session_id'''
 
     def _log_info(self, message: str) -> None:
         """Log info message with colored output."""
