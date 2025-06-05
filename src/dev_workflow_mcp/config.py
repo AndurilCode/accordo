@@ -66,7 +66,20 @@ class ServerConfig:
 
         # Store cache configuration
         self.enable_cache_mode = enable_cache_mode
-        self.cache_db_path = cache_db_path or str(self.workflow_commander_dir / "cache")
+        
+        # Fix: Resolve cache_db_path relative to repository_path for relative paths
+        if cache_db_path:
+            cache_path = Path(cache_db_path)
+            if cache_path.is_absolute():
+                # Absolute path: use as-is
+                self.cache_db_path = str(cache_path)
+            else:
+                # Relative path: resolve relative to repository_path
+                self.cache_db_path = str(self.repository_path / cache_path)
+        else:
+            # Default: use .workflow-commander/cache in repository
+            self.cache_db_path = str(self.workflow_commander_dir / "cache")
+            
         self.cache_collection_name = cache_collection_name
         self.cache_embedding_model = cache_embedding_model
         self.cache_max_results = max(1, cache_max_results)  # Minimum 1 result
