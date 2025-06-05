@@ -72,7 +72,7 @@ def resolve_session_context(
     # Handle direct function calls where Field defaults may be FieldInfo objects
     if hasattr(session_id, "default"):  # FieldInfo object
         session_id = session_id.default if session_id.default else ""
-    if hasattr(context, "default"):  # FieldInfo object  
+    if hasattr(context, "default"):  # FieldInfo object
         context = context.default if context.default else ""
 
     # Ensure session_id and context are strings
@@ -1046,7 +1046,7 @@ def _generate_node_completion_outputs(
 
 
 # =============================================================================
-# CACHE MANAGEMENT FUNCTIONS  
+# CACHE MANAGEMENT FUNCTIONS
 # =============================================================================
 
 
@@ -1054,446 +1054,118 @@ def _handle_cache_restore_operation(client_id: str) -> str:
     """Handle cache restore operation."""
     try:
         from ..utils.session_manager import restore_sessions_from_cache
-        
+
         restored_count = restore_sessions_from_cache(client_id)
         if restored_count > 0:
             return f"✅ Successfully restored {restored_count} workflow session(s) from cache for client '{client_id}'"
         else:
             return f"📭 No workflow sessions found in cache for client '{client_id}'"
-            
+
     except Exception as e:
         return f"❌ Error restoring sessions from cache: {str(e)}"
 
 
-def _extract_content_themes(results: list) -> list[str]:
-    """Extract common themes from matching text content."""
-    if not results:
+def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
+    """Extract actual acceptance criteria from text content."""
+    if not text:
         return []
-    
-    # Extract keywords from multiple sources
-    keyword_counts = {}
-    
-    for result in results:
-        # Combine text from multiple sources for better theme extraction
-        text_sources = []
-        
-        # Primary source: matching_text
-        if hasattr(result, 'matching_text') and result.matching_text:
-            text_sources.append(result.matching_text)
-        
-        # Secondary source: task description from metadata
-        if hasattr(result, 'metadata'):
-            if hasattr(result.metadata, 'current_item') and result.metadata.current_item:
-                text_sources.append(result.metadata.current_item)
-            if hasattr(result.metadata, 'workflow_name') and result.metadata.workflow_name:
-                text_sources.append(result.metadata.workflow_name)
-        
-        # Process all text sources
-        for text in text_sources:
-            if text:
-                # Extract meaningful keywords with improved filtering
-                words = text.lower().replace('-', ' ').replace('_', ' ').split()
-                for word in words:
-                    # More lenient filtering for better theme extraction
-                    if (len(word) > 3 and 
-                        word not in ['workflow', 'analysis', 'implementation', 'requirements', 'system', 'default', 'coding', 'that', 'this', 'with', 'from', 'into', 'node', 'phase'] and
-                        word.isalpha() and
-                        not word.startswith('http')):
-                        keyword_counts[word] = keyword_counts.get(word, 0) + 1
-    
-    # Get top themes with lower threshold for better results
-    sorted_themes = sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)
-    return [theme for theme, count in sorted_themes[:8] if count >= 1]
 
+    criteria = []
 
-def _analyze_workflow_patterns(results: list) -> dict[str, any]:
-    """Analyze workflow progression and node patterns."""
-    if not results:
-        return {}
-    
-    patterns = {
-        'common_nodes': {},
-        'status_transitions': {},
-        'workflow_types': {},
-        'progression_patterns': []
-    }
-    
-    for result in results:
-        metadata = result.metadata
-        
-        # Track common nodes
-        if hasattr(metadata, 'current_node') and metadata.current_node:
-            patterns['common_nodes'][metadata.current_node] = patterns['common_nodes'].get(metadata.current_node, 0) + 1
-        
-        # Track workflow types
-        if hasattr(metadata, 'workflow_name') and metadata.workflow_name:
-            patterns['workflow_types'][metadata.workflow_name] = patterns['workflow_types'].get(metadata.workflow_name, 0) + 1
-        
-        # Track status patterns
-        if hasattr(metadata, 'status') and metadata.status:
-            patterns['status_transitions'][metadata.status] = patterns['status_transitions'].get(metadata.status, 0) + 1
-    
-    return patterns
+    # Split text into sentences for analysis
+    sentences = []
+    for delimiter in [".", "!", "?"]:
+        text = text.replace(delimiter, "|||SPLIT|||")
 
+    potential_sentences = text.split("|||SPLIT|||")
+    for sentence in potential_sentences:
+        clean_sentence = sentence.strip()
+        if len(clean_sentence) > 10:  # Ignore very short fragments
+            sentences.append(clean_sentence)
 
-def _generate_confidence_assessment(results: list) -> str:
-    """Generate confidence level based on similarity scores and content quality."""
-    if not results:
-        return "No data"
-    
-    max_similarity = max(r.similarity_score for r in results)
-    
-    if max_similarity >= 0.8:
-        return f"High (best match {max_similarity:.1%})"
-    elif max_similarity >= 0.6:
-        return f"Medium (best match {max_similarity:.1%})"
-    elif max_similarity >= 0.4:
-        return f"Moderate (best match {max_similarity:.1%})"
-    else:
-        return f"Low (best match {max_similarity:.1%})"
+    # Look for sentences with criteria keywords
+    criteria_keywords = [
+        "must",
+        "should",
+        "shall",
+        "will",
+        "forces",
+        "requires",
+        "ensures",
+        "mandatory",
+        "needed",
+        "necessary",
+        "expected",
+        "demanded",
+    ]
 
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
 
-def _generate_similarity_distribution(results: list) -> str:
-    """Generate enhanced similarity distribution with content insights."""
-    if not results:
-        return "No results to analyze"
-    
-    high_sim = [r for r in results if r.similarity_score >= 0.7]
-    med_sim = [r for r in results if 0.4 <= r.similarity_score < 0.7]
-    low_sim = [r for r in results if r.similarity_score < 0.4]
-    
-    # Build basic distribution
-    distribution = f"• High similarity (≥70%): {len(high_sim)} results\n"
-    distribution += f"• Medium similarity (40-69%): {len(med_sim)} results\n"
-    distribution += f"• Lower similarity (<40%): {len(low_sim)} results"
-    
-    # Add content insights for all results (prioritize high/medium, fallback to all)
-    relevant_results = high_sim + med_sim
-    if not relevant_results and results:
-        # If no high/medium similarity, use all results for insights
-        relevant_results = results
-    
-    if relevant_results:
-        distribution += "\n\n**🔍 Similarity Insights:**\n"
-        
-        # Extract themes from most relevant results
-        themes = _extract_content_themes(relevant_results)
-        if themes:
-            distribution += f"• Key themes: {', '.join(themes[:5])}\n"
-        
-        # Show top matches with context
-        top_matches = sorted(relevant_results, key=lambda x: x.similarity_score, reverse=True)[:2]
-        for match in top_matches:
-            workflow_name = match.metadata.workflow_name if hasattr(match.metadata, 'workflow_name') else "Unknown"
-            similarity = match.similarity_score * 100
-            distribution += f"• Most relevant: \"{workflow_name}\" ({similarity:.1f}%)\n"
-        
-        # Confidence assessment
-        confidence = _generate_confidence_assessment(results)
-        distribution += f"• Confidence level: {confidence}"
-    
-    return distribution
+        # Check if sentence contains criteria keywords
+        if any(keyword in sentence_lower for keyword in criteria_keywords):
+            # Clean up the sentence for display
+            clean_sentence = sentence.strip()
 
+            # Remove common prefixes that aren't part of the actual criteria
+            prefixes_to_remove = [
+                "workflow:",
+                "current node:",
+                "status:",
+                "current task:",
+                "add a new feature:",
+                "i want to",
+            ]
 
-def _generate_status_overview(results: list) -> str:
-    """Generate enhanced status overview with workflow context."""
-    if not results:
-        return "No results to analyze"
-    
-    status_counts = {}
-    status_workflows = {}
-    
-    for result in results:
-        status = result.metadata.status
-        status_counts[status] = status_counts.get(status, 0) + 1
-        
-        if status not in status_workflows:
-            status_workflows[status] = []
-        
-        workflow_info = {
-            'name': getattr(result.metadata, 'workflow_name', 'Unknown'),
-            'node': getattr(result.metadata, 'current_node', 'Unknown'),
-            'similarity': result.similarity_score
-        }
-        status_workflows[status].append(workflow_info)
-    
-    status_lines = []
-    for status, count in sorted(status_counts.items()):
-        emoji = {
-            "ACTIVE": "🔄", "COMPLETED": "✅", "FINISHED": "✅", 
-            "SUCCESS": "✅", "ERROR": "❌", "PAUSED": "⏸️", "CANCELLED": "🚫"
-        }.get(status, "📋")
-        
-        status_lines.append(f"• {status} {emoji}: {count} workflow(s)")
-        
-        # Add workflow details for most relevant results
-        workflows = sorted(status_workflows[status], key=lambda x: x['similarity'], reverse=True)[:2]
-        for workflow in workflows:
-            status_lines.append(f"  - {workflow['name']}: Currently in '{workflow['node']}' phase")
-    
-    # Add status insights
-    overview = "\n".join(status_lines)
-    
-    if results:
-        overview += "\n\n**🎯 Status Insights:**\n"
-        
-        # Completion rate analysis
-        completed_count = status_counts.get('COMPLETED', 0) + status_counts.get('FINISHED', 0) + status_counts.get('SUCCESS', 0)
-        total_count = len(results)
-        completion_rate = (completed_count / total_count) * 100 if total_count > 0 else 0
-        
-        if completion_rate > 0:
-            overview += f"• Completion rate: {completion_rate:.0f}% ({completed_count}/{total_count} workflows completed)\n"
-        else:
-            overview += "• Completion rate: 0% (no completed examples found)\n"
-        
-        # Activity patterns
-        active_count = status_counts.get('ACTIVE', 0) + status_counts.get('READY', 0)
-        if active_count > 0:
-            overview += f"• Available for reference: {active_count} active workflow(s) with similar objectives\n"
-        
-        # Common progression patterns
-        patterns = _analyze_workflow_patterns(results)
-        if patterns.get('common_nodes'):
-            common_nodes = sorted(patterns['common_nodes'].items(), key=lambda x: x[1], reverse=True)[:3]
-            node_list = [f"'{node}'" for node, count in common_nodes]
-            overview += f"• Active patterns: {' → '.join(node_list)} progression typical for this workflow type"
-    
-    return overview
+            for prefix in prefixes_to_remove:
+                if clean_sentence.lower().startswith(prefix):
+                    clean_sentence = clean_sentence[len(prefix) :].strip()
 
+            # Only include substantial criteria (not just fragments)
+            if len(clean_sentence) > 20 and any(
+                keyword in clean_sentence.lower() for keyword in criteria_keywords
+            ):
+                # Limit length for display
+                if len(clean_sentence) > 150:
+                    clean_sentence = clean_sentence[:150] + "..."
 
-def _generate_content_driven_recommendations(results: list, analysis_type: str) -> str:
-    """Generate specific recommendations based on actual workflow content and patterns."""
-    if not results:
-        return "1. **No Similar Context Found:** This appears to be novel work - proceed with fresh analysis while documenting patterns for future reference"
-    
-    recommendations = []
-    patterns = _analyze_workflow_patterns(results)
-    themes = _extract_content_themes(results)
-    
-    # Analysis type specific recommendations (always start with 1)
-    rec_counter = 1
-    
-    if analysis_type == "similar_tasks":
-        # Recommendations based on similar tasks - handle all similarity levels
-        high_sim_results = [r for r in results if r.similarity_score >= 0.7]
-        med_sim_results = [r for r in results if 0.4 <= r.similarity_score < 0.7]
-        low_sim_results = [r for r in results if r.similarity_score < 0.4]
-        
-        if high_sim_results:
-            top_match = max(high_sim_results, key=lambda x: x.similarity_score)
-            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
-            similarity = top_match.similarity_score * 100
-            recommendations.append(f"{rec_counter}. **Follow Proven Patterns** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
-            recommendations.append("   - Apply similar workflow structure and progression patterns")
-            recommendations.append("   - Reference implementation approaches from this high-similarity match")
-            rec_counter += 1
-        elif med_sim_results:
-            top_match = max(med_sim_results, key=lambda x: x.similarity_score)
-            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
-            similarity = top_match.similarity_score * 100
-            recommendations.append(f"{rec_counter}. **Adapt Similar Approaches** (Based on \"{workflow_name}\" at {similarity:.1f}% similarity):")
-            recommendations.append("   - Consider adapting patterns while accounting for context differences")
-            recommendations.append("   - Extract relevant structural elements from similar workflows")
-            rec_counter += 1
-        elif low_sim_results:
-            # Handle low similarity results with useful insights
-            top_match = max(low_sim_results, key=lambda x: x.similarity_score)
-            workflow_name = getattr(top_match.metadata, 'workflow_name', 'Unknown')
-            similarity = top_match.similarity_score * 100
-            recommendations.append(f"{rec_counter}. **Learn from Related Work** (Best match: \"{workflow_name}\" at {similarity:.1f}% similarity):")
-            recommendations.append("   - While similarity is low, extract applicable methodological patterns")
-            recommendations.append("   - Focus on workflow structure and progression approaches")
-            rec_counter += 1
-    
-    elif analysis_type == "lessons_learned":
-        completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
-        if completed_results:
-            recommendations.append(f"{rec_counter}. **Apply Lessons from Completed Work:**")
-            for result in completed_results[:2]:
-                workflow_name = getattr(result.metadata, 'workflow_name', 'Unknown')
-                recommendations.append(f"   - Study successful patterns from \"{workflow_name}\"")
-            rec_counter += 1
-        else:
-            recommendations.append(f"{rec_counter}. **Learn from In-Progress Work:**")
-            recommendations.append("   - No completed examples found, but can reference current approaches")
-            rec_counter += 1
-    
-    elif analysis_type == "related_context":
-        if themes:
-            recommendations.append(f"{rec_counter}. **Leverage Domain Knowledge** (Common themes: {', '.join(themes[:3])}):")
-            recommendations.append("   - Apply cross-domain insights from related workflow contexts")
-            rec_counter += 1
-        else:
-            recommendations.append(f"{rec_counter}. **Build on Related Context:**")
-            recommendations.append("   - Extract methodological approaches from related workflow domains")
-            rec_counter += 1
-    
-    # Pattern-based recommendations (continue numbering)
-    if patterns.get('common_nodes'):
-        common_progression = list(patterns['common_nodes'].keys())[:3]
-        recommendations.append(f"{rec_counter}. **Follow Established Progression** (Common pattern: {' → '.join(common_progression)}):")
-        recommendations.append("   - This progression pattern appears in similar workflows")
-        recommendations.append("   - Adapt the sequence to fit current task requirements")
-        rec_counter += 1
-    
-    # Theme-based recommendations (continue numbering)
-    if themes and len(themes) >= 2:
-        recommendations.append(f"{rec_counter}. **Apply Domain Insights** (Key themes: {', '.join(themes[:3])}):")
-        for theme in themes[:2]:
-            recommendations.append(f"   - Consider {theme}-related approaches and patterns")
-        rec_counter += 1
-    
-    # Risk mitigation recommendations
-    error_results = [r for r in results if r.metadata.status in ["ERROR", "CANCELLED"]]
-    if error_results:
-        recommendations.append(f"{rec_counter}. **Mitigate Known Risks:**")
-        recommendations.append(f"   - {len(error_results)} similar workflow(s) encountered issues - review for potential pitfalls")
-        recommendations.append("   - Plan additional validation steps for identified risk areas")
-        rec_counter += 1
-    
-    # Always provide actionable fallback recommendations
-    if len(recommendations) == 0:
-        recommendations = [
-            "1. **Build on Similar Context:** Use insights from related workflows as foundation",
-            "2. **Document New Patterns:** This work will establish patterns for future similar tasks",
-            "3. **Apply Best Practices:** Follow systematic approach evidenced in historical workflows"
-        ]
-    
-    return "\n".join(recommendations)
+                criteria.append(clean_sentence)
 
+    # Look for explicit criteria sections (if any)
+    text_lower = text.lower()
+    if "acceptance criteria" in text_lower:
+        # Try to extract criteria from structured sections
+        criteria_section_start = text_lower.find("acceptance criteria")
+        if criteria_section_start != -1:
+            criteria_section = text[
+                criteria_section_start : criteria_section_start + 500
+            ]
+            # Extract bullet points or numbered items
+            lines = criteria_section.split("\n")
+            for line in lines[1:]:  # Skip the header line
+                line = line.strip()
+                if (
+                    line.startswith(("-", "•", "*", "1.", "2.", "3."))
+                    and len(line) > 10
+                    and any(keyword in line.lower() for keyword in criteria_keywords)
+                ):
+                    clean_line = line.lstrip("-•*123456789. ").strip()
+                    if len(clean_line) > 150:
+                        clean_line = clean_line[:150] + "..."
+                    criteria.append(clean_line)
 
-def _generate_imposing_next_steps(results: list, analysis_type: str, query: str) -> str:
-    """Generate specific, imposing next steps based on actual content and analysis."""
-    if not results:
-        return "• **START IMMEDIATELY:** Begin fresh implementation with comprehensive documentation\n• **ESTABLISH PATTERNS:** Create new workflow patterns for future reference"
-    
-    steps = []
-    themes = _extract_content_themes(results)
-    patterns = _analyze_workflow_patterns(results)
-    
-    # Extract key action items from the query and results
-    query_lower = query.lower()
-    
-    # Query-specific action steps
-    if 'yaml' in query_lower and 'approval' in query_lower:
-        steps.append("• **IMPLEMENT YAML STRUCTURE:** Add approval mechanism field to node-level YAML definitions")
-        steps.append("• **VALIDATE SCHEMA:** Ensure new approval field integrates with existing workflow validation")
-    elif 'node' in query_lower and 'execution' in query_lower:
-        steps.append("• **ENHANCE NODE EXECUTION:** Implement user confirmation mechanisms before proceeding")
-        steps.append("• **TEST VALIDATION:** Create test cases for new approval workflow interruptions")
-    elif themes:
-        # Generate steps based on identified themes
-        primary_themes = themes[:3]
-        if 'approval' in primary_themes:
-            steps.append("• **BUILD APPROVAL SYSTEM:** Implement user confirmation mechanisms identified in similar work")
-        if 'yaml' in primary_themes:
-            steps.append("• **MODIFY YAML SCHEMA:** Extend configuration structure based on discovered patterns")
-        if 'workflow' in primary_themes:
-            steps.append("• **OPTIMIZE WORKFLOW:** Apply workflow improvements from analyzed similar implementations")
-    
-    # Pattern-based steps
-    if patterns.get('common_nodes'):
-        most_common_node = max(patterns['common_nodes'].items(), key=lambda x: x[1])[0]
-        steps.append(f"• **FOLLOW PROGRESSION:** Start with '{most_common_node}' phase as evidenced in similar workflows")
-    
-    # Analysis type specific steps
-    if analysis_type == "similar_tasks":
-        if results:
-            top_result = max(results, key=lambda x: x.similarity_score)
-            if hasattr(top_result.metadata, 'session_id'):
-                steps.append(f"• **EXAMINE SESSION:** `workflow_cache_management(operation=\"list\")` then study session {top_result.metadata.session_id[:8]}...")
-                steps.append(f"• **EXTRACT PATTERNS:** Analyze {top_result.metadata.workflow_name} implementation approach immediately")
-    
-    elif analysis_type == "lessons_learned":
-        completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
-        if completed_results:
-            steps.append("• **APPLY LESSONS:** Implement proven solutions from completed similar workflows")
-        else:
-            steps.append("• **LEARN FROM PROGRESS:** Extract methodologies from in-progress similar work")
-    
-    # Always include a specific execution step
-    if not steps:
-        steps = [
-            "• **BEGIN ANALYSIS:** Start with comprehensive requirement analysis phase",
-            "• **DOCUMENT APPROACH:** Create detailed implementation plan based on discovered patterns",
-            "• **VALIDATE CONTINUOUSLY:** Implement with regular validation checkpoints"
-        ]
-    
-    # Add imposing completion step
-    steps.append("• **EXECUTE NOW:** Do not wait for additional confirmation - begin implementation immediately")
-    
-    return "\n".join(steps)
-
-
-def _generate_temporal_insights(results: list) -> str:
-    """Generate enhanced temporal pattern insights with development context."""
-    if not results:
-        return "No results to analyze"
-    
-    from datetime import datetime, timedelta
-    
-    # Ensure timezone-naive comparison by normalizing both datetimes
-    now = datetime.now().replace(tzinfo=None)  # noqa: DTZ005
-    
-    def normalize_datetime(dt):
-        """Normalize datetime to timezone-naive for comparison."""
-        if dt is None:
-            return datetime.now().replace(tzinfo=None)  # noqa: DTZ005
-        if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
-            return dt.replace(tzinfo=None)
-        return dt
-    
-    recent = len([r for r in results if (now - normalize_datetime(r.metadata.last_updated)) < timedelta(days=7)])
-    this_month = len([r for r in results if (now - normalize_datetime(r.metadata.last_updated)) < timedelta(days=30)])
-    
-    oldest = min(results, key=lambda x: normalize_datetime(x.metadata.last_updated))
-    newest = max(results, key=lambda x: normalize_datetime(x.metadata.last_updated))
-    
-    # Basic temporal stats
-    temporal_info = f"• Recent activity (last 7 days): {recent} workflows\n"
-    temporal_info += f"• This month: {this_month} workflows\n"
-    temporal_info += f"• Timespan: {normalize_datetime(oldest.metadata.last_updated).strftime('%Y-%m-%d')} to {normalize_datetime(newest.metadata.last_updated).strftime('%Y-%m-%d')}"
-    
-    # Add temporal insights
-    if results:
-        temporal_info += "\n\n**⏱️ Temporal Insights:**\n"
-        
-        # Development velocity analysis
-        if recent == len(results):
-            temporal_info += "• Fresh context: All results from recent development activity\n"
-        elif recent > len(results) * 0.7:
-            temporal_info += f"• Active development: {recent}/{len(results)} workflows show recent activity\n"
-        else:
-            temporal_info += f"• Mixed timeline: {recent} recent, {len(results) - recent} historical workflows\n"
-        
-        # Activity pattern analysis
-        patterns = _analyze_workflow_patterns(results)
-        if patterns.get('workflow_types'):
-            dominant_type = max(patterns['workflow_types'].items(), key=lambda x: x[1])
-            temporal_info += f"• Trending approaches: Active focus on {dominant_type[0].lower()} patterns\n"
-        
-        # Development cycle insights
-        timespan_days = (normalize_datetime(newest.metadata.last_updated) - normalize_datetime(oldest.metadata.last_updated)).days
-        if timespan_days <= 1:
-            temporal_info += "• Development velocity: Current session indicates active development cycle"
-        elif timespan_days <= 7:
-            temporal_info += f"• Development velocity: Week-long development cycle ({timespan_days} days)"
-        else:
-            temporal_info += f"• Development velocity: Extended development timeline ({timespan_days} days)"
-    
-    return temporal_info
+    return criteria[:3]  # Return up to 3 most relevant criteria
 
 
 def _handle_cache_list_operation(client_id: str) -> str:
     """Handle cache list operation."""
     try:
         from ..utils.session_manager import list_cached_sessions
-        
+
         sessions = list_cached_sessions(client_id)
         if not sessions:
             return f"📭 No cached sessions found for client '{client_id}'"
-            
+
         result = f"📋 **Cached Sessions for client '{client_id}':**\n\n"
         for session in sessions:
             if "total_cached_sessions" in session:
@@ -1501,10 +1173,12 @@ def _handle_cache_list_operation(client_id: str) -> str:
                 result += "**Cache Statistics:**\n"
                 result += f"- Total cached sessions: {session.get('total_cached_sessions', 0)}\n"
                 result += f"- Active sessions: {session.get('active_sessions', 0)}\n"
-                result += f"- Completed sessions: {session.get('completed_sessions', 0)}\n"
-                if session.get('oldest_entry'):
+                result += (
+                    f"- Completed sessions: {session.get('completed_sessions', 0)}\n"
+                )
+                if session.get("oldest_entry"):
                     result += f"- Oldest entry: {session['oldest_entry']}\n"
-                if session.get('newest_entry'):
+                if session.get("newest_entry"):
                     result += f"- Newest entry: {session['newest_entry']}\n"
             else:
                 # Individual session info
@@ -1512,12 +1186,14 @@ def _handle_cache_list_operation(client_id: str) -> str:
                 result += f"- Workflow: {session.get('workflow_name', 'Unknown')}\n"
                 result += f"- Status: {session.get('status', 'Unknown')}\n"
                 result += f"- Current Node: {session.get('current_node', 'Unknown')}\n"
-                result += f"- Task: {session.get('task_description', 'No description')}\n"
+                result += (
+                    f"- Task: {session.get('task_description', 'No description')}\n"
+                )
                 result += f"- Created: {session.get('created_at', 'Unknown')}\n"
                 result += f"- Updated: {session.get('last_updated', 'Unknown')}\n\n"
-                
+
         return result
-        
+
     except Exception as e:
         return f"❌ Error listing cached sessions: {str(e)}"
 
@@ -2038,7 +1714,7 @@ Cannot update state - no YAML workflow session is currently active.
         ),
         client_id: str = Field(
             default="default",
-            description="Client ID for cache operations. Defaults to 'default' if not specified."
+            description="Client ID for cache operations. Defaults to 'default' if not specified.",
         ),
         ctx: Context = None,
     ) -> str:
@@ -2051,7 +1727,7 @@ Cannot update state - no YAML workflow session is currently active.
                         client_id = ctx.client_id
                 except AttributeError:
                     pass  # Use default client_id
-            
+
             if operation == "restore":
                 return _handle_cache_restore_operation(client_id)
             elif operation == "list":
@@ -2059,15 +1735,15 @@ Cannot update state - no YAML workflow session is currently active.
             elif operation == "stats":
                 try:
                     from ..utils.session_manager import get_cache_manager
-                    
+
                     cache_manager = get_cache_manager()
                     if not cache_manager or not cache_manager.is_available():
                         return "❌ Cache mode is not enabled or not available"
-                    
+
                     stats = cache_manager.get_cache_stats()
                     if not stats:
                         return "❌ Unable to retrieve cache statistics"
-                    
+
                     return f"""📊 **Cache Statistics:**
 
 **Cache State:**
@@ -2082,12 +1758,12 @@ Cannot update state - no YAML workflow session is currently active.
 - Newest entry: {stats.newest_entry.isoformat() if stats.newest_entry else "None"}
 
 **Cache Availability:** ✅ ChromaDB cache is active and available"""
-                    
+
                 except Exception as e:
                     return f"❌ Error getting cache statistics: {str(e)}"
             else:
                 return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats'"
-                
+
         except Exception as e:
             return f"❌ **Error in workflow_cache_management:** {str(e)}"
 
@@ -2098,24 +1774,23 @@ Cannot update state - no YAML workflow session is currently active.
         ),
         analysis_type: str = Field(
             default="similar_tasks",
-            description="Type of analysis: 'similar_tasks' (find similar past work), 'related_context' (find related contexts), 'lessons_learned' (find completed similar workflows)"
+            description="Type of analysis: 'similar_tasks' (find similar past work), 'related_context' (find related contexts), 'lessons_learned' (find completed similar workflows)",
         ),
         client_id: str = Field(
             default="default",
-            description="Client ID to search within. Defaults to 'default' if not specified."
+            description="Client ID to search within. Defaults to 'default' if not specified.",
         ),
         max_results: int = Field(
-            default=5,
-            description="Maximum number of results to return (1-20)"
+            default=5, description="Maximum number of results to return (1-20)"
         ),
         min_similarity: float = Field(
             default=0.3,
-            description="Minimum similarity threshold (0.0-1.0, higher means more similar)"
+            description="Minimum similarity threshold (0.0-1.0, higher means more similar)",
         ),
         ctx: Context = None,
     ) -> str:
         """Perform semantic analysis to find relevant past workflow contexts, similar tasks, and lessons learned.
-        
+
         This tool enhances analysis phases by providing historical context from similar past work.
         """
         try:
@@ -2126,13 +1801,13 @@ Cannot update state - no YAML workflow session is currently active.
                         client_id = ctx.client_id
                 except AttributeError:
                     pass
-            
+
             # Validate parameters
             max_results = max(1, min(20, max_results))
             min_similarity = max(0.0, min(1.0, min_similarity))
-            
+
             from ..utils.session_manager import get_cache_manager
-            
+
             cache_manager = get_cache_manager()
             if not cache_manager or not cache_manager.is_available():
                 return """❌ **Semantic Analysis Unavailable**
@@ -2149,15 +1824,15 @@ Cache mode is not enabled or not available. To enable semantic analysis:
    - Related workflow contexts  
    - Lessons learned from completed work
    - Relevant historical patterns"""
-            
+
             # Perform semantic search
             results = cache_manager.semantic_search(
                 search_text=query,
                 client_id=client_id,
                 min_similarity=min_similarity,
-                max_results=max_results
+                max_results=max_results,
             )
-            
+
             if not results:
                 return f"""📭 **No Similar Past Work Found**
 
@@ -2172,7 +1847,7 @@ Cache mode is not enabled or not available. To enable semantic analysis:
 - Results will be cached for future reference
 
 **Recommendation:** Proceed with fresh analysis while documenting key decisions for future similar work."""
-            
+
             # Format results based on analysis type
             if analysis_type == "similar_tasks":
                 result_header = "🔍 **Similar Past Tasks Found**"
@@ -2182,7 +1857,11 @@ Cache mode is not enabled or not available. To enable semantic analysis:
                 insight_focus = "Workflows with related domains or technologies"
             elif analysis_type == "lessons_learned":
                 # Filter for completed workflows
-                completed_results = [r for r in results if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]]
+                completed_results = [
+                    r
+                    for r in results
+                    if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]
+                ]
                 if completed_results:
                     results = completed_results
                     result_header = "📚 **Lessons from Completed Similar Work**"
@@ -2193,7 +1872,7 @@ Cache mode is not enabled or not available. To enable semantic analysis:
             else:
                 result_header = "🔍 **Semantic Analysis Results**"
                 insight_focus = "Related past workflow activity"
-                
+
             # Build detailed response
             result = f"""{result_header}
 
@@ -2204,60 +1883,95 @@ Cache mode is not enabled or not available. To enable semantic analysis:
 ---
 
 """
-            
+
             for i, search_result in enumerate(results, 1):
                 metadata = search_result.metadata
                 similarity_percentage = search_result.similarity_score * 100
-                
+
                 # Determine status emoji
                 status_emoji = {
                     "ACTIVE": "🔄",
-                    "COMPLETED": "✅", 
+                    "COMPLETED": "✅",
                     "FINISHED": "✅",
                     "SUCCESS": "✅",
                     "ERROR": "❌",
                     "PAUSED": "⏸️",
-                    "CANCELLED": "🚫"
+                    "CANCELLED": "🚫",
                 }.get(metadata.status, "📋")
-                
+
                 # Extract comprehensive task description from multiple sources
                 task_desc = None
                 acceptance_criteria = None
-                
-                # Primary source: current_item (full description)
-                if hasattr(metadata, 'current_item') and metadata.current_item:
+
+                # Primary source: current_item (extract actual task from formatted string)
+                if hasattr(metadata, "current_item") and metadata.current_item:
                     full_desc = metadata.current_item.strip()
-                    # Don't truncate - show more of the description
-                    if len(full_desc) > 2000:
-                        task_desc = full_desc[:2000] + "..."
+
+                    # Handle formatted strings like "Workflow: ... | Current task: actual_task"
+                    if "Current task:" in full_desc:
+                        # Extract everything after "Current task:"
+                        task_part = full_desc.split("Current task:", 1)[1].strip()
+                        task_desc = task_part  # Don't truncate at all
                     else:
+                        # Use the full description as-is
                         task_desc = full_desc
-                
+
                 # Secondary source: matching_text for richer content
-                elif hasattr(search_result, 'matching_text') and search_result.matching_text:
+                elif (
+                    hasattr(search_result, "matching_text")
+                    and search_result.matching_text
+                ):
                     text = search_result.matching_text.strip()
                     if text:
-                        # Look for structured content or use more of the text
-                        task_desc = text[:200] + "..." if len(text) > 200 else text
-                
-                # Extract acceptance criteria if available
-                if hasattr(search_result, 'matching_text') and search_result.matching_text:
-                    text = search_result.matching_text.lower()
-                    if 'criteria' in text or 'requirement' in text or 'must' in text:
-                        # Extract acceptance criteria indicators
-                        acceptance_criteria = "Contains acceptance criteria or requirements"
-                
+                        # Use more of the matching text
+                        task_desc = text
+
+                # Extract actual acceptance criteria content from both sources
+                criteria_sources = []
+                if hasattr(metadata, "current_item") and metadata.current_item:
+                    criteria_sources.append(metadata.current_item)
+                if (
+                    hasattr(search_result, "matching_text")
+                    and search_result.matching_text
+                ):
+                    criteria_sources.append(search_result.matching_text)
+
+                # Extract specific acceptance criteria text
+                extracted_criteria = []
+                for text in criteria_sources:
+                    if text:
+                        # Look for common criteria patterns and extract them
+                        criteria_lines = _extract_acceptance_criteria_from_text(text)
+                        extracted_criteria.extend(criteria_lines)
+
+                # Format acceptance criteria for display
+                if extracted_criteria:
+                    # Remove duplicates while preserving order
+                    unique_criteria = []
+                    seen = set()
+                    for criterion in extracted_criteria:
+                        if criterion.lower() not in seen:
+                            unique_criteria.append(criterion)
+                            seen.add(criterion.lower())
+
+                    if len(unique_criteria) == 1:
+                        acceptance_criteria = unique_criteria[0]
+                    else:
+                        acceptance_criteria = " | ".join(
+                            unique_criteria[:3]
+                        )  # Show up to 3 criteria
+
                 if not task_desc:
                     task_desc = "No description available"
-                
+
                 # Build comprehensive result entry
                 result_entry = f"""**{i}. {metadata.workflow_name}** {status_emoji}
    - **Similarity:** {similarity_percentage:.1f}%
    - **Task:** {task_desc}"""
-                
+
                 if acceptance_criteria:
                     result_entry += f"\n   - **Requirements:** {acceptance_criteria}"
-                
+
                 result_entry += f"""
    - **Status:** {metadata.status}
    - **Session:** {metadata.session_id}
@@ -2266,30 +1980,8 @@ Cache mode is not enabled or not available. To enable semantic analysis:
 
 """
                 result += result_entry
-            
-            # Add analysis insights
-            result += f"""---
 
-**📊 Analysis Insights:**
-
-**Similarity Distribution:**
-{_generate_similarity_distribution(results)}
-
-**Status Overview:**
-{_generate_status_overview(results)}
-
-**Temporal Patterns:**
-{_generate_temporal_insights(results)}
-
-**💡 Content-Driven Recommendations:**
-
-{_generate_content_driven_recommendations(results, analysis_type)}
-
-**🔗 Immediate Action Plan:**
-
-{_generate_imposing_next_steps(results, analysis_type, query)}"""
-            
             return result
-            
+
         except Exception as e:
             return f"❌ **Error in workflow_semantic_analysis:** {str(e)}"
