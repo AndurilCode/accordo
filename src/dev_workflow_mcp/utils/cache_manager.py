@@ -745,11 +745,15 @@ class WorkflowCacheManager:
             print(f"Warning: Failed to cleanup old entries: {e}")
             return 0
 
-    def regenerate_embeddings_for_enhanced_search(self) -> int:
+    def regenerate_embeddings_for_enhanced_search(self, force_regenerate: bool = False) -> int:
         """Regenerate embeddings for existing cache entries using enhanced text generation.
         
         This method should be called after updating the _generate_embedding_text method
         to ensure existing cached states benefit from improved semantic content.
+        
+        Args:
+            force_regenerate: If True, regenerate all embeddings even if text appears unchanged.
+                             Useful when embedding model changes or to ensure embeddings are current.
         
         Returns:
             Number of embeddings regenerated
@@ -802,18 +806,28 @@ class WorkflowCacheManager:
                         # Generate enhanced embedding text
                         enhanced_text = self._generate_embedding_text(state)
                         
-                        # Only update if the text has changed significantly
+                        # Update if text has changed OR if force_regenerate is True
                         original_text = results["documents"][i]
-                        if enhanced_text != original_text:
-                            # Generate new embedding
+                        should_update = force_regenerate or enhanced_text != original_text
+                        
+                        if should_update:
+                            # Generate new embedding (even for same text, embedding model may produce different vectors)
                             embedding = model.encode([enhanced_text])[0].tolist()
+                            
+                            # Prepare metadata with serializable datetime values
+                            serializable_metadata = {}
+                            for key, value in metadata_dict.items():
+                                if isinstance(value, datetime):
+                                    serializable_metadata[key] = value.isoformat()
+                                else:
+                                    serializable_metadata[key] = value
                             
                             # Update the entry with new embedding and text
                             self._collection.upsert(
                                 ids=[session_id],
                                 embeddings=[embedding],
                                 documents=[enhanced_text],
-                                metadatas=[metadata_dict]
+                                metadatas=[serializable_metadata]
                             )
                             
                             regenerated_count += 1

@@ -1719,7 +1719,7 @@ Cannot update state - no YAML workflow session is currently active.
     @app.tool()
     def workflow_cache_management(
         operation: str = Field(
-            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics), 'regenerate_embeddings' (update embeddings with enhanced semantic content)"
+            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics), 'regenerate_embeddings' (update embeddings with enhanced semantic content), 'force_regenerate_embeddings' (force regenerate all embeddings regardless of text changes)"
         ),
         client_id: str = Field(
             default="default",
@@ -1795,8 +1795,34 @@ Cannot update state - no YAML workflow session is currently active.
 
                 except Exception as e:
                     return f"❌ Error regenerating embeddings: {str(e)}"
+            elif operation == "force_regenerate_embeddings":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+
+                    # Force regenerate all embeddings regardless of text changes
+                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search(force_regenerate=True)
+                    
+                    return f"""🔄 **Force Embedding Regeneration Complete:**
+
+**Results:**
+- Embeddings force regenerated: {regenerated_count}
+- All embeddings updated with current model
+- Enhanced semantic content: ✅ Active
+- Search improvement: ✅ Better similarity matching expected
+
+**Next Steps:**
+- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- All embeddings now use current embedding model and enhanced text generation
+- Similarity scores should be significantly improved"""
+
+                except Exception as e:
+                    return f"❌ Error force regenerating embeddings: {str(e)}"
             else:
-                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats', 'regenerate_embeddings'"
+                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats', 'regenerate_embeddings', 'force_regenerate_embeddings'"
 
         except Exception as e:
             return f"❌ **Error in workflow_cache_management:** {str(e)}"
