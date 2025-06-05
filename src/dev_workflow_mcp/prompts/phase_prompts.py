@@ -49,17 +49,25 @@ from .discovery_prompts import get_cached_workflow
 def resolve_session_context(
     session_id: str, context: str, ctx: Context
 ) -> tuple[str | None, str]:
-    """Resolve session from session_id or fallback to client-based lookup.
+    """Resolve session from session_id with improved session-first approach.
+    
+    This function prioritizes explicit session_id over client-based lookup to support
+    the new session-independent architecture where each chat operates independently.
 
     Args:
-        session_id: Optional session ID parameter
-        context: Context string that may contain session_id
+        session_id: Optional session ID parameter (preferred method)
+        context: Context string that may contain session_id  
         ctx: MCP Context object
 
     Returns:
         tuple: (resolved_session_id, client_id)
+        
+    Note:
+        - client_id is still returned for cache operations and semantic search filtering
+        - session_id takes absolute priority for workflow operations
+        - No automatic client-based session conflicts are detected
     """
-    client_id = "default"  # consistent fallback for session continuity
+    client_id = "default"  # consistent fallback for cache operations
 
     # Extract client_id from MCP Context with defensive handling
     if ctx is not None:
@@ -72,23 +80,24 @@ def resolve_session_context(
     # Handle direct function calls where Field defaults may be FieldInfo objects
     if hasattr(session_id, "default"):  # FieldInfo object
         session_id = session_id.default if session_id.default else ""
-    if hasattr(context, "default"):  # FieldInfo object  
+    if hasattr(context, "default"):  # FieldInfo object
         context = context.default if context.default else ""
 
     # Ensure session_id and context are strings
     session_id = str(session_id) if session_id is not None else ""
     context = str(context) if context is not None else ""
 
-    # Priority 1: Explicit session_id parameter
+    # Priority 1: Explicit session_id parameter (PREFERRED for session-independent operation)
     if session_id and session_id.strip():
         return session_id.strip(), client_id
 
-    # Priority 2: session_id in context string
+    # Priority 2: session_id in context string (alternative method)
     extracted_session_id = extract_session_id_from_context(context)
     if extracted_session_id:
         return extracted_session_id, client_id
 
-    # Priority 3: No explicit session - return None for client-based resolution
+    # Priority 3: No explicit session - return None for new session creation
+    # NOTE: This no longer triggers client-based conflict detection
     return None, client_id
 
 
@@ -1045,6 +1054,159 @@ def _generate_node_completion_outputs(
 # =============================================================================
 
 
+# =============================================================================
+# CACHE MANAGEMENT FUNCTIONS
+# =============================================================================
+
+
+def _handle_cache_restore_operation(client_id: str) -> str:
+    """Handle cache restore operation."""
+    try:
+        from ..utils.session_manager import restore_sessions_from_cache
+
+        restored_count = restore_sessions_from_cache(client_id)
+        if restored_count > 0:
+            return f"✅ Successfully restored {restored_count} workflow session(s) from cache for client '{client_id}'"
+        else:
+            return f"📭 No workflow sessions found in cache for client '{client_id}'"
+
+    except Exception as e:
+        return f"❌ Error restoring sessions from cache: {str(e)}"
+
+
+def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
+    """Extract actual acceptance criteria from text content."""
+    if not text:
+        return []
+
+    criteria = []
+
+    # Split text into sentences for analysis
+    sentences = []
+    for delimiter in [".", "!", "?"]:
+        text = text.replace(delimiter, "|||SPLIT|||")
+
+    potential_sentences = text.split("|||SPLIT|||")
+    for sentence in potential_sentences:
+        clean_sentence = sentence.strip()
+        if len(clean_sentence) > 10:  # Ignore very short fragments
+            sentences.append(clean_sentence)
+
+    # Look for sentences with criteria keywords
+    criteria_keywords = [
+        "must",
+        "should",
+        "shall",
+        "will",
+        "forces",
+        "requires",
+        "ensures",
+        "mandatory",
+        "needed",
+        "necessary",
+        "expected",
+        "demanded",
+    ]
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        # Check if sentence contains criteria keywords
+        if any(keyword in sentence_lower for keyword in criteria_keywords):
+            # Clean up the sentence for display
+            clean_sentence = sentence.strip()
+
+            # Remove common prefixes that aren't part of the actual criteria
+            prefixes_to_remove = [
+                "workflow:",
+                "current node:",
+                "status:",
+                "current task:",
+                "add a new feature:",
+                "i want to",
+            ]
+
+            for prefix in prefixes_to_remove:
+                if clean_sentence.lower().startswith(prefix):
+                    clean_sentence = clean_sentence[len(prefix) :].strip()
+
+            # Only include substantial criteria (not just fragments)
+            if len(clean_sentence) > 20 and any(
+                keyword in clean_sentence.lower() for keyword in criteria_keywords
+            ):
+                # Limit length for display
+                if len(clean_sentence) > 150:
+                    clean_sentence = clean_sentence[:150] + "..."
+
+                criteria.append(clean_sentence)
+
+    # Look for explicit criteria sections (if any)
+    text_lower = text.lower()
+    if "acceptance criteria" in text_lower:
+        # Try to extract criteria from structured sections
+        criteria_section_start = text_lower.find("acceptance criteria")
+        if criteria_section_start != -1:
+            criteria_section = text[
+                criteria_section_start : criteria_section_start + 500
+            ]
+            # Extract bullet points or numbered items
+            lines = criteria_section.split("\n")
+            for line in lines[1:]:  # Skip the header line
+                line = line.strip()
+                if (
+                    line.startswith(("-", "•", "*", "1.", "2.", "3."))
+                    and len(line) > 10
+                    and any(keyword in line.lower() for keyword in criteria_keywords)
+                ):
+                    clean_line = line.lstrip("-•*123456789. ").strip()
+                    if len(clean_line) > 150:
+                        clean_line = clean_line[:150] + "..."
+                    criteria.append(clean_line)
+
+    return criteria[:3]  # Return up to 3 most relevant criteria
+
+
+def _handle_cache_list_operation(client_id: str) -> str:
+    """Handle cache list operation."""
+    try:
+        from ..utils.session_manager import list_cached_sessions
+
+        sessions = list_cached_sessions(client_id)
+        if not sessions:
+            return f"📭 No cached sessions found for client '{client_id}'"
+
+        result = f"📋 **Cached Sessions for client '{client_id}':**\n\n"
+        for session in sessions:
+            if "total_cached_sessions" in session:
+                # This is cache stats
+                result += "**Cache Statistics:**\n"
+                result += f"- Total cached sessions: {session.get('total_cached_sessions', 0)}\n"
+                result += f"- Active sessions: {session.get('active_sessions', 0)}\n"
+                result += (
+                    f"- Completed sessions: {session.get('completed_sessions', 0)}\n"
+                )
+                if session.get("oldest_entry"):
+                    result += f"- Oldest entry: {session['oldest_entry']}\n"
+                if session.get("newest_entry"):
+                    result += f"- Newest entry: {session['newest_entry']}\n"
+            else:
+                # Individual session info
+                result += f"**Session: {session['session_id'][:8]}...**\n"
+                result += f"- Workflow: {session.get('workflow_name', 'Unknown')}\n"
+                result += f"- Status: {session.get('status', 'Unknown')}\n"
+                result += f"- Current Node: {session.get('current_node', 'Unknown')}\n"
+                result += (
+                    f"- Task: {session.get('task_description', 'No description')}\n"
+                )
+                result += f"- Created: {session.get('created_at', 'Unknown')}\n"
+                result += f"- Updated: {session.get('last_updated', 'Unknown')}\n\n"
+
+        return result
+
+    except Exception as e:
+        return f"❌ Error listing cached sessions: {str(e)}"
+
+
 def register_phase_prompts(app: FastMCP, config=None):
     """Register purely schema-driven workflow prompts.
 
@@ -1526,6 +1688,11 @@ Cannot update state - no YAML workflow session is currently active.
                             add_log_to_session(
                                 update_session_id, update_data["log_entry"]
                             )
+                        
+                        # Force immediate cache sync after state updates
+                        from ..utils.session_manager import sync_session
+                        sync_result = sync_session(update_session_id)
+                        print(f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}")
 
                     return add_session_id_to_response(
                         "✅ **State updated successfully.**", update_session_id
@@ -1553,3 +1720,225 @@ Cannot update state - no YAML workflow session is currently active.
             return add_session_id_to_response(
                 f"❌ **Error in workflow_state:** {str(e)}", target_session_id
             )
+
+    @app.tool()
+    def workflow_cache_management(
+        operation: str = Field(
+            description="Cache operation: 'restore' (restore sessions from cache), 'list' (list cached sessions), 'stats' (cache statistics), 'regenerate_embeddings' (update embeddings with enhanced semantic content), 'force_regenerate_embeddings' (force regenerate all embeddings regardless of text changes)"
+        ),
+        client_id: str = Field(
+            default="default",
+            description="Client ID for cache operations. Defaults to 'default' if not specified.",
+        ),
+        ctx: Context = None,
+    ) -> str:
+        """Manage workflow session cache for persistence across MCP restarts."""
+        try:
+            # Resolve client ID from context if available
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
+                        client_id = ctx.client_id
+                except AttributeError:
+                    pass  # Use default client_id
+
+            if operation == "restore":
+                return _handle_cache_restore_operation(client_id)
+            elif operation == "list":
+                return _handle_cache_list_operation(client_id)
+            elif operation == "stats":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+
+                    stats = cache_manager.get_cache_stats()
+                    if not stats:
+                        return "❌ Unable to retrieve cache statistics"
+
+                    return f"""📊 **Cache Statistics:**
+
+**Cache State:**
+- Collection: {stats.collection_name}
+- Total entries: {stats.total_entries}
+- Active sessions: {stats.active_sessions} 
+- Completed sessions: {stats.completed_sessions}
+- Cache size: {stats.cache_size_mb:.2f} MB
+
+**Entry Timeline:**
+- Oldest entry: {stats.oldest_entry.isoformat() if stats.oldest_entry else "None"}
+- Newest entry: {stats.newest_entry.isoformat() if stats.newest_entry else "None"}
+
+**Cache Availability:** ✅ ChromaDB cache is active and available"""
+
+                except Exception as e:
+                    return f"❌ Error getting cache statistics: {str(e)}"
+            elif operation == "regenerate_embeddings":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+
+                    # Regenerate embeddings with enhanced semantic content
+                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search()
+                    
+                    return f"""🔄 **Embedding Regeneration Complete:**
+
+**Results:**
+- Embeddings regenerated: {regenerated_count}
+- Enhanced semantic content: ✅ Active
+- Search improvement: ✅ Better similarity matching expected
+
+**Next Steps:**
+- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- Enhanced embeddings now include detailed node completion evidence
+- Similarity scores should be significantly improved"""
+
+                except Exception as e:
+                    return f"❌ Error regenerating embeddings: {str(e)}"
+            elif operation == "force_regenerate_embeddings":
+                try:
+                    from ..utils.session_manager import get_cache_manager
+
+                    cache_manager = get_cache_manager()
+                    if not cache_manager or not cache_manager.is_available():
+                        return "❌ Cache mode is not enabled or not available"
+
+                    # Force regenerate all embeddings regardless of text changes
+                    regenerated_count = cache_manager.regenerate_embeddings_for_enhanced_search(force_regenerate=True)
+                    
+                    return f"""🔄 **Force Embedding Regeneration Complete:**
+
+**Results:**
+- Embeddings force regenerated: {regenerated_count}
+- All embeddings updated with current model
+- Enhanced semantic content: ✅ Active
+- Search improvement: ✅ Better similarity matching expected
+
+**Next Steps:**
+- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- All embeddings now use current embedding model and enhanced text generation
+- Similarity scores should be significantly improved"""
+
+                except Exception as e:
+                    return f"❌ Error force regenerating embeddings: {str(e)}"
+            else:
+                return f"❌ **Invalid operation:** {operation}. Valid operations: 'restore', 'list', 'stats', 'regenerate_embeddings', 'force_regenerate_embeddings'"
+
+        except Exception as e:
+            return f"❌ **Error in workflow_cache_management:** {str(e)}"
+
+    @app.tool()
+    def workflow_semantic_analysis(
+        query: str = Field(
+            description="Description of current task, problem, or context to find related past work"
+        ),
+        client_id: str = Field(
+            default="default",
+            description="Client ID to search within. Defaults to 'default' if not specified.",
+        ),
+        max_results: int = Field(
+            default=3, description="Maximum number of results to return (1-100)"
+        ),
+        min_similarity: float = Field(
+            default=0.1,
+            description="Minimum similarity threshold (0.0-1.0, higher means more similar)",
+        ),
+        ctx: Context = None,
+    ) -> str:
+        """Find all relevant past workflow contexts and provide the raw context for agent analysis.
+        
+        Returns all findings without context cutting or analysis type filtering.
+        """
+        try:
+            # Resolve client ID from context if available
+            if ctx is not None:
+                try:
+                    if hasattr(ctx, "client_id") and ctx.client_id:
+                        client_id = ctx.client_id
+                except AttributeError:
+                    pass
+
+            # Validate parameters
+            max_results = max(1, min(100, max_results))
+            min_similarity = max(0.0, min(1.0, min_similarity))
+
+            from ..utils.session_manager import get_cache_manager
+
+            cache_manager = get_cache_manager()
+            if not cache_manager or not cache_manager.is_available():
+                return "❌ Cache mode not enabled. Semantic analysis unavailable."
+
+            # Perform semantic search
+            results = cache_manager.semantic_search(
+                search_text=query,
+                client_id=client_id,
+                min_similarity=min_similarity,
+                max_results=max_results,
+            )
+
+            if not results:
+                return f"No results found for query: {query}"
+
+            # Build simple result list - just split the results properly
+            result_parts = []
+            
+            for i, search_result in enumerate(results, 1):
+                metadata = search_result.metadata
+                similarity_score = search_result.similarity_score
+                
+                # Get all available context without cutting
+                context_parts = []
+                
+                if hasattr(metadata, "current_item") and metadata.current_item:
+                    context_parts.append(f"Current Item: {metadata.current_item}")
+                
+                if hasattr(search_result, "matching_text") and search_result.matching_text:
+                    context_parts.append(f"Matching Text: {search_result.matching_text}")
+                
+                # Add node outputs (completed work and acceptance criteria evidence)
+                if hasattr(metadata, "node_outputs") and metadata.node_outputs:
+                    node_outputs_text = []
+                    for node_name, outputs in metadata.node_outputs.items():
+                        node_output_parts = [f"Node {node_name}:"]
+                        for key, value in outputs.items():
+                            # Handle different value types
+                            if isinstance(value, dict):
+                                # For nested dictionaries (like completed_criteria)
+                                sub_parts = []
+                                for sub_key, sub_value in value.items():
+                                    sub_parts.append(f"{sub_key}: {sub_value}")
+                                value_str = "{" + ", ".join(sub_parts) + "}"
+                            else:
+                                value_str = str(value)
+                            node_output_parts.append(f"  {key}: {value_str}")
+                        node_outputs_text.append("\n".join(node_output_parts))
+                    context_parts.append(f"Node Outputs:\n{chr(10).join(node_outputs_text)}")
+                
+                # Include ALL available metadata fields
+                result_entry = f"""--- Result {i} ---
+Workflow: {metadata.workflow_name}
+Session: {metadata.session_id}
+Client ID: {metadata.client_id}
+Similarity: {similarity_score:.3f}
+Status: {metadata.status}
+Current Node: {metadata.current_node}
+Workflow File: {metadata.workflow_file if metadata.workflow_file else 'None'}
+Created At: {metadata.created_at}
+Last Updated: {metadata.last_updated}
+Cache Created At: {metadata.cache_created_at}
+Cache Version: {metadata.cache_version}
+
+Context:
+{chr(10).join(context_parts)}
+"""
+                result_parts.append(result_entry)
+
+            return "\n".join(result_parts)
+
+        except Exception as e:
+            return f"❌ Error in workflow_semantic_analysis: {str(e)}"
