@@ -38,6 +38,22 @@ workflow:
         understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
       next_allowed_nodes: [blueprint]
 
+    semantic_analysis:
+      goal: "Analyze with historical context"
+      instructions: |
+        1. Perform baseline analysis
+        2. Search for similar past work
+        3. Learn from completed projects  
+        4. Identify risks from historical failures
+        5. Synthesize current + historical insights
+        6. Create evidence-based recommendations
+      
+      acceptance_criteria:
+        historical_context: "Found relevant past work with semantic search"
+        lessons_integration: "Integrated lessons from completed similar workflows"
+        risk_assessment: "Identified risks based on historical patterns"
+        synthesis_report: "Combined current understanding with historical insights"
+
     # Blueprint phase - create implementation plan
     blueprint:
       goal: |
