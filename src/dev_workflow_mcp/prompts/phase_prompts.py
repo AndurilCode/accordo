@@ -954,7 +954,7 @@ def _handle_dynamic_workflow(
 {status}"""
                     else:
                         # Transition failed (likely due to missing approval)
-                        return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Check recent logs for details."
+                        return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Current node requires explicit user approval before transition. Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL."
 
                 elif choice in (current_node.next_allowed_workflows or []):
                     # Workflow transition - not implemented yet

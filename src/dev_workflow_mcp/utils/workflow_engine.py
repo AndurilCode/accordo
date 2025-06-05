@@ -182,7 +182,7 @@ class WorkflowEngine:
             return (
                 False,
                 f"Node '{state.current_node}' requires explicit user approval before transition. "
-                f"Provide 'user_approval': true in your context to proceed.",
+                f"Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL.",
             )
 
         return True, "Transition is valid"
