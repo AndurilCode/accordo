@@ -54,6 +54,9 @@ See the [examples/workflows/basic/](../../examples/workflows/basic/) directory f
 - **[default-coding.yaml](./workflows/default-coding.yaml)** - For any coding related task
 - **[documentation.yaml](./workflows/documentation.yaml)** - For documentation tasks
 
+## Workflow Reference Documentation
+- **[Node Fields Reference](node-fields-reference.md)** - Complete guide to workflow node fields including `needs_approval`
+
 
 ### Basic Workflow Structure
 
@@ -75,5 +78,8 @@ workflow:
       goal: "What this node accomplishes"
       acceptance_criteria:
         criteria_name: "What constitutes completion"
+      needs_approval: false  # Optional: require user approval
       next_allowed_nodes: [next_node]
 ```
+
+For detailed information about node fields like `needs_approval`, see the [Node Fields Reference](node-fields-reference.md).
