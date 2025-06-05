@@ -902,6 +902,12 @@ def detect_session_conflict(client_id: str) -> dict[str, any] | None:
         - session_count: int - Number of existing sessions
         - sessions: list - List of session summaries
         - most_recent_session: dict - Details of most recent session
+        - session_type: str - Type of the most recent session
+        - workflow_name: str - Name of the workflow in the most recent session
+        - phase_or_node: str - Current node/phase of the most recent session
+        - status: str - Status of the most recent session
+        - current_item: str - Current item in the most recent session
+        - last_updated: str - Last updated timestamp of the most recent session
     """
     existing_sessions = get_sessions_by_client(client_id)
 
@@ -936,6 +942,13 @@ def detect_session_conflict(client_id: str) -> dict[str, any] | None:
             "current_item": most_recent.current_item or "No current item",
             "last_updated": most_recent.last_updated.isoformat(),
         },
+        # Top-level fields expected by discovery_prompts.py
+        "session_type": "dynamic",  # All current sessions are dynamic type
+        "workflow_name": most_recent.workflow_name,
+        "phase_or_node": most_recent.current_node,
+        "status": most_recent.status,
+        "current_item": most_recent.current_item or "No current item",
+        "last_updated": most_recent.last_updated.isoformat(),
     }
 
 
@@ -1003,6 +1016,57 @@ def clear_session_completely(session_id: str) -> dict[str, any]:
 
         # Mark as successful if session was cleared
         results["success"] = success
+
+        return results
+
+    except Exception as e:
+        results["error"] = str(e)
+        return results
+
+
+def clear_all_client_sessions(client_id: str) -> dict[str, any]:
+    """Clear all sessions for a specific client.
+
+    Args:
+        client_id: The client identifier
+
+    Returns:
+        dict: Cleanup results with the following keys:
+        - success: bool - Whether cleanup was successful overall
+        - sessions_cleared: int - Number of sessions cleared
+        - failed_sessions: list - List of sessions that failed to clear
+        - previous_session_type: str - Type of sessions that were cleared
+        - error: str | None - Error message if cleanup failed
+    """
+    results = {
+        "success": False,
+        "sessions_cleared": 0,
+        "failed_sessions": [],
+        "previous_session_type": "dynamic",
+        "error": None,
+    }
+
+    try:
+        # Get all sessions for the client
+        client_sessions = get_sessions_by_client(client_id)
+        
+        if not client_sessions:
+            results["success"] = True
+            return results
+
+        # Clear each session
+        for session in client_sessions:
+            session_result = clear_session_completely(session.session_id)
+            if session_result["success"]:
+                results["sessions_cleared"] += 1
+            else:
+                results["failed_sessions"].append({
+                    "session_id": session.session_id,
+                    "error": session_result.get("error", "Unknown error")
+                })
+
+        # Mark as successful if all sessions were cleared
+        results["success"] = len(results["failed_sessions"]) == 0
 
         return results
 

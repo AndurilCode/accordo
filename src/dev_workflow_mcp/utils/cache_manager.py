@@ -1,5 +1,6 @@
 """Workflow cache manager using ChromaDB for persistent storage and semantic search."""
 
+import contextlib
 import json
 import threading
 from datetime import UTC, datetime
@@ -244,10 +245,8 @@ class WorkflowCacheManager:
                 # Convert ISO datetime strings back to datetime objects
                 for key, value in metadata_dict.items():
                     if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
-                        try:
+                        with contextlib.suppress(ValueError, TypeError):
                             metadata_dict[key] = datetime.fromisoformat(value)
-                        except (ValueError, TypeError):
-                            pass  # Keep as string if not a valid datetime
                 
                 metadata = CacheMetadata(**metadata_dict)
                 
@@ -336,10 +335,8 @@ class WorkflowCacheManager:
                     metadata_dict = dict(m)
                     for key, value in metadata_dict.items():
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
-                            try:
+                            with contextlib.suppress(ValueError, TypeError):
                                 metadata_dict[key] = datetime.fromisoformat(value)
-                            except (ValueError, TypeError):
-                                pass  # Keep as string if not a valid datetime
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
                 # Calculate statistics
@@ -462,10 +459,8 @@ class WorkflowCacheManager:
                         metadata_dict = dict(search_results["metadatas"][0][i])
                         for key, value in metadata_dict.items():
                             if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
-                                try:
+                                with contextlib.suppress(ValueError, TypeError):
                                     metadata_dict[key] = datetime.fromisoformat(value)
-                                except (ValueError, TypeError):
-                                    pass  # Keep as string if not a valid datetime
                         metadata = CacheMetadata(**metadata_dict)
                         
                         # Get matching text
@@ -547,10 +542,8 @@ class WorkflowCacheManager:
                     metadata_dict = dict(m)
                     for key, value in metadata_dict.items():
                         if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
-                            try:
+                            with contextlib.suppress(ValueError, TypeError):
                                 metadata_dict[key] = datetime.fromisoformat(value)
-                            except (ValueError, TypeError):
-                                pass  # Keep as string if not a valid datetime
                     metadatas.append(CacheMetadata(**metadata_dict))
                 
                 metadatas.sort(key=lambda x: x.last_updated, reverse=True)
