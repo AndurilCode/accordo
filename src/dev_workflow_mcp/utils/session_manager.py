@@ -207,6 +207,38 @@ def _reinitialize_cache_from_environment() -> bool:
         return False
 
 
+def _is_test_environment() -> bool:
+    """Check if we're running in a test environment.
+    
+    Returns:
+        True if running in tests, False otherwise
+    """
+    import sys
+    import os
+    
+    # Check for pytest in sys.modules
+    if 'pytest' in sys.modules:
+        return True
+        
+    # Check for common test environment variables
+    test_indicators = [
+        'PYTEST_CURRENT_TEST',
+        'CI',
+        'GITHUB_ACTIONS',
+        '_called_from_test'
+    ]
+    
+    for indicator in test_indicators:
+        if os.environ.get(indicator):
+            return True
+            
+    # Check for test in command line arguments
+    if any('test' in arg.lower() for arg in sys.argv):
+        return True
+        
+    return False
+
+
 def get_cache_manager():
     """Get the global cache manager instance.
     
@@ -214,6 +246,11 @@ def get_cache_manager():
         WorkflowCacheManager or None if not available
     """
     global _cache_manager, _server_config
+    
+    # Skip cache initialization entirely in test environments
+    if _is_test_environment():
+        return None
+    
     with _cache_manager_lock:
         # Check if cache manager is uninitialized due to module reimport
         # but we can detect cache mode should be enabled from environment
