@@ -1080,7 +1080,11 @@ def register_phase_prompts(app: FastMCP, config=None):
         ),
         session_id: str = Field(
             default="",
-            description="Optional session ID to target specific workflow session. If not provided, determines session from client context.",
+            description="Optional session ID to target specific workflow session. "
+            "🎯 **MULTI-SESSION SUPPORT**: Use this for parallel workflows or session continuity. "
+            "Examples: workflow_guidance(session_id='abc-123', ...) to target specific session. "
+            "If not provided, determines session from client context (backward compatibility). "
+            "🔄 **BEST PRACTICE**: Always include session_id when working with multiple concurrent workflows.",
         ),
         ctx: Context = None,
     ) -> str:
@@ -1399,7 +1403,11 @@ You called workflow_guidance with action="{action}" but there's no active workfl
         ),
         session_id: str = Field(
             default="",
-            description="Optional session ID to target specific workflow session. If not provided, determines session from client context.",
+            description="Optional session ID to target specific workflow session. "
+            "🎯 **MULTI-SESSION SUPPORT**: Use this to track state for specific workflow sessions. "
+            "Examples: workflow_state(operation='get', session_id='abc-123') to check specific session status. "
+            "If not provided, determines session from client context (backward compatibility). "
+            "🔄 **BEST PRACTICE**: Always include session_id when managing multiple concurrent workflows.",
         ),
         ctx: Context = None,
     ) -> str:
