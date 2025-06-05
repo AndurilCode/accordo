@@ -83,6 +83,12 @@ detect_environment() {
 
 # Let user choose installation method
 choose_installation_method() {
+    # Check if INSTALL_METHOD is already set via environment variable
+    if [[ -n "$INSTALL_METHOD" ]]; then
+        print_success "Using preset installation method: $INSTALL_METHOD"
+        return 0
+    fi
+    
     echo
     print_status "Choose installation method:"
     echo
@@ -123,7 +129,7 @@ choose_installation_method() {
     # Get user choice
     local max_choice=$((choice_num - 1))
     while true; do
-        read -p "Enter your choice (1-${max_choice}) [default: 1]: " choice
+        read -p "Enter your choice (1-${max_choice}) [default: 1]: " choice </dev/tty
         
         # Default to 1 if empty
         if [[ -z "$choice" ]]; then
