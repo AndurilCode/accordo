@@ -213,8 +213,8 @@ def _is_test_environment() -> bool:
     Returns:
         True if running in tests, False otherwise
     """
-    import sys
     import os
+    import sys
     
     # Check for pytest in sys.modules
     if 'pytest' in sys.modules:
@@ -233,10 +233,7 @@ def _is_test_environment() -> bool:
             return True
             
     # Check for test in command line arguments
-    if any('test' in arg.lower() for arg in sys.argv):
-        return True
-        
-    return False
+    return bool(any('test' in arg.lower() for arg in sys.argv))
 
 
 def get_cache_manager():

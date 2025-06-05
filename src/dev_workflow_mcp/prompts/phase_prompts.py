@@ -1772,26 +1772,22 @@ Cannot update state - no YAML workflow session is currently active.
         query: str = Field(
             description="Description of current task, problem, or context to find related past work"
         ),
-        analysis_type: str = Field(
-            default="similar_tasks",
-            description="Type of analysis: 'similar_tasks' (find similar past work), 'related_context' (find related contexts), 'lessons_learned' (find completed similar workflows)",
-        ),
         client_id: str = Field(
             default="default",
             description="Client ID to search within. Defaults to 'default' if not specified.",
         ),
         max_results: int = Field(
-            default=5, description="Maximum number of results to return (1-20)"
+            default=3, description="Maximum number of results to return (1-100)"
         ),
         min_similarity: float = Field(
-            default=0.3,
+            default=0.1,
             description="Minimum similarity threshold (0.0-1.0, higher means more similar)",
         ),
         ctx: Context = None,
     ) -> str:
-        """Perform semantic analysis to find relevant past workflow contexts, similar tasks, and lessons learned.
-
-        This tool enhances analysis phases by providing historical context from similar past work.
+        """Find all relevant past workflow contexts and provide the raw context for agent analysis.
+        
+        Returns all findings without context cutting or analysis type filtering.
         """
         try:
             # Resolve client ID from context if available
@@ -1803,27 +1799,14 @@ Cannot update state - no YAML workflow session is currently active.
                     pass
 
             # Validate parameters
-            max_results = max(1, min(20, max_results))
+            max_results = max(1, min(100, max_results))
             min_similarity = max(0.0, min(1.0, min_similarity))
 
             from ..utils.session_manager import get_cache_manager
 
             cache_manager = get_cache_manager()
             if not cache_manager or not cache_manager.is_available():
-                return """❌ **Semantic Analysis Unavailable**
-
-Cache mode is not enabled or not available. To enable semantic analysis:
-
-1. Start the MCP server with cache mode enabled:
-   ```bash
-   --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
-   ```
-
-2. Semantic analysis helps find:
-   - Similar past tasks and solutions
-   - Related workflow contexts  
-   - Lessons learned from completed work
-   - Relevant historical patterns"""
+                return "❌ Cache mode not enabled. Semantic analysis unavailable."
 
             # Perform semantic search
             results = cache_manager.semantic_search(
@@ -1834,154 +1817,63 @@ Cache mode is not enabled or not available. To enable semantic analysis:
             )
 
             if not results:
-                return f"""📭 **No Similar Past Work Found**
+                return f"No results found for query: {query}"
 
-**Query:** {query}
-**Analysis Type:** {analysis_type}
-**Search Criteria:** Similarity ≥ {min_similarity:.1%}
-
-**Insights:**
-- This appears to be a novel task or context
-- No similar historical patterns found in cache
-- Consider this as new ground to explore
-- Results will be cached for future reference
-
-**Recommendation:** Proceed with fresh analysis while documenting key decisions for future similar work."""
-
-            # Format results based on analysis type
-            if analysis_type == "similar_tasks":
-                result_header = "🔍 **Similar Past Tasks Found**"
-                insight_focus = "Tasks with similar objectives or approaches"
-            elif analysis_type == "related_context":
-                result_header = "🌐 **Related Workflow Contexts**"
-                insight_focus = "Workflows with related domains or technologies"
-            elif analysis_type == "lessons_learned":
-                # Filter for completed workflows
-                completed_results = [
-                    r
-                    for r in results
-                    if r.metadata.status in ["COMPLETED", "FINISHED", "SUCCESS"]
-                ]
-                if completed_results:
-                    results = completed_results
-                    result_header = "📚 **Lessons from Completed Similar Work**"
-                    insight_focus = "Completed workflows with relevant lessons"
-                else:
-                    result_header = "⚠️ **Similar Work Found (No Completed Examples)**"
-                    insight_focus = "Related work still in progress"
-            else:
-                result_header = "🔍 **Semantic Analysis Results**"
-                insight_focus = "Related past workflow activity"
-
-            # Build detailed response
-            result = f"""{result_header}
-
-**Current Query:** {query}
-**Analysis Focus:** {insight_focus}
-**Found:** {len(results)} relevant result(s)
-
----
-
-"""
-
+            # Build simple result list - just split the results properly
+            result_parts = []
+            
             for i, search_result in enumerate(results, 1):
                 metadata = search_result.metadata
-                similarity_percentage = search_result.similarity_score * 100
-
-                # Determine status emoji
-                status_emoji = {
-                    "ACTIVE": "🔄",
-                    "COMPLETED": "✅",
-                    "FINISHED": "✅",
-                    "SUCCESS": "✅",
-                    "ERROR": "❌",
-                    "PAUSED": "⏸️",
-                    "CANCELLED": "🚫",
-                }.get(metadata.status, "📋")
-
-                # Extract comprehensive task description from multiple sources
-                task_desc = None
-                acceptance_criteria = None
-
-                # Primary source: current_item (extract actual task from formatted string)
+                similarity_score = search_result.similarity_score
+                
+                # Get all available context without cutting
+                context_parts = []
+                
                 if hasattr(metadata, "current_item") and metadata.current_item:
-                    full_desc = metadata.current_item.strip()
+                    context_parts.append(f"Current Item: {metadata.current_item}")
+                
+                if hasattr(search_result, "matching_text") and search_result.matching_text:
+                    context_parts.append(f"Matching Text: {search_result.matching_text}")
+                
+                # Add node outputs (completed work and acceptance criteria evidence)
+                if hasattr(metadata, "node_outputs") and metadata.node_outputs:
+                    node_outputs_text = []
+                    for node_name, outputs in metadata.node_outputs.items():
+                        node_output_parts = [f"Node {node_name}:"]
+                        for key, value in outputs.items():
+                            # Handle different value types
+                            if isinstance(value, dict):
+                                # For nested dictionaries (like completed_criteria)
+                                sub_parts = []
+                                for sub_key, sub_value in value.items():
+                                    sub_parts.append(f"{sub_key}: {sub_value}")
+                                value_str = "{" + ", ".join(sub_parts) + "}"
+                            else:
+                                value_str = str(value)
+                            node_output_parts.append(f"  {key}: {value_str}")
+                        node_outputs_text.append("\n".join(node_output_parts))
+                    context_parts.append(f"Node Outputs:\n{chr(10).join(node_outputs_text)}")
+                
+                # Include ALL available metadata fields
+                result_entry = f"""--- Result {i} ---
+Workflow: {metadata.workflow_name}
+Session: {metadata.session_id}
+Client ID: {metadata.client_id}
+Similarity: {similarity_score:.3f}
+Status: {metadata.status}
+Current Node: {metadata.current_node}
+Workflow File: {metadata.workflow_file if metadata.workflow_file else 'None'}
+Created At: {metadata.created_at}
+Last Updated: {metadata.last_updated}
+Cache Created At: {metadata.cache_created_at}
+Cache Version: {metadata.cache_version}
 
-                    # Handle formatted strings like "Workflow: ... | Current task: actual_task"
-                    if "Current task:" in full_desc:
-                        # Extract everything after "Current task:"
-                        task_part = full_desc.split("Current task:", 1)[1].strip()
-                        task_desc = task_part  # Don't truncate at all
-                    else:
-                        # Use the full description as-is
-                        task_desc = full_desc
-
-                # Secondary source: matching_text for richer content
-                elif (
-                    hasattr(search_result, "matching_text")
-                    and search_result.matching_text
-                ):
-                    text = search_result.matching_text.strip()
-                    if text:
-                        # Use more of the matching text
-                        task_desc = text
-
-                # Extract actual acceptance criteria content from both sources
-                criteria_sources = []
-                if hasattr(metadata, "current_item") and metadata.current_item:
-                    criteria_sources.append(metadata.current_item)
-                if (
-                    hasattr(search_result, "matching_text")
-                    and search_result.matching_text
-                ):
-                    criteria_sources.append(search_result.matching_text)
-
-                # Extract specific acceptance criteria text
-                extracted_criteria = []
-                for text in criteria_sources:
-                    if text:
-                        # Look for common criteria patterns and extract them
-                        criteria_lines = _extract_acceptance_criteria_from_text(text)
-                        extracted_criteria.extend(criteria_lines)
-
-                # Format acceptance criteria for display
-                if extracted_criteria:
-                    # Remove duplicates while preserving order
-                    unique_criteria = []
-                    seen = set()
-                    for criterion in extracted_criteria:
-                        if criterion.lower() not in seen:
-                            unique_criteria.append(criterion)
-                            seen.add(criterion.lower())
-
-                    if len(unique_criteria) == 1:
-                        acceptance_criteria = unique_criteria[0]
-                    else:
-                        acceptance_criteria = " | ".join(
-                            unique_criteria[:3]
-                        )  # Show up to 3 criteria
-
-                if not task_desc:
-                    task_desc = "No description available"
-
-                # Build comprehensive result entry
-                result_entry = f"""**{i}. {metadata.workflow_name}** {status_emoji}
-   - **Similarity:** {similarity_percentage:.1f}%
-   - **Task:** {task_desc}"""
-
-                if acceptance_criteria:
-                    result_entry += f"\n   - **Requirements:** {acceptance_criteria}"
-
-                result_entry += f"""
-   - **Status:** {metadata.status}
-   - **Session:** {metadata.session_id}
-   - **Node:** {metadata.current_node}
-   - **Last Updated:** {metadata.last_updated.strftime("%Y-%m-%d %H:%M")}
-
+Context:
+{chr(10).join(context_parts)}
 """
-                result += result_entry
+                result_parts.append(result_entry)
 
-            return result
+            return "\n".join(result_parts)
 
         except Exception as e:
-            return f"❌ **Error in workflow_semantic_analysis:** {str(e)}"
+            return f"❌ Error in workflow_semantic_analysis: {str(e)}"

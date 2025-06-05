@@ -244,6 +244,20 @@ class WorkflowCacheManager:
             context_summary = ', '.join(f"{k}: {v}" for k, v in state.execution_context.items())
             text_parts.append(f"Context: {context_summary}")
             
+        # Add node outputs (completed work and acceptance criteria evidence)
+        if state.node_outputs:
+            outputs_summary = []
+            for node_name, outputs in state.node_outputs.items():
+                node_parts = [f"Node {node_name}"]
+                for key, value in outputs.items():
+                    # Include full values without truncation
+                    if isinstance(value, dict):
+                        # For criteria evidence, include all keys and full values
+                        value = ', '.join(f"{k}: {v}" for k, v in value.items())
+                    node_parts.append(f"{key}: {value}")
+                outputs_summary.append(' - '.join(node_parts))
+            text_parts.append(f"Completed outputs: {' | '.join(outputs_summary)}")
+            
         return " | ".join(text_parts)
 
     def store_workflow_state(self, state: DynamicWorkflowState) -> CacheOperationResult:
@@ -274,7 +288,9 @@ class WorkflowCacheManager:
                     workflow_name=state.workflow_name,
                     workflow_file=state.workflow_file,
                     current_node=state.current_node,
+                    current_item=state.current_item,
                     status=state.status,
+                    node_outputs=state.node_outputs,
                     created_at=state.created_at,
                     last_updated=state.last_updated,
                 )
@@ -366,6 +382,7 @@ class WorkflowCacheManager:
                     current_node=metadata.current_node,
                     current_item=metadata.current_item,
                     status=metadata.status,
+                    node_outputs=metadata.node_outputs,
                     created_at=metadata.created_at,
                     last_updated=metadata.last_updated,
                 )

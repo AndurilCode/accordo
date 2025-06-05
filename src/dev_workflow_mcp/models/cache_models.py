@@ -16,6 +16,7 @@ class CacheMetadata(BaseModel):
     current_node: str = Field(description="Current node in the workflow")
     current_item: str | None = Field(default=None, description="Current task or item description")
     status: str = Field(description="Current workflow status")
+    node_outputs: dict[str, dict[str, Any]] = Field(default_factory=dict, description="Outputs from completed nodes including acceptance criteria evidence")
     created_at: datetime = Field(description="Session creation time")
     last_updated: datetime = Field(description="Last update time")
     cache_created_at: datetime = Field(
