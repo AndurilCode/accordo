@@ -27,6 +27,12 @@ Examples:
   
   # Enable local session file storage in JSON format  
   %(prog)s --repository-path ../my-project --enable-local-state-file --local-state-file-format JSON
+  
+  # Enable cache mode for persistent workflow states
+              %(prog)s --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
+  
+  # Enable both file storage and cache mode
+  %(prog)s --enable-local-state-file --enable-cache-mode --cache-db-path ./cache
 """,
     )
 
@@ -71,6 +77,46 @@ Examples:
         "are archived with a completion timestamp before being cleaned up.",
     )
 
+    parser.add_argument(
+        "--enable-cache-mode",
+        action="store_true",
+        help="Enable ChromaDB-based caching for workflow state persistence between sessions. "
+        "When enabled, workflow states are stored in a vector database for semantic search and "
+        "session restoration after MCP server restarts.",
+    )
+
+    parser.add_argument(
+        "--cache-db-path",
+        type=str,
+        help="Path to ChromaDB database directory. If not specified, defaults to "
+        ".workflow-commander/cache in the repository directory.",
+        metavar="PATH",
+    )
+
+    parser.add_argument(
+        "--cache-collection-name",
+        type=str,
+        default="workflow_states",
+        help="Name of ChromaDB collection for workflow states. (default: %(default)s)",
+        metavar="NAME",
+    )
+
+    parser.add_argument(
+        "--cache-embedding-model",
+        type=str,
+        default="all-MiniLM-L6-v2",
+        help="Sentence transformer model for semantic embeddings. (default: %(default)s)",
+        metavar="MODEL",
+    )
+
+    parser.add_argument(
+        "--cache-max-results",
+        type=int,
+        default=50,
+        help="Maximum number of results for semantic search queries. (default: %(default)s)",
+        metavar="COUNT",
+    )
+
     return parser
 
 
@@ -88,6 +134,11 @@ def main():
             local_state_file_format=args.local_state_file_format.upper(),
             session_retention_hours=args.session_retention_hours,
             enable_session_archiving=not args.disable_session_archiving,
+            enable_cache_mode=args.enable_cache_mode,
+            cache_db_path=args.cache_db_path,
+            cache_collection_name=args.cache_collection_name,
+            cache_embedding_model=args.cache_embedding_model,
+            cache_max_results=args.cache_max_results,
         )
     except ValueError as e:
         print(f"Error: {e}")

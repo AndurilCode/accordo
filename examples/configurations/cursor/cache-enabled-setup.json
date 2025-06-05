@@ -9,7 +9,6 @@
         "--repository-path", ".",
         "--enable-local-state-file",
         "--local-state-file-format", "JSON",
-        "--session-retention-hours", "72",
         "--enable-cache-mode",
         "--cache-embedding-model", "all-MiniLM-L6-v2",
         "--cache-db-path", ".workflow-commander/cache",

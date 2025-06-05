@@ -64,6 +64,18 @@ workflow:
         scope_definition: "Clear scope boundaries, target audience needs, and format requirements defined"
         audience_identification: "Target audience profiles, use cases, and specific needs documented"
         format_requirements: "Documentation format, style guide, and integration requirements specified"
+      next_allowed_nodes: [semantic_analysis]
+
+    semantic_analysis:
+      goal: "Find relevant documentation with historical context, if available"
+      instructions: |
+        1. Search for past work that is similar to the current task
+        2. Learn from completed projects 
+      acceptance_criteria:
+        historical_context: "Found relevant past work with semantic search"
+        lessons_integration: "Integrated lessons from completed similar workflows"
+        risk_assessment: "Identified risks based on historical patterns"
+        synthesis_report: "Combined current understanding with historical insights"
       next_allowed_nodes: [plan_docs]
 
     # Plan documentation structure and content

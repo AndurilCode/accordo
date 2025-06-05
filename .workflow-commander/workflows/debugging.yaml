@@ -243,6 +243,7 @@ workflow:
         solution_documentation: "Comprehensive documentation of bug, root cause, fix, and testing completed"
         deployment_readiness: "Solution is production-ready with proper approvals and deployment plans"
         monitoring_plan: "Plan for monitoring fix effectiveness in production environment"
+        cleanup: "Remove temporary files and resources used during debugging"
       next_allowed_nodes: [finalize_bugfix]
 
     # Finalize bug fix

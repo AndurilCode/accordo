@@ -13,6 +13,11 @@ class ServerConfig:
         local_state_file_format: str = "MD",
         session_retention_hours: int = 168,  # 7 days default
         enable_session_archiving: bool = True,
+        enable_cache_mode: bool = False,
+        cache_db_path: str | None = None,
+        cache_collection_name: str = "workflow_states",
+        cache_embedding_model: str = "all-MiniLM-L6-v2",
+        cache_max_results: int = 50,
     ):
         """Initialize server configuration.
 
@@ -24,6 +29,11 @@ class ServerConfig:
             local_state_file_format: Format for local state files ('MD' or 'JSON').
             session_retention_hours: Hours to keep completed sessions before cleanup (default: 168 = 7 days).
             enable_session_archiving: Whether to archive session files before cleanup (default: True).
+            enable_cache_mode: Enable ChromaDB-based caching for workflow state persistence (default: False).
+            cache_db_path: Path to ChromaDB database directory. Defaults to .workflow-commander/cache.
+            cache_collection_name: Name of ChromaDB collection for workflow states (default: workflow_states).
+            cache_embedding_model: Sentence transformer model for semantic embeddings (default: all-MiniLM-L6-v2).
+            cache_max_results: Maximum number of results for semantic search queries (default: 50).
         """
         if repository_path:
             self.repository_path = Path(repository_path).resolve()
@@ -54,6 +64,26 @@ class ServerConfig:
         self.session_retention_hours = max(1, session_retention_hours)  # Minimum 1 hour
         self.enable_session_archiving = enable_session_archiving
 
+        # Store cache configuration
+        self.enable_cache_mode = enable_cache_mode
+        
+        # Fix: Resolve cache_db_path relative to repository_path for relative paths
+        if cache_db_path:
+            cache_path = Path(cache_db_path)
+            if cache_path.is_absolute():
+                # Absolute path: use as-is
+                self.cache_db_path = str(cache_path)
+            else:
+                # Relative path: resolve relative to repository_path
+                self.cache_db_path = str(self.repository_path / cache_path)
+        else:
+            # Default: use .workflow-commander/cache in repository
+            self.cache_db_path = str(self.workflow_commander_dir / "cache")
+            
+        self.cache_collection_name = cache_collection_name
+        self.cache_embedding_model = cache_embedding_model
+        self.cache_max_results = max(1, cache_max_results)  # Minimum 1 result
+
     @property
     def workflow_commander_dir(self) -> Path:
         """Get the .workflow-commander directory path."""
@@ -73,6 +103,11 @@ class ServerConfig:
     def sessions_dir(self) -> Path:
         """Get the sessions directory path."""
         return self.workflow_commander_dir / "sessions"
+
+    @property
+    def cache_dir(self) -> Path:
+        """Get the cache directory path."""
+        return Path(self.cache_db_path)
 
     def ensure_workflow_commander_dir(self) -> bool:
         """Ensure the .workflow-commander directory exists.
@@ -111,6 +146,20 @@ class ServerConfig:
                 self.sessions_dir.mkdir(exist_ok=True)
                 return True
             return False
+        except (OSError, PermissionError):
+            return False
+
+    def ensure_cache_dir(self) -> bool:
+        """Ensure the cache directory exists.
+
+        Returns:
+            True if directory exists or was created successfully, False otherwise.
+        """
+        try:
+            if self.enable_cache_mode:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                return True
+            return True  # Not needed if cache mode disabled
         except (OSError, PermissionError):
             return False
 

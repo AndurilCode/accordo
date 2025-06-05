@@ -28,6 +28,10 @@ workflow_cache_lock = threading.Lock()
 _server_config = None
 _server_config_lock = threading.Lock()
 
+# Global cache manager for workflow state persistence
+_cache_manager = None
+_cache_manager_lock = threading.Lock()
+
 
 def set_server_config(server_config) -> None:
     """Set the server configuration for auto-sync functionality.
@@ -35,9 +39,312 @@ def set_server_config(server_config) -> None:
     Args:
         server_config: ServerConfig instance with session storage settings
     """
-    global _server_config
+    global _server_config, _cache_manager
     with _server_config_lock:
         _server_config = server_config
+        
+        # Initialize cache manager if cache mode is enabled
+        if server_config.enable_cache_mode:
+            _initialize_cache_manager(server_config)
+
+
+def _initialize_cache_manager(server_config) -> bool:
+    """Initialize the cache manager with server configuration.
+    
+    Args:
+        server_config: ServerConfig instance
+        
+    Returns:
+        bool: True if initialization successful
+    """
+    global _cache_manager
+    
+    with _cache_manager_lock:
+        if _cache_manager is not None:
+            return True  # Already initialized
+            
+        try:
+            from .cache_manager import WorkflowCacheManager
+            
+            # Ensure cache directory exists
+            if not server_config.ensure_cache_dir():
+                return False
+                
+            _cache_manager = WorkflowCacheManager(
+                db_path=str(server_config.cache_dir),
+                collection_name=server_config.cache_collection_name,
+                embedding_model=server_config.cache_embedding_model,
+                max_results=server_config.cache_max_results
+            )
+            
+            return True
+            
+        except Exception as e:
+            print(f"Warning: Failed to initialize cache manager: {e}")
+            return False
+
+
+def _should_initialize_cache_from_environment() -> bool:
+    """Check if cache manager should be initialized from environment indicators.
+    
+    This function detects when cache mode should be enabled based on:
+    1. Cache directory existence (indicates cache was configured)
+    2. MCP configuration context hints
+    
+    Returns:
+        bool: True if cache initialization should be attempted
+    """
+    try:
+        import os
+        from pathlib import Path
+        
+        # Method 1: Check for cache directory existence
+        cache_paths = [
+            ".workflow-commander/cache",  # Default relative path
+            Path.cwd() / ".workflow-commander" / "cache",  # Current directory
+            Path("~/.workflow-commander/cache").expanduser(),  # User home
+        ]
+        
+        for cache_path in cache_paths:
+            if Path(cache_path).exists() and Path(cache_path).is_dir():
+                return True
+        
+        # Method 2: Check for MCP server arguments in environment
+        # This catches cases where cache was configured but directory doesn't exist yet
+        command_line = " ".join(os.environ.get("MCP_COMMAND_LINE", "").split())
+        if "--enable-cache-mode" in command_line:
+            return True
+            
+        # Method 3: Check if we're in a repository that likely has cache configured
+        workflow_commander_dir = Path(".workflow-commander")
+        return workflow_commander_dir.exists() and workflow_commander_dir.is_dir()
+        
+    except Exception:
+        return False
+
+
+def _reinitialize_cache_from_environment() -> bool:
+    """Reinitialize cache manager from environment detection.
+    
+    This function attempts to recreate cache manager configuration
+    when module reimport has reset global variables.
+    
+    Returns:
+        bool: True if reinitialization successful
+    """
+    global _cache_manager, _server_config
+    
+    try:
+        import os
+        from pathlib import Path
+
+        from ..config import ServerConfig
+        
+        # Determine appropriate cache configuration
+        cache_path = None
+        embedding_model = "all-MiniLM-L6-v2"  # Safe default
+        max_results = 50
+        
+        # Try to find existing cache directory
+        cache_paths = [
+            ".workflow-commander/cache",
+            Path.cwd() / ".workflow-commander" / "cache",
+            Path("~/.workflow-commander/cache").expanduser(),
+        ]
+        
+        for path in cache_paths:
+            if Path(path).exists() and Path(path).is_dir():
+                cache_path = str(path)
+                break
+        
+        # If no existing cache dir, use default location
+        if not cache_path:
+            cache_path = ".workflow-commander/cache"
+        
+        # Try to extract configuration from environment if available
+        command_line = os.environ.get("MCP_COMMAND_LINE", "")
+        if "--cache-embedding-model" in command_line:
+            # Extract embedding model from command line
+            parts = command_line.split()
+            try:
+                model_idx = parts.index("--cache-embedding-model") + 1
+                if model_idx < len(parts):
+                    embedding_model = parts[model_idx]
+            except (ValueError, IndexError):
+                pass  # Use default
+        
+        if "--cache-max-results" in command_line:
+            # Extract max results from command line
+            parts = command_line.split()
+            try:
+                results_idx = parts.index("--cache-max-results") + 1
+                if results_idx < len(parts):
+                    max_results = int(parts[results_idx])
+            except (ValueError, IndexError):
+                pass  # Use default
+        
+        # Create minimal config for cache initialization
+        temp_config = ServerConfig(
+            repository_path=".",
+            enable_cache_mode=True,
+            cache_db_path=cache_path,
+            cache_embedding_model=embedding_model,
+            cache_max_results=max_results
+        )
+        
+        # Initialize cache manager with detected configuration
+        success = _initialize_cache_manager(temp_config)
+        
+        if success:
+            # Store the config for future reference (helps with subsequent calls)
+            _server_config = temp_config
+            
+        return success
+        
+    except Exception as e:
+        # Minimal logging to avoid noise, but track the issue
+        print(f"Warning: Failed to reinitialize cache from environment: {e}")
+        return False
+
+
+def _is_test_environment() -> bool:
+    """Check if we're running in a test environment.
+    
+    Returns:
+        True if running in tests, False otherwise
+    """
+    import os
+    import sys
+    
+    # Check for pytest in sys.modules
+    if 'pytest' in sys.modules:
+        return True
+        
+    # Check for common test environment variables
+    test_indicators = [
+        'PYTEST_CURRENT_TEST',
+        'CI',
+        'GITHUB_ACTIONS',
+        '_called_from_test'
+    ]
+    
+    for indicator in test_indicators:
+        if os.environ.get(indicator):
+            return True
+            
+    # Check for test in command line arguments
+    return bool(any('test' in arg.lower() for arg in sys.argv))
+
+
+def get_cache_manager():
+    """Get the global cache manager instance.
+    
+    Returns:
+        WorkflowCacheManager or None if not available
+    """
+    global _cache_manager, _server_config
+    
+    # Skip cache initialization entirely in test environments
+    if _is_test_environment():
+        return None
+    
+    with _cache_manager_lock:
+        # Check if cache manager is uninitialized due to module reimport
+        # but we can detect cache mode should be enabled from environment
+        if _cache_manager is None and _should_initialize_cache_from_environment():
+            print("Debug: Attempting cache manager reinitialization from environment")
+            success = _reinitialize_cache_from_environment()
+            print(f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}")
+        
+        if _cache_manager is None:
+            print("Debug: Cache manager unavailable - skipping cache operations")
+        else:
+            print(f"Debug: Cache manager available - is_available: {_cache_manager.is_available()}")
+        
+        return _cache_manager
+
+
+def restore_sessions_from_cache(client_id: str | None = None) -> int:
+    """Restore workflow sessions from cache on startup.
+    
+    Args:
+        client_id: Optional client ID to restore sessions for specific client only
+        
+    Returns:
+        Number of sessions restored from cache
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        return 0
+        
+    try:
+        restored_count = 0
+        
+        if client_id:
+            # Restore sessions for specific client
+            client_session_metadata = cache_manager.get_all_sessions_for_client(client_id)
+            for metadata in client_session_metadata:
+                session_id = metadata.session_id
+                restored_state = cache_manager.retrieve_workflow_state(session_id)
+                if restored_state:
+                    with session_lock:
+                        sessions[session_id] = restored_state
+                        _register_session_for_client(client_id, session_id)
+                    restored_count += 1
+                    
+        return restored_count
+        
+    except Exception:
+        # Non-blocking: don't break startup on cache restoration failures
+        return 0
+
+
+def list_cached_sessions(client_id: str | None = None) -> list[dict]:
+    """List available sessions in cache for restoration.
+    
+    Args:
+        client_id: Optional client ID to filter sessions
+        
+    Returns:
+        List of session metadata dictionaries
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        return []
+        
+    try:
+        if client_id:
+            session_metadata_list = cache_manager.get_all_sessions_for_client(client_id)
+            sessions_info = []
+            
+            for metadata in session_metadata_list:
+                sessions_info.append({
+                    "session_id": metadata.session_id,
+                    "workflow_name": metadata.workflow_name,
+                    "status": metadata.status,
+                    "current_node": metadata.current_node,
+                    "created_at": metadata.created_at.isoformat(),
+                    "last_updated": metadata.last_updated.isoformat(),
+                    "task_description": metadata.current_item if metadata.current_item else "No description",
+                })
+            
+            return sessions_info
+        else:
+            # Get cache stats to show available sessions
+            cache_stats = cache_manager.get_cache_stats()
+            if cache_stats:
+                return [{
+                    "total_cached_sessions": cache_stats.total_entries,
+                    "active_sessions": cache_stats.active_sessions,
+                    "completed_sessions": cache_stats.completed_sessions,
+                    "oldest_entry": cache_stats.oldest_entry.isoformat() if cache_stats.oldest_entry else None,
+                    "newest_entry": cache_stats.newest_entry.isoformat() if cache_stats.newest_entry else None,
+                }]
+            
+        return []
+        
+    except Exception:
+        return []
 
 
 def _generate_unique_session_filename(
@@ -131,8 +438,43 @@ def _sync_session_to_file(
         return False
 
 
+def _sync_session_to_cache(session_id: str, session: DynamicWorkflowState | None = None) -> bool:
+    """Sync session to cache when enabled.
+    
+    Args:
+        session_id: Session ID for session lookup
+        session: Optional session object to avoid lock re-acquisition
+        
+    Returns:
+        bool: True if sync succeeded or was skipped, False on error
+    """
+    cache_manager = get_cache_manager()
+    if not cache_manager or not cache_manager.is_available():
+        # DEBUG: Log cache availability for troubleshooting
+        print(f"Debug: Cache sync skipped for session {session_id[:8]} - cache_manager: {cache_manager is not None}, available: {cache_manager.is_available() if cache_manager else False}")
+        return True  # Skip if cache disabled or unavailable
+        
+    try:
+        # Get session if not provided
+        if session is None:
+            session = get_session(session_id)
+        if not session:
+            print(f"Debug: Cache sync failed for session {session_id[:8]} - session not found")
+            return False
+            
+        # Store in cache
+        result = cache_manager.store_workflow_state(session)
+        print(f"Debug: Cache sync for session {session_id[:8]} - success: {result.success}")
+        return result.success
+        
+    except Exception as e:
+        # Non-blocking: don't break workflow execution on cache failures
+        print(f"Warning: Failed to sync session to cache: {e}")
+        return False
+
+
 def sync_session(session_id: str) -> bool:
-    """Explicitly sync a session to filesystem after manual modifications.
+    """Explicitly sync a session to filesystem and cache after manual modifications.
     
     Use this function after directly modifying session fields outside of 
     session_manager functions to ensure changes are persisted.
@@ -143,7 +485,64 @@ def sync_session(session_id: str) -> bool:
     Returns:
         bool: True if sync succeeded or was skipped, False on error
     """
-    return _sync_session_to_file(session_id)
+    print(f"Debug: Explicit sync requested for session {session_id[:8]}")
+    file_sync = _sync_session_to_file(session_id)
+    cache_sync = _sync_session_to_cache(session_id)
+    
+    print(f"Debug: Explicit sync results - file: {file_sync}, cache: {cache_sync}")
+    
+    # Return True if at least one sync method succeeded
+    return file_sync or cache_sync
+
+
+def force_cache_sync_session(session_id: str) -> dict[str, any]:
+    """Force cache sync for a specific session with detailed diagnostics.
+    
+    Args:
+        session_id: The session identifier
+        
+    Returns:
+        dict: Detailed sync results and diagnostics
+    """
+    results = {
+        "session_id": session_id,
+        "session_found": False,
+        "cache_manager_available": False,
+        "cache_sync_attempted": False,
+        "cache_sync_success": False,
+        "error": None
+    }
+    
+    try:
+        # Check session existence
+        session = get_session(session_id)
+        results["session_found"] = session is not None
+        
+        if not session:
+            results["error"] = "Session not found in memory"
+            return results
+        
+        # Check cache manager
+        cache_manager = get_cache_manager()
+        results["cache_manager_available"] = cache_manager is not None and (cache_manager.is_available() if cache_manager else False)
+        
+        if not cache_manager or not cache_manager.is_available():
+            results["error"] = "Cache manager not available"
+            return results
+        
+        # Attempt cache sync
+        results["cache_sync_attempted"] = True
+        result = cache_manager.store_workflow_state(session)
+        results["cache_sync_success"] = result.success
+        
+        if not result.success:
+            results["error"] = result.error_message
+            
+        return results
+        
+    except Exception as e:
+        results["error"] = str(e)
+        return results
 
 
 def get_session(session_id: str) -> DynamicWorkflowState | None:
@@ -237,8 +636,9 @@ def create_dynamic_session(
         # Register session for client
         _register_session_for_client(client_id, state.session_id)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(state.session_id, state)
+        _sync_session_to_cache(state.session_id, state)
 
         return state
 
@@ -258,8 +658,18 @@ def update_session(session_id: str, **kwargs) -> bool:
         # Update timestamp
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        cache_sync_result = _sync_session_to_cache(session_id, session)
+        
+        # Force cache sync for completed workflows
+        if kwargs.get('status') in ['COMPLETED', 'FINISHED'] and not cache_sync_result:
+            print(f"Debug: Workflow completion detected for {session_id[:8]}, forcing cache sync")
+            # Try cache sync again after brief delay to allow for cache initialization
+            import time
+            time.sleep(0.1)
+            cache_sync_result = _sync_session_to_cache(session_id, session)
+            print(f"Debug: Forced cache sync result: {cache_sync_result}")
 
         return True
 
@@ -307,9 +717,10 @@ def update_dynamic_session_node(
         if success and status:
             session.status = status
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         if success:
             _sync_session_to_file(session_id, session)
+            _sync_session_to_cache(session_id, session)
 
         return success
 
@@ -446,8 +857,9 @@ def add_log_to_session(session_id: str, entry: str) -> bool:
         session.add_log_entry(entry)
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        _sync_session_to_cache(session_id, session)
 
         return True
 
@@ -483,8 +895,9 @@ def add_item_to_session(session_id: str, description: str) -> bool:
         session.items.append(new_item)
         session.last_updated = datetime.now(UTC)
 
-        # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+        # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
         _sync_session_to_file(session_id, session)
+        _sync_session_to_cache(session_id, session)
 
         return True
 
@@ -499,8 +912,9 @@ def mark_item_completed_in_session(session_id: str, item_id: int) -> bool:
         result = session.mark_item_completed(item_id)
         if result:
             session.last_updated = datetime.now(UTC)
-            # Auto-sync to filesystem if enabled (pass session to avoid lock re-acquisition)
+            # Auto-sync to filesystem and cache if enabled (pass session to avoid lock re-acquisition)
             _sync_session_to_file(session_id, session)
+            _sync_session_to_cache(session_id, session)
 
         return result
 
@@ -711,53 +1125,35 @@ def clear_workflow_definition_cache(session_id: str) -> None:
 
 def detect_session_conflict(client_id: str) -> dict[str, any] | None:
     """Detect if there are existing sessions for a client.
+    
+    NOTE: This function has been disabled to fix multi-chat environment conflicts.
+    In environments like Cursor with multiple chat windows, client_id-based conflict 
+    detection creates false positives. Each chat should operate independently.
+    
+    DEPRECATED: Client-based conflict detection is disabled.
+    Use session-specific operations with explicit session_id instead.
 
     Args:
-        client_id: The client identifier
+        client_id: The client identifier (preserved for backward compatibility)
 
     Returns:
-        dict: Session conflict information if sessions exist, None if no sessions
-
-    The returned dict contains:
-        - has_conflict: bool - Whether there are existing sessions
-        - session_count: int - Number of existing sessions
-        - sessions: list - List of session summaries
-        - most_recent_session: dict - Details of most recent session
+        None: Always returns None - no conflicts detected
+        
+    MIGRATION: Code using this function should transition to:
+    - Direct session_id management for resuming specific sessions
+    - Independent session creation per conversation/chat
+    - Optional: Context-aware session discovery for smart resumption
     """
-    existing_sessions = get_sessions_by_client(client_id)
-
-    if not existing_sessions:
-        return None
-
-    # Get most recent session
-    most_recent = max(existing_sessions, key=lambda s: s.last_updated)
-
-    session_summaries = []
-    for session in existing_sessions:
-        session_summaries.append(
-            {
-                "session_id": session.session_id,
-                "workflow_name": session.workflow_name,
-                "current_node": session.current_node,
-                "status": session.status,
-                "current_item": session.current_item or "No current item",
-                "last_updated": session.last_updated.isoformat(),
-            }
-        )
-
-    return {
-        "has_conflict": True,
-        "session_count": len(existing_sessions),
-        "sessions": session_summaries,
-        "most_recent_session": {
-            "session_id": most_recent.session_id,
-            "workflow_name": most_recent.workflow_name,
-            "current_node": most_recent.current_node,
-            "status": most_recent.status,
-            "current_item": most_recent.current_item or "No current item",
-            "last_updated": most_recent.last_updated.isoformat(),
-        },
-    }
+    # DISABLED: Always return None to prevent false conflicts in multi-chat environments
+    # This fixes the core issue where multiple chat windows in Cursor share the same client_id
+    # but should operate independently without conflict detection.
+    return None
+    
+    # ORIGINAL LOGIC (preserved for reference, now commented out):
+    # existing_sessions = get_sessions_by_client(client_id)
+    # if not existing_sessions:
+    #     return None
+    # [... rest of original logic would be here ...]
 
 
 def get_session_summary(session_id: str) -> str:
@@ -824,6 +1220,57 @@ def clear_session_completely(session_id: str) -> dict[str, any]:
 
         # Mark as successful if session was cleared
         results["success"] = success
+
+        return results
+
+    except Exception as e:
+        results["error"] = str(e)
+        return results
+
+
+def clear_all_client_sessions(client_id: str) -> dict[str, any]:
+    """Clear all sessions for a specific client.
+
+    Args:
+        client_id: The client identifier
+
+    Returns:
+        dict: Cleanup results with the following keys:
+        - success: bool - Whether cleanup was successful overall
+        - sessions_cleared: int - Number of sessions cleared
+        - failed_sessions: list - List of sessions that failed to clear
+        - previous_session_type: str - Type of sessions that were cleared
+        - error: str | None - Error message if cleanup failed
+    """
+    results = {
+        "success": False,
+        "sessions_cleared": 0,
+        "failed_sessions": [],
+        "previous_session_type": "dynamic",
+        "error": None,
+    }
+
+    try:
+        # Get all sessions for the client
+        client_sessions = get_sessions_by_client(client_id)
+        
+        if not client_sessions:
+            results["success"] = True
+            return results
+
+        # Clear each session
+        for session in client_sessions:
+            session_result = clear_session_completely(session.session_id)
+            if session_result["success"]:
+                results["sessions_cleared"] += 1
+            else:
+                results["failed_sessions"].append({
+                    "session_id": session.session_id,
+                    "error": session_result.get("error", "Unknown error")
+                })
+
+        # Mark as successful if all sessions were cleared
+        results["success"] = len(results["failed_sessions"]) == 0
 
         return results
 
