@@ -396,7 +396,7 @@ class WorkflowCacheManager:
                 
                 # Convert ISO datetime strings back to datetime objects and deserialize JSON
                 for key, value in metadata_dict.items():
-                    if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                    if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time') or key.endswith('_updated')):
                         with contextlib.suppress(ValueError, TypeError):
                             dt = datetime.fromisoformat(value)
                             # Ensure timezone awareness - if naive, assume UTC
@@ -498,7 +498,7 @@ class WorkflowCacheManager:
                 for m in results["metadatas"]:
                     metadata_dict = dict(m)
                     for key, value in metadata_dict.items():
-                        if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                        if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time') or key.endswith('_updated')):
                             with contextlib.suppress(ValueError, TypeError):
                                 dt = datetime.fromisoformat(value)
                                 # Ensure timezone awareness - if naive, assume UTC
@@ -633,7 +633,7 @@ class WorkflowCacheManager:
                         # Create metadata object (deserialize datetime strings and JSON)
                         metadata_dict = dict(search_results["metadatas"][0][i])
                         for key, value in metadata_dict.items():
-                            if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                            if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time') or key.endswith('_updated')):
                                 with contextlib.suppress(ValueError, TypeError):
                                     dt = datetime.fromisoformat(value)
                                     # Ensure timezone awareness - if naive, assume UTC
@@ -727,7 +727,7 @@ class WorkflowCacheManager:
                 for m in results["metadatas"]:
                     metadata_dict = dict(m)
                     for key, value in metadata_dict.items():
-                        if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                        if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time') or key.endswith('_updated')):
                             with contextlib.suppress(ValueError, TypeError):
                                 dt = datetime.fromisoformat(value)
                                 # Ensure timezone awareness - if naive, assume UTC
@@ -831,7 +831,7 @@ class WorkflowCacheManager:
                         
                         # Convert ISO datetime strings back to datetime objects
                         for key, value in metadata_dict.items():
-                            if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time')):
+                            if isinstance(value, str) and (key.endswith('_at') or key.endswith('_time') or key.endswith('_updated')):
                                 with contextlib.suppress(ValueError, TypeError):
                                     dt = datetime.fromisoformat(value)
                                     # Ensure timezone awareness - if naive, assume UTC
