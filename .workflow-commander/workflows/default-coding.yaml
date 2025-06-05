@@ -61,8 +61,6 @@ workflow:
         **BLUEPRINT PHASE:** ${{ inputs.task_description }}
 
         Create a comprehensive implementation plan with clear architecture, step-by-step execution strategy, and testing approach. The plan should be detailed enough for systematic execution.
-
-        **Ask for approval before proceeding to implementation.**
         
       acceptance_criteria:
         solution_architecture: "MUST define overall technical approach and strategy, specify design patterns and architectural decisions, identify all files to create/modify with rationale, and plan for error handling and edge cases"
@@ -71,6 +69,7 @@ workflow:
         implementation_plan: "MUST create detailed implementation plan under ## Plan section, include risk assessment and mitigation strategies, specify quality assurance checkpoints, and define rollback procedures if needed"
         plan_approval: "Plan is comprehensive, actionable, and ready for systematic execution with user approval obtained"
       next_allowed_nodes: [construct]
+      needs_approval: true
 
     # Construction phase - implement the plan
     construct:

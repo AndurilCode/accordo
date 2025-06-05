@@ -26,6 +26,7 @@ This makes the system infinitely extensible without requiring pre-built workflow
 
 ### 📖 Reference Materials
 - **[Workflow System](workflows/)** - Workflow creation and customization
+- **[Node Fields Reference](workflows/node-fields-reference.md)** - Complete guide to workflow node fields
 
 ## 🔍 Quick Navigation
 
