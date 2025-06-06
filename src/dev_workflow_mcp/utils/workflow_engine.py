@@ -4,7 +4,7 @@ from typing import Any
 
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
-from ..utils.yaml_loader import WorkflowLoader
+from ..utils.yaml_loader import WorkflowLoader, WorkflowLoadError
 
 
 class WorkflowEngineError(Exception):
@@ -57,7 +57,9 @@ class WorkflowEngine:
         inputs = self._prepare_inputs(task_description, workflow_def)
 
         # Create initial state
+        from ..utils.session_id_utils import generate_session_id
         state = DynamicWorkflowState(
+            session_id=generate_session_id(),
             client_id=client_id,
             workflow_name=workflow_def.name,
             current_node=workflow_def.workflow.root,
@@ -129,10 +131,10 @@ class WorkflowEngine:
             "acceptance_criteria": current_node.acceptance_criteria,
             "next_allowed_nodes": current_node.next_allowed_nodes,
             "next_allowed_workflows": current_node.next_allowed_workflows,
-            "is_decision_node": bool(current_node.children),
-            "children": list(current_node.children.keys())
-            if current_node.children
-            else [],
+            "is_workflow_node": current_node.is_workflow_node,
+            "workflow_path": current_node.workflow if current_node.is_workflow_node else None,
+            "is_decision_node": current_node.is_decision_node,
+            "children": current_node.next_allowed_nodes,
             "workflow_info": {
                 "name": workflow_def.name,
                 "description": workflow_def.description,
@@ -258,10 +260,8 @@ class WorkflowEngine:
                         "node_name": next_node_name,
                         "goal": next_node.goal,
                         "acceptance_criteria": next_node.acceptance_criteria,
-                        "is_decision_node": bool(next_node.children),
-                        "children_count": len(next_node.children)
-                        if next_node.children
-                        else 0,
+                        "is_decision_node": next_node.is_decision_node,
+                        "children_count": len(next_node.next_allowed_nodes),
                     }
                 )
 
@@ -419,10 +419,175 @@ class WorkflowEngine:
                     if input_def.type == "string":
                         inputs[input_name] = ""
                     elif input_def.type == "boolean":
-                        inputs[input_name] = False
+                        inputs[input_name] = False  # type: ignore
                     elif input_def.type == "number":
-                        inputs[input_name] = 0
+                        inputs[input_name] = 0  # type: ignore
                     else:
-                        inputs[input_name] = None
+                        inputs[input_name] = ""  # Use empty string instead of None
 
         return inputs
+
+    def execute_workflow_transition(
+        self,
+        state: DynamicWorkflowState,
+        current_workflow_def: WorkflowDefinition,
+        target_workflow_path: str,
+        outputs: dict[str, Any] | None = None,
+    ) -> tuple[bool, WorkflowDefinition | None, str]:
+        """Execute a transition to an external workflow.
+
+        Args:
+            state: Current workflow state
+            current_workflow_def: Current workflow definition
+            target_workflow_path: Path to the target external workflow
+            outputs: Optional outputs from current node
+
+        Returns:
+            tuple[bool, WorkflowDefinition | None, str]: (success, new_workflow_def, message)
+        """
+        try:
+            # Get current workflow file path for relative resolution
+            current_workflow_path = None
+            if hasattr(state, 'workflow_file_path'):
+                current_workflow_path = state.workflow_file_path
+            
+            # Load the external workflow
+            external_workflow = self.loader.load_external_workflow(
+                target_workflow_path, 
+                current_workflow_path
+            )
+            
+            if not external_workflow:
+                return False, None, f"Failed to load external workflow: {target_workflow_path}"
+            
+            # Store previous workflow context for return
+            previous_context = {
+                "workflow_name": state.workflow_name,
+                "current_node": state.current_node,
+                "workflow_def": current_workflow_def,
+                "node_outputs": outputs or {},
+            }
+            
+            # Add to workflow stack for nested execution tracking
+            state.workflow_stack.append(previous_context)
+            
+            # Transfer state to new workflow
+            state.workflow_name = external_workflow.name
+            state.current_node = external_workflow.workflow.root
+            state.status = "RUNNING"
+            
+            # Merge inputs from current workflow to external workflow
+            external_inputs = self._merge_workflow_inputs(
+                state.inputs, 
+                external_workflow, 
+                outputs or {}
+            )
+            state.inputs.update(external_inputs)
+            
+            # Add transition logs
+            state.add_log_entry(f"🔀 WORKFLOW TRANSITION: {current_workflow_def.name} → {external_workflow.name}")
+            state.add_log_entry(f"📁 External workflow path: {target_workflow_path}")
+            state.add_log_entry(f"📍 Starting at root node: {external_workflow.workflow.root}")
+            
+            return True, external_workflow, f"Successfully transitioned to workflow: {external_workflow.name}"
+            
+        except WorkflowLoadError as e:
+            error_msg = f"Failed to load external workflow '{target_workflow_path}': {str(e)}"
+            state.add_log_entry(f"❌ WORKFLOW TRANSITION FAILED: {error_msg}")
+            return False, None, error_msg
+            
+        except Exception as e:
+            error_msg = f"Unexpected error during workflow transition: {str(e)}"
+            state.add_log_entry(f"❌ WORKFLOW TRANSITION ERROR: {error_msg}")
+            return False, None, error_msg
+
+    def return_from_workflow(
+        self,
+        state: DynamicWorkflowState,
+        completed_workflow_outputs: dict[str, Any] | None = None,
+    ) -> tuple[bool, WorkflowDefinition | None, str]:
+        """Return from a completed external workflow to the calling workflow.
+
+        Args:
+            state: Current workflow state
+            completed_workflow_outputs: Outputs from the completed external workflow
+
+        Returns:
+            tuple[bool, WorkflowDefinition | None, str]: (success, parent_workflow_def, message)
+        """
+        try:
+            if not state.workflow_stack:
+                return False, None, "No parent workflow to return to"
+            
+            # Pop the previous workflow context
+            previous_context = state.workflow_stack.pop()
+            
+            # Restore previous workflow state
+            previous_workflow_name = previous_context["workflow_name"]
+            previous_node = previous_context["current_node"]
+            previous_workflow_def = previous_context["workflow_def"]
+            
+            # Store the completed workflow outputs
+            if completed_workflow_outputs:
+                state.workflow_outputs[state.workflow_name] = completed_workflow_outputs
+            
+            # Restore state
+            state.workflow_name = previous_workflow_name
+            state.current_node = previous_node
+            state.status = "RUNNING"
+            
+            # Add return logs
+            state.add_log_entry(f"↩️ WORKFLOW RETURN: Returned to {previous_workflow_name}")
+            state.add_log_entry(f"📍 Resumed at node: {previous_node}")
+            
+            if completed_workflow_outputs:
+                state.add_log_entry(f"📊 Workflow outputs captured: {list(completed_workflow_outputs.keys())}")
+            
+            return True, previous_workflow_def, f"Successfully returned to workflow: {previous_workflow_name}"
+            
+        except Exception as e:
+            error_msg = f"Error returning from workflow: {str(e)}"
+            state.add_log_entry(f"❌ WORKFLOW RETURN ERROR: {error_msg}")
+            return False, None, error_msg
+
+    def _merge_workflow_inputs(
+        self,
+        current_inputs: dict[str, Any],
+        target_workflow: WorkflowDefinition,
+        node_outputs: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Merge inputs for workflow transition.
+
+        Args:
+            current_inputs: Current workflow inputs
+            target_workflow: Target workflow definition
+            node_outputs: Outputs from the transitioning node
+
+        Returns:
+            dict[str, Any]: Merged inputs for target workflow
+        """
+        merged_inputs = {}
+        
+        # Start with current inputs as base
+        merged_inputs.update(current_inputs)
+        
+        # Add node outputs as potential inputs
+        merged_inputs.update(node_outputs)
+        
+        # Ensure required inputs for target workflow are satisfied
+        for input_name, input_def in target_workflow.inputs.items():
+            if input_name not in merged_inputs:
+                if input_def.default is not None:
+                    merged_inputs[input_name] = input_def.default
+                elif input_def.required:
+                    # Use sensible defaults based on type - all stored as Any in dict
+                    if input_def.type == "string":
+                        merged_inputs[input_name] = str(current_inputs.get("task_description", ""))
+                    elif input_def.type == "boolean":
+                        merged_inputs[input_name] = False
+                    elif input_def.type == "number":
+                        merged_inputs[input_name] = 0
+                    else:
+                        merged_inputs[input_name] = ""
+        
+        return merged_inputs

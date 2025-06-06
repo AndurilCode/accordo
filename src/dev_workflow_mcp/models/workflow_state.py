@@ -70,6 +70,14 @@ class DynamicWorkflowState(BaseModel):
     node_history: list[str] = Field(
         default_factory=list, description="History of visited nodes"
     )
+    
+    # Workflow composition support
+    workflow_stack: list[dict[str, Any]] = Field(
+        default_factory=list, description="Stack of nested workflow contexts for composition"
+    )
+    workflow_outputs: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Outputs from completed sub-workflows"
+    )
 
     @model_validator(mode="before")
     @classmethod

@@ -55,6 +55,8 @@ class TestWorkflowEngine:
         start_node.next_allowed_nodes = ["middle_node"]
         start_node.next_allowed_workflows = []
         start_node.children = None
+        start_node.workflow = None
+        start_node.is_workflow_node = False
 
         middle_node = Mock(spec=WorkflowNode)
         middle_node.goal = "Middle goal"
@@ -62,6 +64,8 @@ class TestWorkflowEngine:
         middle_node.next_allowed_nodes = ["end_node"]
         middle_node.next_allowed_workflows = []
         middle_node.children = None
+        middle_node.workflow = None
+        middle_node.is_workflow_node = False
 
         end_node = Mock(spec=WorkflowNode)
         end_node.goal = "End goal"
@@ -69,6 +73,8 @@ class TestWorkflowEngine:
         end_node.next_allowed_nodes = []
         end_node.next_allowed_workflows = []
         end_node.children = None
+        end_node.workflow = None
+        end_node.is_workflow_node = False
 
         # Configure get_node mock to return appropriate nodes
         def get_node_side_effect(node_name):
@@ -138,15 +144,21 @@ class TestWorkflowEngine:
             # Verify workflow discovery was called
             engine.loader.discover_workflows.assert_called_once()
 
-            # Verify state creation
-            mock_state_class.assert_called_once_with(
-                client_id="test_client",
-                workflow_name="Test Workflow",
-                current_node="start_node",
-                status="READY",
-                inputs={"task_description": "Test task"},
-                current_item="Test task",
-            )
+            # Verify state creation - check call was made with expected parameters
+            # Note: session_id is auto-generated, so we check other parameters
+            call_args = mock_state_class.call_args
+            assert call_args is not None
+            call_kwargs = call_args.kwargs
+            
+            assert call_kwargs["client_id"] == "test_client"
+            assert call_kwargs["workflow_name"] == "Test Workflow"
+            assert call_kwargs["current_node"] == "start_node"
+            assert call_kwargs["status"] == "READY"
+            assert call_kwargs["inputs"] == {"task_description": "Test task"}
+            assert call_kwargs["current_item"] == "Test task"
+            # session_id should be present and be a string
+            assert "session_id" in call_kwargs
+            assert isinstance(call_kwargs["session_id"], str)
 
             # Verify log entries
             mock_state_instance.add_log_entry.assert_any_call(
@@ -226,6 +238,7 @@ class TestWorkflowEngine:
             "next_allowed_workflows": [],
             "is_decision_node": False,
             "children": [],
+            "workflow_path": None,
             "workflow_info": {
                 "name": "Test Workflow",
                 "description": "Test workflow description",
@@ -259,6 +272,8 @@ class TestWorkflowEngine:
         # Create a dict that evaluates to True in boolean context
         children_dict = {"option1": Mock(), "option2": Mock()}
         decision_node.children = children_dict
+        decision_node.workflow = None
+        decision_node.is_workflow_node = False
 
         # Override the get_node method to return our decision node for the current node
         def get_node_side_effect(node_name):

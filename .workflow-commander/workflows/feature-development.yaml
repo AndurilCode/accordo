@@ -1,0 +1,113 @@
+name: Feature Development Workflow
+description: Comprehensive feature development workflow with analysis, design, implementation, testing, and documentation phases using workflow composition
+
+inputs:
+  task_description:
+    type: string
+    description: Description of the feature to develop
+    required: true
+ 
+execution:
+  max_depth: 15
+  allow_backtracking: true
+
+workflow:
+  goal: Complete feature development with proper analysis, design, implementation, testing, and documentation
+  root: analyze_requirements
+  tree:
+    # Phase 1: Requirements Analysis
+    analyze_requirements:
+      goal: |
+        **ANALYZE REQUIREMENTS:** ${{ inputs.task_description }}
+        
+        Thoroughly analyze the feature requirements, understand the existing codebase, and define clear specifications.
+        Focus on understanding what needs to be built, why it's needed, and how it fits into the existing system.
+      acceptance_criteria:
+        requirement_analysis: "MUST break down feature requirements into specific, actionable user stories with clear acceptance criteria"
+        codebase_exploration: "MUST identify all affected components, files, and integration points in the existing codebase"
+        dependency_mapping: "MUST document all external dependencies, API requirements, and third-party integrations needed"
+        constraint_identification: "MUST identify technical constraints, performance requirements, and compatibility considerations"
+        scope_definition: "MUST clearly define what is in scope and out of scope for this feature implementation"
+      next_allowed_nodes: [design_architecture]
+
+    # Phase 2: Architecture Design
+    design_architecture:
+      goal: |
+        **DESIGN ARCHITECTURE:** Create technical design for ${{ inputs.task_description }}
+        
+        Design the technical architecture, data structures, APIs, and component interactions.
+        Create a clear implementation plan with proper abstraction and modularity.
+      acceptance_criteria:
+        technical_design: "MUST create detailed technical design including data models, API endpoints, and component architecture"
+        implementation_plan: "MUST break down implementation into logical, ordered steps with clear dependencies"
+        interface_design: "MUST define all interfaces, APIs, and contracts between components"
+        security_considerations: "MUST identify and plan for security implications and data privacy requirements"
+        performance_planning: "MUST consider performance implications and optimization strategies"
+      next_allowed_nodes: [implement_feature]
+
+    # Phase 3: Feature Implementation (delegated to coding workflow)
+    implement_feature:
+      workflow: ./coding-workflow.yaml
+      next_allowed_nodes: [comprehensive_testing]
+
+    # Phase 4: Comprehensive Testing
+    comprehensive_testing:
+      goal: |
+        **COMPREHENSIVE TESTING:** Test ${{ inputs.task_description }}
+        
+        Implement and execute comprehensive testing including unit tests, integration tests, 
+        end-to-end tests, and manual testing scenarios.
+      acceptance_criteria:
+        unit_testing: "MUST implement unit tests for all new functions and methods with at least 90% code coverage"
+        integration_testing: "MUST create integration tests for all component interactions and external dependencies"
+        end_to_end_testing: "MUST implement end-to-end tests covering complete user workflows"
+        edge_case_testing: "MUST test edge cases, error conditions, and boundary scenarios"
+        performance_testing: "MUST validate performance requirements and identify potential bottlenecks"
+        security_testing: "MUST verify security measures and test for common vulnerabilities"
+      next_allowed_nodes: [quality_assurance]
+
+    # Phase 5: Quality Assurance
+    quality_assurance:
+      goal: |
+        **QUALITY ASSURANCE:** Ensure production readiness of ${{ inputs.task_description }}
+        
+        Perform comprehensive quality checks including code review, static analysis,
+        documentation review, and deployment readiness verification.
+      acceptance_criteria:
+        code_review: "MUST conduct thorough code review checking for best practices, maintainability, and compliance"
+        static_analysis: "MUST run static analysis tools and address all critical issues and warnings"
+        documentation_review: "MUST verify all code is properly documented with clear comments and docstrings"
+        deployment_readiness: "MUST verify feature is ready for deployment with proper configuration and monitoring"
+        rollback_planning: "MUST create rollback plan and identify potential risks for production deployment"
+      next_allowed_nodes: [create_documentation]
+
+    # Phase 6: Documentation (delegated to documentation workflow if enabled)
+    create_documentation:
+      goal: |
+        **CREATE DOCUMENTATION:** Document ${{ inputs.task_description }}
+        
+        Create comprehensive documentation including user guides, API documentation,
+        developer documentation, and deployment guides.
+      acceptance_criteria:
+        user_documentation: "MUST create user-facing documentation explaining how to use the new feature"
+        api_documentation: "MUST document all new APIs with examples, parameters, and response formats"
+        developer_documentation: "MUST create developer documentation explaining implementation details and architecture"
+        deployment_documentation: "MUST document deployment procedures, configuration, and maintenance requirements"
+      next_allowed_workflows: [documentation]
+      next_allowed_nodes: [feature_complete]
+
+    # Phase 7: Feature Complete
+    feature_complete:
+      goal: |
+        **FEATURE COMPLETE:** Finalize ${{ inputs.task_description }}
+        
+        Complete the feature development process with final validation, changelog updates,
+        and preparation for release.
+      acceptance_criteria:
+        final_validation: "MUST perform final end-to-end validation of all functionality and integration points"
+        changelog_update: "MUST update project changelog with detailed description of new feature and breaking changes"
+        version_planning: "MUST determine appropriate version bump and document release notes"
+        monitoring_setup: "MUST configure monitoring and alerting for the new feature in production"
+        team_handoff: "MUST provide handoff documentation and training materials for support team"
+        release_readiness: "MUST confirm feature is ready for release with all quality gates passed"
+      next_allowed_nodes: [] 

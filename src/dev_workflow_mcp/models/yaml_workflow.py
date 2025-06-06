@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ExecutionConfig(BaseModel):
@@ -26,10 +26,14 @@ class WorkflowInput(BaseModel):
 class WorkflowNode(BaseModel):
     """A single node in a workflow tree."""
 
-    goal: str = Field(description="Goal description for this node")
+    goal: str | None = Field(default=None, description="Goal description for this node")
     acceptance_criteria: dict[str, str] = Field(
         default_factory=dict,
         description="Criteria that must be met to complete this node",
+    )
+    workflow: str | None = Field(
+        default=None,
+        description="Path to external workflow file to execute for this node"
     )
     next_allowed_nodes: list[str] = Field(
         default_factory=list,
@@ -44,6 +48,33 @@ class WorkflowNode(BaseModel):
         description="Whether this node requires explicit user approval before proceeding to next node execution. Ignored for terminal nodes.",
     )
 
+    @model_validator(mode='after')
+    def validate_node_content(self) -> 'WorkflowNode':
+        """Validate that either workflow OR goal is provided, but not both."""
+        has_workflow = self.workflow is not None and self.workflow.strip()
+        has_goal = self.goal is not None and self.goal.strip()
+        
+        if has_workflow and has_goal:
+            raise ValueError(
+                "Node cannot have both 'workflow' and 'goal' fields. "
+                "Use 'workflow' for external workflow references or 'goal' for inline node definitions."
+            )
+        
+        if not has_workflow and not has_goal:
+            raise ValueError(
+                "Node must have either 'workflow' (for external workflow) or 'goal' (for inline node). "
+                "Provide one of these fields."
+            )
+        
+        # If using workflow reference, acceptance_criteria should be empty
+        if has_workflow and self.acceptance_criteria:
+            raise ValueError(
+                "Node with 'workflow' field should not have 'acceptance_criteria'. "
+                "Acceptance criteria are defined in the referenced external workflow."
+            )
+        
+        return self
+
     @property
     def is_leaf_node(self) -> bool:
         """Check if this is a leaf node (no children)."""
@@ -55,6 +86,11 @@ class WorkflowNode(BaseModel):
     def is_decision_node(self) -> bool:
         """Check if this is a decision node (has children)."""
         return not self.is_leaf_node
+
+    @property
+    def is_workflow_node(self) -> bool:
+        """Check if this node references an external workflow."""
+        return self.workflow is not None and bool(self.workflow.strip())
 
 
 class WorkflowTree(BaseModel):

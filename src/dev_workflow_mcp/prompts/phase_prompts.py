@@ -970,6 +970,33 @@ def _handle_dynamic_workflow(
         if not current_node:
             return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
+        # Handle workflow nodes (nodes that reference external workflows)
+        if current_node.is_workflow_node and not context:
+            # Auto-execute workflow transition for workflow nodes
+            try:
+                # Execute workflow transition automatically
+                success, new_workflow_def, message = engine.execute_workflow_transition(
+                    session, workflow_def, current_node.workflow, {}
+                )
+                
+                if success and new_workflow_def:
+                    # Update workflow definition and continue with new workflow
+                    workflow_def = new_workflow_def
+                    current_node = workflow_def.workflow.get_node(session.current_node)
+                    
+                    if current_node:
+                        status = format_enhanced_node_status(current_node, workflow_def, session)
+                        return f"""✅ **Auto-Workflow Transition:** {message}
+
+{status}"""
+                    else:
+                        return f"✅ **Auto-Workflow Transition:** {message}"
+                else:
+                    return f"❌ **Auto-Workflow Transition Failed:** {message}"
+                    
+            except Exception as e:
+                return f"❌ **Auto-Workflow Transition Error:** {str(e)}"
+
         # Handle choice selection with enhanced context parsing
         if (
             context
@@ -1019,8 +1046,36 @@ def _handle_dynamic_workflow(
                         return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Current node requires explicit user approval before transition. Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL."
 
                 elif choice in (current_node.next_allowed_workflows or []):
-                    # Workflow transition - not implemented yet
-                    return f"❌ **Workflow transitions not yet implemented:** {choice}"
+                    # External workflow transition
+                    try:
+                        # Complete current node and capture outputs
+                        completion_outputs = _generate_node_completion_outputs(
+                            session.current_node, current_node, session, criteria_evidence
+                        )
+                        session.complete_current_node(completion_outputs)
+                        
+                        # Execute workflow transition
+                        success, new_workflow_def, message = engine.execute_workflow_transition(
+                            session, workflow_def, choice, completion_outputs
+                        )
+                        
+                        if success and new_workflow_def:
+                            # Update workflow definition and continue with new workflow
+                            workflow_def = new_workflow_def
+                            current_node = workflow_def.workflow.get_node(session.current_node)
+                            
+                            if current_node:
+                                status = format_enhanced_node_status(current_node, workflow_def, session)
+                                return f"""✅ **Workflow Transition Successful:** {message}
+
+{status}"""
+                            else:
+                                return f"✅ **Workflow Transition Successful:** {message}"
+                        else:
+                            return f"❌ **Workflow Transition Failed:** {message}"
+                            
+                    except Exception as e:
+                        return f"❌ **Workflow Transition Error:** {str(e)}"
 
             else:
                 # Invalid choice

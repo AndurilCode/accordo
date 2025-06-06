@@ -4,7 +4,9 @@ This module loads YAML workflow definitions and presents them to agents for sele
 No hardcoded scoring or matching logic - just pure discovery and loading.
 """
 
+import os
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -42,7 +44,7 @@ class WorkflowLoader:
         Returns:
             Dictionary mapping workflow names to WorkflowDefinition objects
         """
-        workflows = {}
+        workflows: dict[str, WorkflowDefinition] = {}
 
         if not self.workflows_dir.exists():
             return workflows
@@ -79,8 +81,149 @@ class WorkflowLoader:
         except Exception:
             return None
 
+    def load_external_workflow(
+        self, 
+        workflow_path: str, 
+        base_workflow_path: str | None = None
+    ) -> WorkflowDefinition | None:
+        """Load an external workflow file with path resolution and security validation.
+
+        Args:
+            workflow_path: Path to external workflow file (relative or absolute)
+            base_workflow_path: Path of the workflow file making the reference (for relative resolution)
+
+        Returns:
+            WorkflowDefinition object or None if loading fails
+
+        Raises:
+            WorkflowLoadError: If path is invalid or file cannot be loaded
+        """
+        try:
+            resolved_path = self._resolve_workflow_path(workflow_path, base_workflow_path)
+            self._validate_path_security(resolved_path)
+            
+            if not resolved_path.exists():
+                raise WorkflowLoadError(
+                    f"External workflow file not found: {resolved_path}",
+                    str(resolved_path)
+                )
+            
+            if not resolved_path.is_file():
+                raise WorkflowLoadError(
+                    f"External workflow path is not a file: {resolved_path}",
+                    str(resolved_path)
+                )
+            
+            # Load the workflow
+            with open(resolved_path, encoding="utf-8") as f:
+                yaml_data = yaml.safe_load(f)
+
+            # Validate and create workflow definition
+            workflow = WorkflowDefinition(**yaml_data)
+            return workflow
+
+        except WorkflowLoadError:
+            # Re-raise WorkflowLoadError as-is
+            raise
+        except Exception as e:
+            raise WorkflowLoadError(
+                f"Failed to load external workflow '{workflow_path}': {str(e)}",
+                workflow_path
+            ) from e
+
+    def _resolve_workflow_path(
+        self, 
+        workflow_path: str, 
+        base_workflow_path: str | None = None
+    ) -> Path:
+        """Resolve workflow path relative to base workflow or workflows directory.
+
+        Args:
+            workflow_path: Path to resolve
+            base_workflow_path: Base path for relative resolution
+
+        Returns:
+            Resolved Path object
+        """
+        workflow_path = workflow_path.strip()
+        
+        # If absolute path, use as-is (but still validate for security)
+        if os.path.isabs(workflow_path):
+            return Path(workflow_path)
+        
+        # For relative paths, resolve relative to base workflow's directory
+        if base_workflow_path:
+            base_dir = Path(base_workflow_path).parent
+            resolved = base_dir / workflow_path
+        else:
+            # If no base workflow provided, resolve relative to workflows directory
+            resolved = self.workflows_dir / workflow_path
+        
+        # Resolve any relative components (., .., etc.)
+        return resolved.resolve()
+
+    def _validate_path_security(self, resolved_path: Path) -> None:
+        """Validate that the resolved path is safe to access.
+
+        Args:
+            resolved_path: The resolved path to validate
+
+        Raises:
+            WorkflowLoadError: If path is unsafe
+        """
+        resolved_str = str(resolved_path)
+        
+        # Check for dangerous path components
+        dangerous_patterns = [
+            "..",  # Parent directory traversal
+            "~",   # Home directory expansion
+        ]
+        
+        for pattern in dangerous_patterns:
+            if pattern in resolved_str:
+                raise WorkflowLoadError(
+                    f"Unsafe path detected: '{resolved_str}' contains '{pattern}'. "
+                    "Workflow paths must not contain parent directory references or home directory expansion.",
+                    resolved_str
+                )
+        
+        # Ensure the resolved path is within allowed directories
+        try:
+            # Get the absolute path of workflows directory
+            workflows_abs = self.workflows_dir.resolve()
+            
+            # Check if resolved path is within workflows directory or its subdirectories
+            try:
+                resolved_path.relative_to(workflows_abs)
+                # Path is within workflows directory - safe
+                return
+            except ValueError:
+                # Path is outside workflows directory - check if it's absolute and safe
+                pass
+            
+            # For absolute paths, ensure they don't access system directories
+            forbidden_prefixes = [
+                "/etc/", "/bin/", "/sbin/", "/usr/bin/", "/usr/sbin/",
+                "/proc/", "/sys/", "/dev/", "/var/", "/tmp/",
+                "C:\\Windows\\", "C:\\System32\\", "C:\\Program Files\\",
+            ]
+            
+            for prefix in forbidden_prefixes:
+                if resolved_str.startswith(prefix):
+                    raise WorkflowLoadError(
+                        f"Access denied: '{resolved_str}' attempts to access system directory '{prefix}'. "
+                        "Workflow paths must not access system directories.",
+                        resolved_str
+                    )
+                    
+        except Exception as e:
+            raise WorkflowLoadError(
+                f"Path security validation failed for '{resolved_str}': {str(e)}",
+                resolved_str
+            ) from e
+
     def load_workflow_from_string(
-        self, yaml_content: str, workflow_name: str = None
+        self, yaml_content: str, workflow_name: str | None = None
     ) -> WorkflowDefinition | None:
         """Load a workflow from YAML string content.
 
@@ -134,7 +277,7 @@ class WorkflowLoader:
         workflows = self.discover_workflows()
         return workflows.get(name)
 
-    def validate_workflow_file(self, file_path: str) -> dict[str, any]:
+    def validate_workflow_file(self, file_path: str) -> dict[str, Any]:
         """Validate a workflow YAML file.
 
         Args:
@@ -310,7 +453,7 @@ def get_available_workflows(
     return loader.list_workflow_names()
 
 
-def validate_workflow(file_path: str) -> dict[str, any]:
+def validate_workflow(file_path: str) -> dict[str, Any]:
     """Validate a workflow file.
 
     Args:

@@ -1,0 +1,104 @@
+name: Coding Workflow
+description: Focused coding workflow for implementing features with proper development practices
+
+inputs:
+  task_description:
+    type: string
+    description: Description of the coding task
+    required: true
+  project_config_path:
+    type: string
+    description: Path to project configuration file
+    required: false
+    default: ".workflow-commander/project_config.md"
+
+execution:
+  max_depth: 8
+  allow_backtracking: true
+
+workflow:
+  goal: Implement code changes following best practices with proper testing and validation
+  root: setup_development
+  tree:
+    # Phase 1: Development Setup
+    setup_development:
+      goal: |
+        **SETUP DEVELOPMENT:** Prepare development environment for ${{ inputs.task_description }}
+        
+        Set up the development environment, understand project structure, and prepare for implementation.
+      acceptance_criteria:
+        environment_setup: "MUST verify development environment is properly configured with all required dependencies"
+        project_understanding: "MUST read and understand project configuration, coding standards, and architecture"
+        branch_preparation: "MUST create appropriate feature branch or ensure working on correct branch"
+        tooling_verification: "MUST verify all development tools (linters, formatters, testing tools) are working"
+      next_allowed_nodes: [implement_core_logic]
+
+    # Phase 2: Core Implementation
+    implement_core_logic:
+      goal: |
+        **IMPLEMENT CORE LOGIC:** Code the core functionality for ${{ inputs.task_description }}
+        
+        Implement the main logic and functionality following project coding standards and best practices.
+      acceptance_criteria:
+        core_implementation: "MUST implement all core functionality with proper error handling and edge case management"
+        coding_standards: "MUST follow project coding standards, naming conventions, and architectural patterns"
+        error_handling: "MUST implement comprehensive error handling and validation for all inputs and edge cases"
+        documentation: "MUST add proper docstrings, comments, and inline documentation for all new code"
+        logging_instrumentation: "MUST add appropriate logging and monitoring instrumentation where needed"
+      next_allowed_nodes: [add_tests]
+
+    # Phase 3: Testing Implementation
+    add_tests:
+      goal: |
+        **ADD TESTS:** Create comprehensive tests for ${{ inputs.task_description }}
+        
+        Implement unit tests, integration tests, and any other required testing for the new functionality.
+      acceptance_criteria:
+        unit_tests: "MUST create unit tests for all new functions and methods with good coverage"
+        integration_tests: "MUST create integration tests for component interactions and external dependencies"
+        test_documentation: "MUST document test scenarios and expected behaviors"
+        edge_case_tests: "MUST test edge cases, error conditions, and boundary scenarios"
+        test_execution: "MUST verify all tests pass and provide meaningful assertions"
+      next_allowed_nodes: [code_quality_check]
+
+    # Phase 4: Code Quality Validation
+    code_quality_check:
+      goal: |
+        **CODE QUALITY CHECK:** Validate code quality for ${{ inputs.task_description }}
+        
+        Run linting, formatting, type checking, and other quality checks to ensure code meets standards.
+      acceptance_criteria:
+        linting_check: "MUST run linting tools and fix all errors and warnings"
+        formatting_check: "MUST run code formatting tools and ensure consistent code style"
+        type_checking: "MUST run type checking (if applicable) and resolve all type issues"
+        security_scan: "MUST scan for security vulnerabilities and address any findings"
+        performance_check: "MUST verify performance characteristics and identify any obvious bottlenecks"
+      next_allowed_nodes: [integration_validation]
+
+    # Phase 5: Integration Validation
+    integration_validation:
+      goal: |
+        **INTEGRATION VALIDATION:** Validate integration for ${{ inputs.task_description }}
+        
+        Test integration with existing systems, verify backwards compatibility, and ensure system stability.
+      acceptance_criteria:
+        backwards_compatibility: "MUST verify no breaking changes introduced unless explicitly required"
+        integration_testing: "MUST test integration points with existing components and external systems"
+        system_stability: "MUST verify system remains stable with new changes"
+        dependency_validation: "MUST verify all dependencies are properly resolved and compatible"
+        end_to_end_validation: "MUST test complete end-to-end functionality in development environment"
+      next_allowed_nodes: [finalize_implementation]
+
+    # Phase 6: Finalize Implementation
+    finalize_implementation:
+      goal: |
+        **FINALIZE IMPLEMENTATION:** Complete implementation of ${{ inputs.task_description }}
+        
+        Finalize the implementation with cleanup, optimization, and preparation for review.
+      acceptance_criteria:
+        code_cleanup: "MUST clean up any temporary code, debug statements, and unused imports"
+        optimization: "MUST optimize code for performance and readability where appropriate"
+        documentation_update: "MUST update relevant documentation and README files"
+        commit_preparation: "MUST prepare clean, atomic commits with descriptive messages"
+        review_preparation: "MUST prepare code for review with clear description of changes and testing approach"
+      next_allowed_nodes: [] 
