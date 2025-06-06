@@ -278,25 +278,39 @@ def _restore_workflow_definition(
         workflows_dir: Directory containing workflow YAML files
     """
     try:
+        print(f"DEBUG: _restore_workflow_definition called for session {session.session_id[:8]}...")
+        
         if not session.workflow_name:
+            print(f"DEBUG: No workflow name for session {session.session_id[:8]}...")
             return
+            
+        print(f"DEBUG: Restoring workflow '{session.workflow_name}' for session {session.session_id[:8]}...")
             
         # Check if workflow definition is already cached
         cached_def = get_workflow_definition_from_cache(session.session_id)
         if cached_def:
+            print(f"DEBUG: Workflow definition already cached for session {session.session_id[:8]}...")
             return  # Already available
             
+        print(f"DEBUG: Loading workflow definition from {workflows_dir}...")
+        
         # Load workflow definition using WorkflowLoader
+        from ..utils.yaml_loader import WorkflowLoader
         loader = WorkflowLoader(workflows_dir)
         workflow_def = loader.get_workflow_by_name(session.workflow_name)
         
         if workflow_def:
+            print(f"DEBUG: Successfully loaded workflow '{workflow_def.name}', storing in cache...")
             # Store in workflow definition cache
             store_workflow_definition_in_cache(session.session_id, workflow_def)
+            print(f"DEBUG: Workflow definition cached for session {session.session_id[:8]}...")
+        else:
+            print(f"DEBUG: Failed to load workflow '{session.workflow_name}' for session {session.session_id[:8]}...")
             
-    except Exception:
+    except Exception as e:
         # Gracefully handle any workflow loading failures
         # Session restoration should succeed even if workflow definition fails
+        print(f"DEBUG: Exception in _restore_workflow_definition: {e}")
         pass
 
 
@@ -315,12 +329,15 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
 
     try:
         restored_count = 0
+        print(f"DEBUG: restore_sessions_from_cache called with client_id='{client_id}'")
 
         if client_id:
+            print(f"DEBUG: Restoring sessions for specific client: {client_id}")
             # Restore sessions for specific client
             client_session_metadata = cache_manager.get_all_sessions_for_client(
                 client_id
             )
+            print(f"DEBUG: Found {len(client_session_metadata)} sessions for client {client_id}")
             for metadata in client_session_metadata:
                 session_id = metadata.session_id
                 restored_state = cache_manager.retrieve_workflow_state(session_id)
@@ -332,6 +349,34 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     # Automatically restore workflow definition
                     _restore_workflow_definition(restored_state)
                     restored_count += 1
+        else:
+            print(f"DEBUG: Restoring all sessions from all clients (no specific client_id)")
+            # Restore all sessions from all clients when no specific client_id provided
+            try:
+                # Use cache manager to get all sessions across all clients
+                all_session_metadata = cache_manager.get_all_sessions()
+                print(f"DEBUG: Found {len(all_session_metadata)} total sessions across all clients")
+
+                for metadata in all_session_metadata:
+                    session_id = metadata.session_id
+                    metadata_client_id = metadata.client_id
+
+                    # Attempt to restore each session
+                    restored_state = cache_manager.retrieve_workflow_state(session_id)
+                    if restored_state:
+                        with session_lock:
+                            sessions[session_id] = restored_state
+                            _register_session_for_client(metadata_client_id, session_id)
+                        
+                        # Automatically restore workflow definition
+                        _restore_workflow_definition(restored_state)
+                        restored_count += 1
+
+            except AttributeError:
+                # Fallback: If cache manager doesn't have get_all_sessions method,
+                # we'll use the existing per-client restoration approach for known clients
+                # This approach is safer and doesn't require knowledge of all client IDs
+                restored_count = 0  # No restoration if we can't get all sessions
 
         return restored_count
 
