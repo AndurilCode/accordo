@@ -1312,9 +1312,31 @@ def register_phase_prompts(app: FastMCP, config=None):
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
                 if not workflow_def:
-                    # No workflow definition available - force discovery
-                    return add_session_id_to_response(
-                        f"""❌ **Missing Workflow Definition**
+                    # Try on-demand workflow definition loading before giving up
+                    from ..utils.session_manager import _restore_workflow_definition
+                    
+                    print(f"DEBUG: Attempting on-demand workflow definition loading for session {target_session_id[:8]}...")
+                    
+                    if session and session.workflow_name:
+                        try:
+                            # Attempt to load workflow definition on-demand
+                            _restore_workflow_definition(session)
+                            
+                            # Check if workflow definition is now available
+                            workflow_def = get_dynamic_session_workflow_def(target_session_id)
+                            
+                            if workflow_def:
+                                print(f"DEBUG: On-demand loading successful for session {target_session_id[:8]}...")
+                                # Continue with the workflow since we successfully loaded the definition
+                            else:
+                                print(f"DEBUG: On-demand loading failed for session {target_session_id[:8]}...")
+                        except Exception as e:
+                            print(f"DEBUG: Exception during on-demand loading: {e}")
+                    
+                    # If on-demand loading failed, fall back to discovery requirement
+                    if not workflow_def:
+                        return add_session_id_to_response(
+                            f"""❌ **Missing Workflow Definition**
 
 Dynamic session exists but workflow definition is missing.
 
@@ -1322,8 +1344,8 @@ Dynamic session exists but workflow definition is missing.
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
 2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                        target_session_id,
-                    )
+                            target_session_id,
+                        )
 
                 result = _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
