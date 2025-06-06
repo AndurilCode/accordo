@@ -13,6 +13,7 @@ from fastmcp import Context, FastMCP
 from pydantic import Field
 
 from ..models.yaml_workflow import WorkflowDefinition, WorkflowNode
+from ..utils.placeholder_processor import replace_placeholders
 from ..utils.schema_analyzer import (
     analyze_node_from_schema,
     extract_choice_from_context,
@@ -839,6 +840,28 @@ def format_enhanced_node_status(
     """
     analysis = analyze_node_from_schema(node, workflow)
     transitions = get_available_transitions(node, workflow)
+    
+    # Apply placeholder replacement to the goal and acceptance criteria
+    session_inputs = getattr(session, 'inputs', {}) or {}
+    
+    # Process the goal with placeholder replacement
+    processed_goal = replace_placeholders(analysis["goal"], session_inputs)
+    analysis["goal"] = processed_goal
+    
+    # Process acceptance criteria with placeholder replacement
+    if analysis["acceptance_criteria"]:
+        processed_criteria = {}
+        for key, value in analysis["acceptance_criteria"].items():
+            processed_criteria[key] = replace_placeholders(value, session_inputs)
+        analysis["acceptance_criteria"] = processed_criteria
+    
+    # Process transition goals with placeholder replacement
+    processed_transitions = []
+    for transition in transitions:
+        processed_transition = transition.copy()
+        processed_transition["goal"] = replace_placeholders(transition["goal"], session_inputs)
+        processed_transitions.append(processed_transition)
+    transitions = processed_transitions
 
     # Format acceptance criteria with enhanced detail
     criteria_text = ""
