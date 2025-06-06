@@ -767,15 +767,30 @@ def create_dynamic_session(
         # Validate and process workflow inputs
         inputs = {}
         try:
-            # For now, we'll pass the task_description as the main input
-            # In a real scenario, this might be more sophisticated
+            # Build the inputs dictionary based on workflow definition
+            provided_inputs = {}
+            
             if "task_description" in workflow_def.inputs:
-                inputs = workflow_def.validate_inputs(
-                    {"task_description": task_description}
-                )
-            else:
-                # If no task_description input, create a generic one
-                inputs = {"task": task_description}
+                provided_inputs["task_description"] = task_description
+            
+            # For debugging workflows, also provide defaults for other common inputs
+            if "bug_severity" in workflow_def.inputs:
+                # Use default from workflow definition or fallback to "medium"
+                bug_severity_def = workflow_def.inputs["bug_severity"]
+                provided_inputs["bug_severity"] = bug_severity_def.default or "medium"
+            
+            if "reproduction_steps" in workflow_def.inputs:
+                # For reproduction steps, we don't have them from task_description, so leave as None
+                # The workflow definition will handle the default
+                pass
+            
+            # Validate all inputs according to workflow definition
+            inputs = workflow_def.validate_inputs(provided_inputs)
+            
+            # If no task_description input was expected, create a generic one
+            if "task_description" not in workflow_def.inputs:
+                inputs["task"] = task_description
+                
         except ValueError as e:
             # If validation fails, log it but continue with basic inputs
             inputs = {"task_description": task_description, "error": str(e)}

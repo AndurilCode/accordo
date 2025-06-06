@@ -9,7 +9,7 @@ inputs:
   bug_severity:
     type: string
     description: Severity level of the bug (critical, high, medium, low)
-    required: false
+    required: true
     default: "medium"
   reproduction_steps:
     type: string
