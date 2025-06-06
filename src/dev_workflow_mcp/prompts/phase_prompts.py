@@ -1312,9 +1312,31 @@ def register_phase_prompts(app: FastMCP, config=None):
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
                 if not workflow_def:
-                    # No workflow definition available - force discovery
-                    return add_session_id_to_response(
-                        f"""❌ **Missing Workflow Definition**
+                    # Try on-demand workflow definition loading before giving up
+                    from ..utils.session_manager import _restore_workflow_definition
+                    
+                    if session and session.workflow_name:
+                        try:
+                            # Use config to construct correct workflows directory
+                            if config is not None:
+                                workflows_dir = str(config.workflows_dir)
+                            else:
+                                workflows_dir = ".workflow-commander/workflows"
+                            
+                            # Attempt restore with proper path
+                            _restore_workflow_definition(session, workflows_dir)
+                            
+                            # Check if workflow definition is now available
+                            workflow_def = get_dynamic_session_workflow_def(target_session_id)
+                                
+                        except Exception:
+                            # If on-demand loading fails, continue to discovery requirement
+                            pass
+                    
+                    # If on-demand loading failed, fall back to discovery requirement
+                    if not workflow_def:
+                        return add_session_id_to_response(
+                            f"""❌ **Missing Workflow Definition**
 
 Dynamic session exists but workflow definition is missing.
 
@@ -1322,8 +1344,8 @@ Dynamic session exists but workflow definition is missing.
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
 2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                        target_session_id,
-                    )
+                            target_session_id,
+                        )
 
                 result = _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
