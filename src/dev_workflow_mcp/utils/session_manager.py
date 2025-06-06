@@ -4,6 +4,7 @@ import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from ..models.workflow_state import (
     DynamicWorkflowState,
@@ -272,41 +273,54 @@ def _restore_workflow_definition(
     session: DynamicWorkflowState, workflows_dir: str = ".workflow-commander/workflows"
 ) -> None:
     """Helper function to restore workflow definition for a session.
-    
+
     Args:
         session: The restored session state
         workflows_dir: Directory containing workflow YAML files
     """
     try:
-        print(f"DEBUG: _restore_workflow_definition called for session {session.session_id[:8]}...")
-        
+        print(
+            f"DEBUG: _restore_workflow_definition called for session {session.session_id[:8]}..."
+        )
+
         if not session.workflow_name:
             print(f"DEBUG: No workflow name for session {session.session_id[:8]}...")
             return
-            
-        print(f"DEBUG: Restoring workflow '{session.workflow_name}' for session {session.session_id[:8]}...")
-            
+
+        print(
+            f"DEBUG: Restoring workflow '{session.workflow_name}' for session {session.session_id[:8]}..."
+        )
+
         # Check if workflow definition is already cached
         cached_def = get_workflow_definition_from_cache(session.session_id)
         if cached_def:
-            print(f"DEBUG: Workflow definition already cached for session {session.session_id[:8]}...")
+            print(
+                f"DEBUG: Workflow definition already cached for session {session.session_id[:8]}..."
+            )
             return  # Already available
-            
+
         print(f"DEBUG: Loading workflow definition from {workflows_dir}...")
-        
+
         # Load workflow definition using WorkflowLoader
         from ..utils.yaml_loader import WorkflowLoader
+
         loader = WorkflowLoader(workflows_dir)
         workflow_def = loader.get_workflow_by_name(session.workflow_name)
-        
+
         if workflow_def:
-            print(f"DEBUG: Successfully loaded workflow '{workflow_def.name}', storing in cache...")
+            print(
+                f"DEBUG: Successfully loaded workflow '{workflow_def.name}', storing in cache..."
+            )
             # Store in workflow definition cache
             store_workflow_definition_in_cache(session.session_id, workflow_def)
-            print(f"DEBUG: Workflow definition cached for session {session.session_id[:8]}...")
+            print(
+                f"DEBUG: Workflow definition cached for session {session.session_id[:8]}..."
+            )
         else:
-            print(f"DEBUG: Failed to load workflow '{session.workflow_name}' for session {session.session_id[:8]}...")
-            
+            print(
+                f"DEBUG: Failed to load workflow '{session.workflow_name}' for session {session.session_id[:8]}..."
+            )
+
     except Exception as e:
         # Gracefully handle any workflow loading failures
         # Session restoration should succeed even if workflow definition fails
@@ -337,7 +351,9 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
             client_session_metadata = cache_manager.get_all_sessions_for_client(
                 client_id
             )
-            print(f"DEBUG: Found {len(client_session_metadata)} sessions for client {client_id}")
+            print(
+                f"DEBUG: Found {len(client_session_metadata)} sessions for client {client_id}"
+            )
             for metadata in client_session_metadata:
                 session_id = metadata.session_id
                 restored_state = cache_manager.retrieve_workflow_state(session_id)
@@ -345,17 +361,21 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     with session_lock:
                         sessions[session_id] = restored_state
                         _register_session_for_client(client_id, session_id)
-                    
+
                     # Automatically restore workflow definition
                     _restore_workflow_definition(restored_state)
                     restored_count += 1
         else:
-            print(f"DEBUG: Restoring all sessions from all clients (no specific client_id)")
+            print(
+                f"DEBUG: Restoring all sessions from all clients (no specific client_id)"
+            )
             # Restore all sessions from all clients when no specific client_id provided
             try:
                 # Use cache manager to get all sessions across all clients
                 all_session_metadata = cache_manager.get_all_sessions()
-                print(f"DEBUG: Found {len(all_session_metadata)} total sessions across all clients")
+                print(
+                    f"DEBUG: Found {len(all_session_metadata)} total sessions across all clients"
+                )
 
                 for metadata in all_session_metadata:
                     session_id = metadata.session_id
@@ -367,7 +387,7 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                         with session_lock:
                             sessions[session_id] = restored_state
                             _register_session_for_client(metadata_client_id, session_id)
-                        
+
                         # Automatically restore workflow definition
                         _restore_workflow_definition(restored_state)
                         restored_count += 1
@@ -422,7 +442,7 @@ def auto_restore_sessions_on_startup() -> int:
                     with session_lock:
                         sessions[session_id] = restored_state
                         _register_session_for_client(client_id, session_id)
-                    
+
                     # Automatically restore workflow definition
                     _restore_workflow_definition(restored_state)
                     restored_count += 1
@@ -746,6 +766,58 @@ def _unregister_session_for_client(client_id: str, session_id: str) -> None:
                 del client_session_registry[client_id]
 
 
+def _prepare_dynamic_inputs(
+    task_description: str, workflow_def: WorkflowDefinition
+) -> dict[str, Any]:
+    """Prepare and validate workflow inputs dynamically.
+
+    Args:
+        task_description: The task description to be processed
+        workflow_def: Workflow definition containing input specifications
+
+    Returns:
+        dict[str, Any]: Prepared and validated inputs
+    """
+    provided_inputs = {}
+
+    # Step 1: Smart task description mapping
+    # Check for common task description input patterns
+    task_input_name = None
+    for input_name in ["task_description", "task", "main_task"]:
+        if input_name in workflow_def.inputs:
+            task_input_name = input_name
+            break
+
+    if task_input_name:
+        provided_inputs[task_input_name] = task_description
+
+    # Step 2: Set defaults for all other inputs dynamically
+    for input_name, input_def in workflow_def.inputs.items():
+        if input_name not in provided_inputs:
+            if input_def.default is not None:
+                # Use defined default value
+                provided_inputs[input_name] = input_def.default
+            elif input_def.required:
+                # Generate type-based defaults for required inputs without defaults
+                if input_def.type == "string":
+                    provided_inputs[input_name] = ""
+                elif input_def.type == "boolean":
+                    provided_inputs[input_name] = False
+                elif input_def.type == "number":
+                    provided_inputs[input_name] = 0
+                else:
+                    # For unknown types, use None
+                    provided_inputs[input_name] = None
+
+    # Step 3: Validate all inputs using workflow definition
+    try:
+        validated_inputs = workflow_def.validate_inputs(provided_inputs)
+        return validated_inputs
+    except ValueError:
+        # If validation fails, provide minimal fallback
+        return {"task_description": task_description}
+
+
 def create_dynamic_session(
     client_id: str,
     task_description: str,
@@ -764,21 +836,8 @@ def create_dynamic_session(
         DynamicWorkflowState: The created session state
     """
     with session_lock:
-        # Validate and process workflow inputs
-        inputs = {}
-        try:
-            # For now, we'll pass the task_description as the main input
-            # In a real scenario, this might be more sophisticated
-            if "task_description" in workflow_def.inputs:
-                inputs = workflow_def.validate_inputs(
-                    {"task_description": task_description}
-                )
-            else:
-                # If no task_description input, create a generic one
-                inputs = {"task": task_description}
-        except ValueError as e:
-            # If validation fails, log it but continue with basic inputs
-            inputs = {"task_description": task_description, "error": str(e)}
+        # Validate and process workflow inputs dynamically
+        inputs = _prepare_dynamic_inputs(task_description, workflow_def)
 
         # Create initial dynamic workflow state (session_id auto-generated by model)
         state = DynamicWorkflowState(
