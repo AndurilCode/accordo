@@ -1315,23 +1315,23 @@ def register_phase_prompts(app: FastMCP, config=None):
                     # Try on-demand workflow definition loading before giving up
                     from ..utils.session_manager import _restore_workflow_definition
                     
-                    print(f"DEBUG: Attempting on-demand workflow definition loading for session {target_session_id[:8]}...")
-                    
                     if session and session.workflow_name:
                         try:
-                            # Attempt to load workflow definition on-demand
-                            _restore_workflow_definition(session)
+                            # Use config to construct correct workflows directory
+                            if config is not None:
+                                workflows_dir = str(config.workflows_dir)
+                            else:
+                                workflows_dir = ".workflow-commander/workflows"
+                            
+                            # Attempt restore with proper path
+                            _restore_workflow_definition(session, workflows_dir)
                             
                             # Check if workflow definition is now available
                             workflow_def = get_dynamic_session_workflow_def(target_session_id)
-                            
-                            if workflow_def:
-                                print(f"DEBUG: On-demand loading successful for session {target_session_id[:8]}...")
-                                # Continue with the workflow since we successfully loaded the definition
-                            else:
-                                print(f"DEBUG: On-demand loading failed for session {target_session_id[:8]}...")
-                        except Exception as e:
-                            print(f"DEBUG: Exception during on-demand loading: {e}")
+                                
+                        except Exception:
+                            # If on-demand loading fails, continue to discovery requirement
+                            pass
                     
                     # If on-demand loading failed, fall back to discovery requirement
                     if not workflow_def:
