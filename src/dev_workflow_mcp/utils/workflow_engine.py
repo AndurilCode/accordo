@@ -5,6 +5,7 @@ from typing import Any
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
 from ..utils.yaml_loader import WorkflowLoader, WorkflowLoadError
+from ..utils.session_id_utils import generate_session_id
 
 
 class WorkflowEngineError(Exception):
@@ -25,55 +26,185 @@ class WorkflowEngine:
         self.workflows_dir = workflows_dir
         self.loader = WorkflowLoader(workflows_dir)
 
+    def create_composed_workflow_definition(
+        self, workflow_def: WorkflowDefinition
+    ) -> WorkflowDefinition:
+        """Create a composed workflow definition that integrates all external workflow nodes.
+        
+        This method expands any workflow composition nodes by integrating the referenced
+        external workflow nodes directly into the main workflow tree, creating a single
+        unified workflow definition.
+        
+        Args:
+            workflow_def: Original workflow definition that may contain composition nodes
+            
+        Returns:
+            WorkflowDefinition: New workflow definition with all external nodes integrated
+        """
+        try:
+            from copy import deepcopy
+            
+            # Create a deep copy to avoid modifying the original
+            composed_def = deepcopy(workflow_def)
+            new_tree = {}
+            processed_workflows = set()  # Prevent circular dependencies
+            
+            # Track node mappings for updating references
+            node_mappings = {}  # original_node -> new_node_name
+            
+            # Process all nodes in the original workflow
+            for node_name, node in workflow_def.workflow.tree.items():
+                if node.is_workflow_node:
+                    # This is a composition node - integrate the external workflow
+                    try:
+                        external_workflow = self.loader.load_external_workflow(
+                            node.workflow, None
+                        )
+                        
+                        if not external_workflow:
+                            # If external workflow can't be loaded, keep the original node
+                            new_tree[node_name] = node
+                            continue
+                            
+                        workflow_key = f"{external_workflow.name}_{node.workflow}"
+                        if workflow_key in processed_workflows:
+                            # Prevent circular dependencies - keep original node
+                            new_tree[node_name] = node
+                            continue
+                            
+                        processed_workflows.add(workflow_key)
+                        
+                        # Integrate external workflow nodes with prefixed names
+                        external_nodes = {}
+                        prefix = f"{node_name}_"
+                        
+                        # Add all external nodes with prefixed names
+                        for ext_node_name, ext_node in external_workflow.workflow.tree.items():
+                            prefixed_name = f"{prefix}{ext_node_name}"
+                            
+                            # Create a copy of the external node
+                            integrated_node = deepcopy(ext_node)
+                            
+                            # Update references to other nodes within the external workflow
+                            updated_next_nodes = []
+                            for next_node in integrated_node.next_allowed_nodes:
+                                if next_node in external_workflow.workflow.tree:
+                                    updated_next_nodes.append(f"{prefix}{next_node}")
+                                else:
+                                    updated_next_nodes.append(next_node)
+                            integrated_node.next_allowed_nodes = updated_next_nodes
+                            
+                            external_nodes[prefixed_name] = integrated_node
+                            
+                            # Track the mapping for the root node
+                            if ext_node_name == external_workflow.workflow.root:
+                                node_mappings[node_name] = prefixed_name
+                        
+                        # Add all external nodes to the new tree
+                        new_tree.update(external_nodes)
+                        
+                        # Update the terminal nodes of the external workflow to point to 
+                        # the original composition node's next_allowed_nodes
+                        if node.next_allowed_nodes:
+                            for ext_node_name, ext_node in external_nodes.items():
+                                # If this external node has no next nodes (terminal), 
+                                # connect it to the composition node's next nodes
+                                if not ext_node.next_allowed_nodes:
+                                    ext_node.next_allowed_nodes = node.next_allowed_nodes.copy()
+                        
+                    except Exception as e:
+                        # If integration fails, keep the original node
+                        new_tree[node_name] = node
+                        continue
+                        
+                else:
+                    # Regular node - keep as is
+                    new_tree[node_name] = deepcopy(node)
+            
+            # Update all node references to account for integrated workflows
+            for node_name, node in new_tree.items():
+                updated_next_nodes = []
+                for next_node in node.next_allowed_nodes:
+                    if next_node in node_mappings:
+                        updated_next_nodes.append(node_mappings[next_node])
+                    else:
+                        updated_next_nodes.append(next_node)
+                node.next_allowed_nodes = updated_next_nodes
+            
+            # Update the workflow tree
+            composed_def.workflow.tree = new_tree
+            
+            # Update root if it was a composition node
+            if composed_def.workflow.root in node_mappings:
+                composed_def.workflow.root = node_mappings[composed_def.workflow.root]
+            
+            # Update workflow name and description to indicate composition
+            composed_def.name = f"{workflow_def.name} (Composed)"
+            composed_def.description = f"{workflow_def.description} - Integrated with external workflows"
+            
+            return composed_def
+            
+        except Exception as e:
+            # If composition fails, return the original workflow
+            return workflow_def
+
     def initialize_workflow(
         self, client_id: str, task_description: str, workflow_name: str | None = None
     ) -> tuple[DynamicWorkflowState, WorkflowDefinition]:
-        """Initialize a new workflow execution.
+        """Initialize a new workflow session with composed workflow definition.
 
         Args:
-            client_id: Client session identifier
-            task_description: Description of the task to process
-            workflow_name: Optional specific workflow name to use
+            client_id: Client identifier
+            task_description: Description of the task
+            workflow_name: Optional specific workflow name
 
         Returns:
-            tuple[DynamicWorkflowState, WorkflowDefinition]: The initial state and workflow definition
-
-        Raises:
-            WorkflowEngineError: If no suitable workflow is found
+            tuple[DynamicWorkflowState, WorkflowDefinition]: Initialized state and composed workflow definition
         """
-        # Find appropriate workflow
+        # Get workflow definition
         if workflow_name:
-            workflows = self.loader.discover_workflows()
-            if workflow_name not in workflows:
-                raise WorkflowEngineError(f"Workflow '{workflow_name}' not found")
-            workflow_def = workflows[workflow_name]
+            workflow_def = self.loader.get_workflow_by_name(workflow_name)
+            if not workflow_def:
+                available_workflows = self.loader.list_workflow_names()
+                raise WorkflowEngineError(
+                    f"Workflow '{workflow_name}' not found. Available workflows: {available_workflows}"
+                )
         else:
-            # Pure discovery system - cannot auto-select workflow without agent choice
-            raise WorkflowEngineError(
-                "Workflow name required - use pure discovery system for workflow selection"
-            )
+            workflows = self.loader.discover_workflows()
+            if not workflows:
+                raise WorkflowEngineError("No workflows found")
+            workflow_def = next(iter(workflows.values()))
 
-        # Validate and prepare inputs
-        inputs = self._prepare_inputs(task_description, workflow_def)
+        # Create composed workflow definition with integrated external workflows
+        composed_workflow_def = self.create_composed_workflow_definition(workflow_def)
 
-        # Create initial state
-        from ..utils.session_id_utils import generate_session_id
+        # Initialize inputs based on workflow definition
+        inputs = {}
+        if composed_workflow_def.inputs:
+            for input_name, input_def in composed_workflow_def.inputs.items():
+                if input_name == "task_description":
+                    inputs[input_name] = task_description
+                elif input_def.default is not None:
+                    inputs[input_name] = input_def.default
+                # Required inputs without defaults would need to be provided by caller
+
         state = DynamicWorkflowState(
             session_id=generate_session_id(),
             client_id=client_id,
-            workflow_name=workflow_def.name,
-            current_node=workflow_def.workflow.root,
+            workflow_name=composed_workflow_def.name,
+            current_node=composed_workflow_def.workflow.root,
             status="READY",
             inputs=inputs,
             current_item=task_description,
         )
 
         # Add initialization log
-        state.add_log_entry(f"🚀 WORKFLOW ENGINE INITIALIZED: {workflow_def.name}")
-        state.add_log_entry(f"📍 Starting at root node: {workflow_def.workflow.root}")
+        state.add_log_entry(f"🚀 WORKFLOW ENGINE INITIALIZED: {composed_workflow_def.name}")
+        state.add_log_entry(f"📍 Starting at root node: {composed_workflow_def.workflow.root}")
         state.add_log_entry(f"🎯 Task: {task_description}")
+        state.add_log_entry(f"🔗 Composed workflow with {len(composed_workflow_def.workflow.tree)} total nodes")
 
-        return state, workflow_def
+        return state, composed_workflow_def
 
     def initialize_workflow_from_definition(
         self, session: "DynamicWorkflowState", workflow_def: "WorkflowDefinition"
