@@ -46,7 +46,7 @@ def get_file_operation_instructions(
             file_path = server_config.sessions_dir / f"session_{safe_session_id}.{format_ext}"
         else:
             # No active sessions - use timestamp-based naming
-            from datetime import datetime, UTC
+            from datetime import UTC, datetime
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             file_path = server_config.sessions_dir / f"workflow_{timestamp}.{format_ext}"
             

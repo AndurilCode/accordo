@@ -18,8 +18,9 @@ class TestSessionFilenameGeneration:
     """Test unique session filename generation."""
 
     def setup_method(self):
-        """Set up test environment."""
-        session_manager.client_sessions.clear()
+        """Clear all sessions before each test."""
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_generate_unique_session_filename_basic(self):
         """Test basic unique filename generation."""
@@ -97,8 +98,9 @@ class TestSessionArchiving:
     """Test session archiving functionality."""
 
     def setup_method(self):
-        """Set up test environment."""
-        session_manager.client_sessions.clear()
+        """Clear all sessions before each test."""
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_archive_session_file_basic(self):
         """Test basic session file archiving."""
@@ -185,8 +187,9 @@ class TestCleanupWithArchiving:
     """Test cleanup functionality with archiving."""
 
     def setup_method(self):
-        """Set up test environment."""
-        session_manager.client_sessions.clear()
+        """Clear all sessions before each test."""
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_cleanup_completed_sessions_with_archiving(self):
         """Test cleanup archives sessions before removing them from memory."""
@@ -217,7 +220,7 @@ class TestCleanupWithArchiving:
             )
 
             # Add to sessions
-            session_manager.client_sessions["old_client"] = session
+            session_manager.sessions["old_client"] = session
 
             # Create the actual file
             session_file = config.sessions_dir / session.session_filename
@@ -229,7 +232,7 @@ class TestCleanupWithArchiving:
             )
 
             assert cleaned_count == 1
-            assert "old_client" not in session_manager.client_sessions
+            assert "old_client" not in session_manager.sessions
 
             # Check that file was archived
             archived_files = list(config.sessions_dir.glob("*_COMPLETED_*.json"))
@@ -261,7 +264,7 @@ class TestCleanupWithArchiving:
                 last_updated=old_time,
             )
 
-            session_manager.client_sessions["old_client"] = session
+            session_manager.sessions["old_client"] = session
 
             # Create the actual file
             session_file = config.sessions_dir / session.session_filename
@@ -273,7 +276,7 @@ class TestCleanupWithArchiving:
             )
 
             assert cleaned_count == 1
-            assert "old_client" not in session_manager.client_sessions
+            assert "old_client" not in session_manager.sessions
 
             # Check that no archived files were created
             archived_files = list(config.sessions_dir.glob("*_COMPLETED_*.json"))

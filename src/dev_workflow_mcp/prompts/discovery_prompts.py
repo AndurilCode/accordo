@@ -6,11 +6,6 @@ Updated for pure discovery system - no hardcoded scoring, agents make decisions.
 from fastmcp import FastMCP
 
 from ..utils.session_id_utils import add_session_id_to_response
-from ..utils.session_manager import (
-    clear_all_client_sessions,
-    detect_session_conflict,
-    get_session_summary,
-)
 from ..utils.yaml_loader import WorkflowLoader
 
 # Global cache for discovered workflows (workflow_name -> workflow_definition)

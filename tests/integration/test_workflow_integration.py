@@ -19,7 +19,8 @@ class TestWorkflowLifecycle:
 
     def setup_method(self):
         """Clear session state before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_state_manager_client_id_management(self):
         """Test state manager client ID management (still works)."""
@@ -89,7 +90,8 @@ class TestWorkflowStateModelIntegration:
 
     def setup_method(self):
         """Clear session state before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_workflow_state_model_with_session_content(self):
         """Test WorkflowState model functionality."""
@@ -127,7 +129,8 @@ class TestSessionManagementIntegration:
 
     def setup_method(self):
         """Clear session state before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     # Note: Session creation tests removed as they required legacy session support
     # Current YAML-only architecture uses dynamic workflow sessions exclusively

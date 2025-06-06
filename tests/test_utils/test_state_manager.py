@@ -14,8 +14,9 @@ class TestStateManager:
     """Test StateManager initialization and basic functions."""
 
     def setup_method(self):
-        """Clear session state before each test."""
-        session_manager.client_sessions.clear()
+        """Set up test environment."""
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_init_default(self):
         """Test StateManager initialization with defaults."""
@@ -142,7 +143,8 @@ class TestStateManagerCompatibility:
 
     def setup_method(self):
         """Clear session state before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     def test_constructor_api_simplification(self):
         """Test that constructor API has been simplified to only require client_id."""
@@ -160,7 +162,8 @@ class TestGetFileOperationInstructions:
 
     def setup_method(self):
         """Clear sessions before each test."""
-        session_manager.client_sessions.clear()
+        session_manager.sessions.clear()
+        session_manager.client_session_registry.clear()
 
     @patch.dict(os.environ, {"WORKFLOW_LOCAL_STATE_FILE": "false"})
     def test_get_file_operation_instructions_disabled(self):
