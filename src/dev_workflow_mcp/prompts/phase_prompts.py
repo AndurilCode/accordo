@@ -1409,8 +1409,8 @@ Dynamic session exists but workflow definition is missing.
                                 current_node = cached_workflow.workflow.tree[
                                     session.current_node
                                 ]
-                                status = format_node_status(
-                                    current_node, cached_workflow
+                                status = format_enhanced_node_status(
+                                    current_node, cached_workflow, session
                                 )
 
                                 return add_session_id_to_response(
@@ -1480,8 +1480,8 @@ The workflow '{workflow_name}' was not found in the server cache.
                                         current_node = selected_workflow.workflow.tree[
                                             session.current_node
                                         ]
-                                        status = format_node_status(
-                                            current_node, selected_workflow
+                                        status = format_enhanced_node_status(
+                                            current_node, selected_workflow, session
                                         )
 
                                         return f"""🚀 **Workflow Started:** {selected_workflow.name}
@@ -1538,8 +1538,8 @@ The workflow '{workflow_name}' was not found in the server cache.
                                     current_node = selected_workflow.workflow.tree[
                                         session.current_node
                                     ]
-                                    status = format_node_status(
-                                        current_node, selected_workflow
+                                    status = format_enhanced_node_status(
+                                        current_node, selected_workflow, session
                                     )
 
                                     return f"""🚀 **Workflow Started:** {selected_workflow.name}
