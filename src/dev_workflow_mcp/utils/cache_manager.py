@@ -557,8 +557,7 @@ class WorkflowCacheManager:
         workflow_name: str = None,
         status_filter: list[str] = None,
         min_similarity: float = 0.1,
-        max_results: int = 50,
-        include_inactive: bool = True
+        max_results: int = 50
     ) -> list[SemanticSearchResult]:
         """Perform semantic search on cached workflow states.
         
@@ -570,7 +569,6 @@ class WorkflowCacheManager:
             status_filter: Filter by status values
             min_similarity: Minimum similarity score
             max_results: Maximum number of results
-            include_inactive: Include inactive/completed sessions
             
         Returns:
             List of semantic search results ordered by similarity
@@ -587,7 +585,6 @@ class WorkflowCacheManager:
             status_filter = query.status_filter
             min_similarity = query.min_similarity
             max_results = query.max_results
-            # include_inactive = query.include_inactive  # Future use
         elif search_text is None:
             # No search text provided
             return []
@@ -692,8 +689,7 @@ class WorkflowCacheManager:
             search_text=search_text,
             client_id=workflow_state.client_id,  # Find similar workflows for same client
             max_results=max_results,
-            min_similarity=min_similarity,
-            include_inactive=True
+            min_similarity=min_similarity
         )
         
         # Filter out the current session
