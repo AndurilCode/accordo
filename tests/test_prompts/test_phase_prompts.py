@@ -246,8 +246,10 @@ inputs:
         assert "task_description" in workflow_tool.parameters["properties"]
         assert "context" in workflow_tool.parameters["properties"]
         assert "options" in workflow_tool.parameters["properties"]
+        assert "session_id" in workflow_tool.parameters["properties"]
         assert "task_description" in workflow_tool.parameters["required"]
-        assert "session_id" in workflow_tool.parameters["required"]
+        # session_id is now optional after revert
+        assert "session_id" not in workflow_tool.parameters["required"]
 
         # Test workflow_state parameters
         state_tool = tools["workflow_state"]
@@ -255,7 +257,8 @@ inputs:
         assert "session_id" in state_tool.parameters["properties"]
         assert "updates" in state_tool.parameters["properties"]
         assert "operation" in state_tool.parameters["required"]
-        assert "session_id" in state_tool.parameters["required"]
+        # session_id is now optional after revert
+        assert "session_id" not in state_tool.parameters["required"]
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_actions(self, mock_context):
