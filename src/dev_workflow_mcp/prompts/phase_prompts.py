@@ -1135,16 +1135,52 @@ def _handle_dynamic_workflow(
                         from ..utils.session_manager import store_workflow_definition_in_cache
                         store_workflow_definition_in_cache(session.session_id, parent_workflow_def)
                     
-                    # Get current node from parent workflow to determine next steps
-                    parent_node = workflow_def.workflow.tree.get(session.current_node)
+                    # Get current node from parent workflow (this is the composition node)
+                    current_composition_node = workflow_def.workflow.tree.get(session.current_node)
                     
-                    if parent_node:
-                        # Show the parent workflow node with next transitions
-                        status = format_enhanced_node_status(parent_node, workflow_def, session)
-                        return f"""✅ **Auto-Workflow Return:** {message}
+                    if current_composition_node and current_composition_node.next_allowed_nodes:
+                        # The external workflow is complete, so we should transition to the next node
+                        # in the parent workflow (the composition node is now complete)
+                        next_node_name = current_composition_node.next_allowed_nodes[0]
+                        
+                        # Generate completion outputs for the composition node
+                        from datetime import datetime
+                        composition_completion_outputs = {
+                            "external_workflow_completed": True,
+                            "workflow_name": message.split(": ")[-1] if ": " in message else "External Workflow",
+                            "completion_timestamp": datetime.now().isoformat(),
+                            "transition_type": "auto_workflow_return"
+                        }
+                        
+                        # Transition to the next node in the parent workflow
+                        success = engine.execute_transition(
+                            session, 
+                            workflow_def, 
+                            next_node_name, 
+                            outputs=composition_completion_outputs
+                        )
+                        
+                        if success:
+                            # Get the new current node and show its status
+                            new_current_node = workflow_def.workflow.tree.get(session.current_node)
+                            if new_current_node:
+                                status = format_enhanced_node_status(new_current_node, workflow_def, session)
+                                return f"""✅ **Auto-Workflow Return:** {message}
+✅ **Auto-Transition:** Moved to next phase: {next_node_name}
+
+{status}"""
+                            else:
+                                return f"""✅ **Auto-Workflow Return:** {message}
+✅ **Auto-Transition:** Moved to next phase: {next_node_name}"""
+                        else:
+                            # Transition failed, show the composition node status
+                            status = format_enhanced_node_status(current_composition_node, workflow_def, session)
+                            return f"""✅ **Auto-Workflow Return:** {message}
+⚠️ **Manual transition required to next phase**
 
 {status}"""
                     else:
+                        # No next nodes available or node not found
                         return f"✅ **Auto-Workflow Return:** {message}"
                 else:
                     return f"❌ **Auto-Workflow Return Failed:** {message}"
