@@ -26,7 +26,7 @@ class TestFormatYamlErrorGuidance:
         """Test basic YAML error guidance formatting."""
         error_msg = "Invalid YAML syntax"
         result = format_yaml_error_guidance(error_msg)
-        
+
         assert "❌ **YAML Format Error:** Invalid YAML syntax" in result
         assert "**🔧 EXPECTED FORMAT:**" in result
         assert "workflow_guidance(" in result
@@ -38,7 +38,7 @@ class TestFormatYamlErrorGuidance:
         error_msg = "Missing required field"
         workflow_name = "Test Workflow"
         result = format_yaml_error_guidance(error_msg, workflow_name)
-        
+
         assert "❌ **YAML Format Error:** Missing required field" in result
         assert f"**Detected Workflow Name:** {workflow_name}" in result
         assert "**Action Required:** Please provide the complete YAML content" in result
@@ -47,7 +47,7 @@ class TestFormatYamlErrorGuidance:
         """Test that error guidance contains all required sections."""
         error_msg = "Test error"
         result = format_yaml_error_guidance(error_msg)
-        
+
         required_sections = [
             "**🚨 AGENT INSTRUCTIONS:**",
             "Use `read_file` to get the YAML content",
@@ -57,9 +57,9 @@ class TestFormatYamlErrorGuidance:
             "`description`: Brief description",
             "`workflow.goal`: Main objective",
             "`workflow.root`: Starting node name",
-            "`workflow.tree`: Node definitions"
+            "`workflow.tree`: Node definitions",
         ]
-        
+
         for section in required_sections:
             assert section in result
 
@@ -67,10 +67,10 @@ class TestFormatYamlErrorGuidance:
         """Test that error guidance includes proper code examples."""
         error_msg = "Test error"
         result = format_yaml_error_guidance(error_msg)
-        
+
         # Should have code blocks with proper formatting
-        assert '```' in result
-        assert 'workflow_guidance(' in result
+        assert "```" in result
+        assert "workflow_guidance(" in result
         assert 'action="start"' in result
         assert 'context="workflow:' in result
 
@@ -93,16 +93,16 @@ class TestFormatEnhancedNodeStatus:
                         goal="Start the test workflow",
                         acceptance_criteria={
                             "initialized": "Workflow is properly initialized",
-                            "setup": "All setup tasks completed"
+                            "setup": "All setup tasks completed",
                         },
-                        next_allowed_nodes=["process", "review"]
+                        next_allowed_nodes=["process", "review"],
                     ),
                     "process": WorkflowNode(
                         goal="Process the data",
                         acceptance_criteria={
                             "processed": "Data processing completed successfully"
                         },
-                        next_allowed_nodes=["complete"]
+                        next_allowed_nodes=["complete"],
                     ),
                     "review": WorkflowNode(
                         goal="Review the results with approval required",
@@ -110,17 +110,17 @@ class TestFormatEnhancedNodeStatus:
                             "reviewed": "Results have been thoroughly reviewed"
                         },
                         needs_approval=True,
-                        next_allowed_nodes=["complete"]
+                        next_allowed_nodes=["complete"],
                     ),
                     "complete": WorkflowNode(
                         goal="Complete the workflow",
                         acceptance_criteria={
                             "finished": "All tasks completed successfully"
                         },
-                        next_allowed_nodes=[]
-                    )
-                }
-            )
+                        next_allowed_nodes=[],
+                    ),
+                },
+            ),
         )
 
     @pytest.fixture
@@ -131,11 +131,16 @@ class TestFormatEnhancedNodeStatus:
         session.inputs = {"project_name": "Test Project", "version": "1.0"}
         return session
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_format_enhanced_node_status_basic(
-        self, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test basic node status formatting."""
         # Mock the analysis and transitions
@@ -143,18 +148,18 @@ class TestFormatEnhancedNodeStatus:
             "goal": "Start the test workflow",
             "acceptance_criteria": {
                 "initialized": "Workflow is properly initialized",
-                "setup": "All setup tasks completed"
-            }
+                "setup": "All setup tasks completed",
+            },
         }
         mock_transitions.return_value = [
             {"name": "process", "goal": "Process the data", "needs_approval": False},
-            {"name": "review", "goal": "Review results", "needs_approval": False}
+            {"name": "review", "goal": "Review results", "needs_approval": False},
         ]
         mock_export.return_value = "Current session state..."
-        
+
         node = basic_workflow_def.workflow.tree["start"]
         result = format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         assert "Start the test workflow" in result
         assert "**📋 ACCEPTANCE CRITERIA:**" in result
         assert "✅ **initialized**: Workflow is properly initialized" in result
@@ -163,124 +168,159 @@ class TestFormatEnhancedNodeStatus:
         assert "**process**: Process the data" in result
         assert "**📊 CURRENT WORKFLOW STATE:**" in result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_format_enhanced_node_status_with_approval_required(
-        self, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test node status formatting with approval required transitions."""
         mock_analyze.return_value = {
             "goal": "Current node goal",
-            "acceptance_criteria": {"test": "Test criteria"}
+            "acceptance_criteria": {"test": "Test criteria"},
         }
         mock_transitions.return_value = [
             {"name": "review", "goal": "Review results", "needs_approval": True},
-            {"name": "process", "goal": "Process data", "needs_approval": False}
+            {"name": "process", "goal": "Process data", "needs_approval": False},
         ]
         mock_export.return_value = "Session state"
-        
+
         node = basic_workflow_def.workflow.tree["start"]
         result = format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         assert "🚨 **APPROVAL REQUIRED FOR NEXT TRANSITIONS** 🚨" in result
         assert "**review** ⚠️ **(REQUIRES APPROVAL)**: Review results" in result
         assert "⚠️ **MANDATORY APPROVAL PROCESS:**" in result
         assert '"user_approval": true' in result
         assert "criteria_evidence" in result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_format_enhanced_node_status_single_approval_transition(
-        self, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test formatting with single approval-required transition."""
         mock_analyze.return_value = {
             "goal": "Current node goal",
-            "acceptance_criteria": {"test": "Test criteria"}
+            "acceptance_criteria": {"test": "Test criteria"},
         }
         mock_transitions.return_value = [
             {"name": "review", "goal": "Review results", "needs_approval": True}
         ]
         mock_export.return_value = "Session state"
-        
+
         node = basic_workflow_def.workflow.tree["start"]
         result = format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         assert '"choose": "review"' in result
         assert '"user_approval": true' in result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_format_enhanced_node_status_no_transitions(
-        self, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test formatting for terminal node with no transitions."""
         mock_analyze.return_value = {
             "goal": "Complete the workflow",
-            "acceptance_criteria": {"finished": "All tasks completed"}
+            "acceptance_criteria": {"finished": "All tasks completed"},
         }
         mock_transitions.return_value = []
         mock_export.return_value = "Session state"
-        
+
         node = basic_workflow_def.workflow.tree["complete"]
         result = format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         assert "**🏁 Status:** This is a terminal node (workflow complete)" in result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_format_enhanced_node_status_no_criteria(
-        self, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test formatting when node has no acceptance criteria."""
         mock_analyze.return_value = {
             "goal": "Node with no criteria",
-            "acceptance_criteria": {}
+            "acceptance_criteria": {},
         }
         mock_transitions.return_value = [
             {"name": "next", "goal": "Next step", "needs_approval": False}
         ]
         mock_export.return_value = "Session state"
-        
+
         node = basic_workflow_def.workflow.tree["start"]
         result = format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         assert "• No specific criteria defined" in result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
-    @patch('src.dev_workflow_mcp.prompts.formatting.replace_placeholders')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
+    @patch("src.dev_workflow_mcp.prompts.formatting.replace_placeholders")
     def test_format_enhanced_node_status_with_placeholders(
-        self, mock_replace, mock_export, mock_transitions, mock_analyze, basic_workflow_def, mock_session
+        self,
+        mock_replace,
+        mock_export,
+        mock_transitions,
+        mock_analyze,
+        basic_workflow_def,
+        mock_session,
     ):
         """Test formatting with placeholder replacement."""
         mock_analyze.return_value = {
             "goal": "Process ${{ inputs.project_name }}",
             "acceptance_criteria": {
                 "version": "Version ${{ inputs.version }} processed"
-            }
+            },
         }
         mock_transitions.return_value = [
-            {"name": "next", "goal": "Complete ${{ inputs.project_name }}", "needs_approval": False}
+            {
+                "name": "next",
+                "goal": "Complete ${{ inputs.project_name }}",
+                "needs_approval": False,
+            }
         ]
         mock_export.return_value = "Session state"
-        
+
         # Mock placeholder replacement
         def side_effect(text, inputs):
-            return text.replace("${{ inputs.project_name }}", "Test Project").replace("${{ inputs.version }}", "1.0")
+            return text.replace("${{ inputs.project_name }}", "Test Project").replace(
+                "${{ inputs.version }}", "1.0"
+            )
+
         mock_replace.side_effect = side_effect
-        
+
         node = basic_workflow_def.workflow.tree["start"]
         format_enhanced_node_status(node, basic_workflow_def, mock_session)
-        
+
         # Verify placeholder replacement was called
         assert mock_replace.called
-        mock_replace.assert_any_call("Process ${{ inputs.project_name }}", mock_session.inputs)
+        mock_replace.assert_any_call(
+            "Process ${{ inputs.project_name }}", mock_session.inputs
+        )
 
 
 class TestGenerateNodeCompletionOutputs:
@@ -293,9 +333,9 @@ class TestGenerateNodeCompletionOutputs:
             goal="Complete test task",
             acceptance_criteria={
                 "criterion1": "First criterion met",
-                "criterion2": "Second criterion satisfied"
+                "criterion2": "Second criterion satisfied",
             },
-            next_allowed_nodes=["next_node"]
+            next_allowed_nodes=["next_node"],
         )
 
     @pytest.fixture
@@ -312,13 +352,13 @@ class TestGenerateNodeCompletionOutputs:
         node_name = "test_node"
         criteria_evidence = {
             "criterion1": "Evidence for first criterion",
-            "criterion2": "Evidence for second criterion"
+            "criterion2": "Evidence for second criterion",
         }
-        
+
         result = generate_node_completion_outputs(
             node_name, basic_node, mock_session, criteria_evidence
         )
-        
+
         assert isinstance(result, dict)
         assert "completion_time" in result
         assert "completed_criteria" in result
@@ -326,14 +366,14 @@ class TestGenerateNodeCompletionOutputs:
         assert result["node_name"] == node_name
         assert "criteria_evidence" in result
 
-    def test_generate_node_completion_outputs_no_criteria_evidence(self, basic_node, mock_session):
+    def test_generate_node_completion_outputs_no_criteria_evidence(
+        self, basic_node, mock_session
+    ):
         """Test outputs generation without criteria evidence."""
         node_name = "test_node"
-        
-        result = generate_node_completion_outputs(
-            node_name, basic_node, mock_session
-        )
-        
+
+        result = generate_node_completion_outputs(node_name, basic_node, mock_session)
+
         assert isinstance(result, dict)
         assert "completion_time" in result
         assert "completed_criteria" in result
@@ -341,17 +381,17 @@ class TestGenerateNodeCompletionOutputs:
         assert result["completed_criteria"] == basic_node.acceptance_criteria
         assert result["node_name"] == node_name
 
-    def test_generate_node_completion_outputs_partial_criteria(self, basic_node, mock_session):
+    def test_generate_node_completion_outputs_partial_criteria(
+        self, basic_node, mock_session
+    ):
         """Test outputs generation with partial criteria evidence."""
         node_name = "test_node"
-        criteria_evidence = {
-            "criterion1": "Evidence for first criterion only"
-        }
-        
+        criteria_evidence = {"criterion1": "Evidence for first criterion only"}
+
         result = generate_node_completion_outputs(
             node_name, basic_node, mock_session, criteria_evidence
         )
-        
+
         assert result["completed_criteria"] == criteria_evidence
         # Should include only the provided criteria
         assert "criterion1" in result["completed_criteria"]
@@ -369,9 +409,9 @@ class TestExtractAcceptanceCriteriaFromText:
         - Second criterion to verify
         - Third requirement to meet
         """
-        
+
         result = extract_acceptance_criteria_from_text(text)
-        
+
         assert isinstance(result, list)
         assert len(result) >= 3
         assert any("First criterion" in criterion for criterion in result)
@@ -386,12 +426,15 @@ class TestExtractAcceptanceCriteriaFromText:
         2. Verify all outputs are correct
         3. Document the process
         """
-        
+
         result = extract_acceptance_criteria_from_text(text)
-        
+
         assert isinstance(result, list)
         # Function looks for specific keywords, so check if it found any
-        assert any("verify" in criterion.lower() for criterion in result) or len(result) >= 0
+        assert (
+            any("verify" in criterion.lower() for criterion in result)
+            or len(result) >= 0
+        )
 
     def test_extract_acceptance_criteria_mixed_formats(self):
         """Test extraction from mixed list formats."""
@@ -402,9 +445,9 @@ class TestExtractAcceptanceCriteriaFromText:
         * Asterisk item requires verification
         + Plus item needs acceptance criteria
         """
-        
+
         result = extract_acceptance_criteria_from_text(text)
-        
+
         assert isinstance(result, list)
         # Since function looks for specific keywords, some of these should match
         assert len(result) >= 2
@@ -412,18 +455,18 @@ class TestExtractAcceptanceCriteriaFromText:
     def test_extract_acceptance_criteria_no_criteria(self):
         """Test extraction when no criteria are present."""
         text = "This is just plain text without any list items or criteria."
-        
+
         result = extract_acceptance_criteria_from_text(text)
-        
+
         assert isinstance(result, list)
         # Should still return something, even if empty or minimal
 
     def test_extract_acceptance_criteria_empty_text(self):
         """Test extraction from empty text."""
         text = ""
-        
+
         result = extract_acceptance_criteria_from_text(text)
-        
+
         assert isinstance(result, list)
 
 
@@ -437,18 +480,18 @@ class TestGenerateTemporalInsights:
                 "workflow_name": "Test Workflow 1",
                 "status": "COMPLETED",
                 "created_at": "2024-01-01T10:00:00Z",
-                "session_id": "session1"
+                "session_id": "session1",
             },
             {
-                "workflow_name": "Test Workflow 2", 
+                "workflow_name": "Test Workflow 2",
                 "status": "RUNNING",
                 "created_at": "2024-01-02T11:00:00Z",
-                "session_id": "session2"
-            }
+                "session_id": "session2",
+            },
         ]
-        
+
         result = generate_temporal_insights(results)
-        
+
         assert isinstance(result, str)
         assert len(result) > 0
         # Function returns aggregated insights, not specific workflow names
@@ -457,9 +500,9 @@ class TestGenerateTemporalInsights:
     def test_generate_temporal_insights_empty_results(self):
         """Test insights generation with empty results."""
         results = []
-        
+
         result = generate_temporal_insights(results)
-        
+
         assert isinstance(result, str)
 
     def test_generate_temporal_insights_single_result(self):
@@ -469,12 +512,12 @@ class TestGenerateTemporalInsights:
                 "workflow_name": "Single Workflow",
                 "status": "COMPLETED",
                 "created_at": "2024-01-01T10:00:00Z",
-                "session_id": "session1"
+                "session_id": "session1",
             }
         ]
-        
+
         result = generate_temporal_insights(results)
-        
+
         assert isinstance(result, str)
         # Function returns aggregated insights, not specific workflow names
         assert "context" in result or "historical" in result or "insights" in result
@@ -486,24 +529,24 @@ class TestGenerateTemporalInsights:
                 "workflow_name": "Completed Workflow",
                 "status": "COMPLETED",
                 "created_at": "2024-01-01T10:00:00Z",
-                "session_id": "session1"
+                "session_id": "session1",
             },
             {
                 "workflow_name": "Running Workflow",
-                "status": "RUNNING", 
+                "status": "RUNNING",
                 "created_at": "2024-01-02T11:00:00Z",
-                "session_id": "session2"
+                "session_id": "session2",
             },
             {
                 "workflow_name": "Error Workflow",
                 "status": "ERROR",
                 "created_at": "2024-01-03T12:00:00Z",
-                "session_id": "session3"
-            }
+                "session_id": "session3",
+            },
         ]
-        
+
         result = generate_temporal_insights(results)
-        
+
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -514,17 +557,17 @@ class TestFormattingIntegration:
     def test_error_guidance_and_node_status_consistency(self):
         """Test that error guidance and node status use consistent formatting."""
         error_result = format_yaml_error_guidance("Test error", "Test Workflow")
-        
+
         # Both should use similar markdown formatting patterns
         assert "**" in error_result  # Bold text
         assert "```" in error_result  # Code blocks
-        
+
         # Should contain workflow guidance examples
         assert "workflow_guidance(" in error_result
 
-    @patch('src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema')
-    @patch('src.dev_workflow_mcp.prompts.formatting.get_available_transitions')
-    @patch('src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown')
+    @patch("src.dev_workflow_mcp.prompts.formatting.analyze_node_from_schema")
+    @patch("src.dev_workflow_mcp.prompts.formatting.get_available_transitions")
+    @patch("src.dev_workflow_mcp.prompts.formatting.export_session_to_markdown")
     def test_node_status_with_complex_workflow(
         self, mock_export, mock_transitions, mock_analyze
     ):
@@ -536,34 +579,34 @@ class TestFormattingIntegration:
                 "step1": "First step completed",
                 "step2": "Second step verified",
                 "step3": "Third step documented",
-                "step4": "Fourth step validated"
-            }
+                "step4": "Fourth step validated",
+            },
         }
         mock_transitions.return_value = [
             {"name": "option1", "goal": "First option", "needs_approval": False},
             {"name": "option2", "goal": "Second option", "needs_approval": True},
             {"name": "option3", "goal": "Third option", "needs_approval": False},
-            {"name": "option4", "goal": "Fourth option", "needs_approval": True}
+            {"name": "option4", "goal": "Fourth option", "needs_approval": True},
         ]
         mock_export.return_value = "Complex session state"
-        
+
         # Create mock objects
         node = Mock()
         workflow = Mock()
         session = Mock()
         session.client_id = "test-client"
         session.inputs = {}
-        
+
         result = format_enhanced_node_status(node, workflow, session)
-        
+
         # Should handle multiple criteria
         assert "step1" in result
         assert "step2" in result
         assert "step3" in result
         assert "step4" in result
-        
+
         # Should handle mixed approval requirements
         assert "option1" in result
         assert "option2" in result
         assert "**(REQUIRES APPROVAL)**" in result
-        assert "🚨 **APPROVAL REQUIRED FOR NEXT TRANSITIONS**" in result 
+        assert "🚨 **APPROVAL REQUIRED FOR NEXT TRANSITIONS**" in result

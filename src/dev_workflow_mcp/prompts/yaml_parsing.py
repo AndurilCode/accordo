@@ -246,4 +246,4 @@ def parse_criteria_evidence_context(
 
     # Legacy string format parsing
     choice = extract_choice_from_context(context)
-    return choice, None, False 
+    return choice, None, False

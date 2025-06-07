@@ -212,6 +212,12 @@ def register_phase_prompts(app: FastMCP, config=None):
         task_description: str = Field(
             description="Task description in format 'Action: Brief description'"
         ),
+        session_id: str = Field(
+            description="Required session ID to target specific workflow session. "
+            "🎯 **MULTI-SESSION SUPPORT**: Use this for parallel workflows or session continuity. "
+            "Examples: workflow_guidance(session_id='abc-123', ...) to target specific session. "
+            "🔄 **SESSION-INDEPENDENT ARCHITECTURE**: Each workflow operates independently with its own session ID.",
+        ),
         action: str = Field(
             default="",
             description="Workflow action: 'start', 'plan', 'build', 'revise', 'next'",
@@ -226,14 +232,6 @@ def register_phase_prompts(app: FastMCP, config=None):
         options: str = Field(
             default="",
             description="Optional parameters like project_config_path for specific actions",
-        ),
-        session_id: str = Field(
-            default="",
-            description="Optional session ID to target specific workflow session. "
-            "🎯 **MULTI-SESSION SUPPORT**: Use this for parallel workflows or session continuity. "
-            "Examples: workflow_guidance(session_id='abc-123', ...) to target specific session. "
-            "If not provided, determines session from client context (backward compatibility). "
-            "🔄 **BEST PRACTICE**: Always include session_id when working with multiple concurrent workflows.",
         ),
         ctx: Context = None,
     ) -> str:
@@ -457,16 +455,15 @@ Dynamic session exists but workflow definition is missing.
         operation: str = Field(
             description="State operation: 'get' (current status), 'update' (modify state), 'reset' (clear state)"
         ),
+        session_id: str = Field(
+            description="Required session ID to target specific workflow session. "
+            "🎯 **MULTI-SESSION SUPPORT**: Use this to track state for specific workflow sessions. "
+            "Examples: workflow_state(operation='get', session_id='abc-123') to check specific session status. "
+            "🔄 **SESSION-INDEPENDENT ARCHITECTURE**: Each workflow operates independently with its own session ID.",
+        ),
         updates: str = Field(
             default="",
             description='JSON string with state updates for \'update\' operation. Example: \'{"phase": "CONSTRUCT", "status": "RUNNING"}\'',
-        ),
-        session_id: str = Field(
-            default="",
-            description="Optional session ID to target specific workflow session. "
-            "🎯 **MULTI-SESSION SUPPORT**: Use this to track state for specific workflow sessions. "
-            "Examples: workflow_state(operation='get', session_id='abc-123') to check specific session status. "
-            "🔄 **BEST PRACTICE**: Always include session_id when managing multiple concurrent workflows.",
         ),
         ctx: Context = None,
     ) -> str:

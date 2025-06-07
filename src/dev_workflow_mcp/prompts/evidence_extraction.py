@@ -307,4 +307,4 @@ def _extract_evidence_from_tool_patterns(
         )  # Remove duplicates while preserving order
         return f"Performed {', '.join(unique_activities)} work as evidenced by session activity"
 
-    return None 
+    return None

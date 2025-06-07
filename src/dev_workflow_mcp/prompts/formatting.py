@@ -15,9 +15,7 @@ from ..utils.schema_analyzer import (
 from ..utils.session_manager import export_session_to_markdown
 
 
-def format_yaml_error_guidance(
-    error_msg: str, workflow_name: str | None = None
-) -> str:
+def format_yaml_error_guidance(error_msg: str, workflow_name: str | None = None) -> str:
     """Format helpful error message with YAML format guidance."""
     base_msg = f"❌ **YAML Format Error:** {error_msg}\n\n"
 
@@ -82,26 +80,28 @@ def format_enhanced_node_status(
     """
     analysis = analyze_node_from_schema(node, workflow)
     transitions = get_available_transitions(node, workflow)
-    
+
     # Apply placeholder replacement to the goal and acceptance criteria
-    session_inputs = getattr(session, 'inputs', {}) or {}
-    
+    session_inputs = getattr(session, "inputs", {}) or {}
+
     # Process the goal with placeholder replacement
     processed_goal = replace_placeholders(analysis["goal"], session_inputs)
     analysis["goal"] = processed_goal
-    
+
     # Process acceptance criteria with placeholder replacement
     if analysis["acceptance_criteria"]:
         processed_criteria = {}
         for key, value in analysis["acceptance_criteria"].items():
             processed_criteria[key] = replace_placeholders(value, session_inputs)
         analysis["acceptance_criteria"] = processed_criteria
-    
+
     # Process transition goals with placeholder replacement
     processed_transitions = []
     for transition in transitions:
         processed_transition = transition.copy()
-        processed_transition["goal"] = replace_placeholders(transition["goal"], session_inputs)
+        processed_transition["goal"] = replace_placeholders(
+            transition["goal"], session_inputs
+        )
         processed_transitions.append(processed_transition)
     transitions = processed_transitions
 
@@ -211,10 +211,12 @@ def generate_node_completion_outputs(
     # Basic completion data
     outputs = {
         "node_name": node_name,
-        "completion_time": session.created_at.isoformat() if hasattr(session, 'created_at') else None,
+        "completion_time": session.created_at.isoformat()
+        if hasattr(session, "created_at")
+        else None,
         "criteria_evidence": criteria_evidence or {},
     }
-    
+
     # Handle completed_criteria - use evidence if provided, otherwise use acceptance criteria descriptions
     if criteria_evidence:
         outputs["completed_criteria"] = criteria_evidence
@@ -255,17 +257,30 @@ def extract_acceptance_criteria_from_text(text: str) -> list[str]:
         List of extracted criteria
     """
     criteria = []
-    lines = text.split('\n')
-    
+    lines = text.split("\n")
+
     for line in lines:
         line = line.strip()
         # Look for patterns that indicate acceptance criteria
-        if any(pattern in line.lower() for pattern in [
-            'must', 'should', 'acceptance', 'criteria', 'requirement',
-            'verify', 'ensure', 'check', 'validate'
-        ]) and len(line) > 10:  # Filter out very short lines
+        if (
+            any(
+                pattern in line.lower()
+                for pattern in [
+                    "must",
+                    "should",
+                    "acceptance",
+                    "criteria",
+                    "requirement",
+                    "verify",
+                    "ensure",
+                    "check",
+                    "validate",
+                ]
+            )
+            and len(line) > 10
+        ):  # Filter out very short lines
             criteria.append(line)
-    
+
     return criteria
 
 
@@ -280,23 +295,23 @@ def generate_temporal_insights(results: list) -> str:
     """
     if not results:
         return "No temporal data available for analysis."
-    
+
     # Analyze temporal patterns
     insights = []
-    
+
     # Count results by time periods
-    recent_count = len([r for r in results if getattr(r, 'is_recent', False)])
+    recent_count = len([r for r in results if getattr(r, "is_recent", False)])
     older_count = len(results) - recent_count
-    
+
     if recent_count > 0:
         insights.append(f"Found {recent_count} recent related context(s)")
     if older_count > 0:
         insights.append(f"Found {older_count} historical context(s)")
-    
+
     # Add recommendation based on temporal distribution
     if recent_count > older_count:
         insights.append("Consider leveraging recent successful patterns")
     elif older_count > recent_count:
         insights.append("Consider reviewing historical approaches for insights")
-    
-    return " | ".join(insights) if insights else "Limited temporal insights available" 
+
+    return " | ".join(insights) if insights else "Limited temporal insights available"
