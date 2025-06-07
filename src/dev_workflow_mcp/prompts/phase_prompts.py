@@ -57,64 +57,74 @@ def _handle_dynamic_workflow(
 ) -> str:
     """Handle dynamic workflow execution."""
     current_node_name = session.current_node
-    
+
     if action.lower() == "next":
         # Extract choice and criteria evidence from context
-        choice, criteria_evidence, user_approval = parse_criteria_evidence_context(context)
-        
+        choice, criteria_evidence, user_approval = parse_criteria_evidence_context(
+            context
+        )
+
         if choice:
             # Validate the transition
             current_node = workflow_def.workflow.tree.get(current_node_name)
             if not current_node:
                 return f"❌ **Invalid State:** Current node '{current_node_name}' not found in workflow"
-            
+
             # Check if transition is valid
-            next_allowed_nodes = getattr(current_node, 'next_allowed_nodes', [])
+            next_allowed_nodes = getattr(current_node, "next_allowed_nodes", [])
             if choice not in next_allowed_nodes:
                 return f"❌ **Invalid Transition:** Cannot transition from '{current_node_name}' to '{choice}'"
-            
+
             # Check if target node requires approval
             target_node = workflow_def.workflow.tree.get(choice)
-            if target_node and getattr(target_node, 'needs_approval', False) and not user_approval:
+            if (
+                target_node
+                and getattr(target_node, "needs_approval", False)
+                and not user_approval
+            ):
                 return f"❌ **Approval Required:** Transition to '{choice}' requires explicit user approval. Include \"user_approval\": true in your context."
-            
+
             # Generate node completion outputs if criteria evidence provided
             if criteria_evidence:
                 generate_node_completion_outputs(
                     current_node_name, current_node, session, criteria_evidence
                 )
-            
+
             # If no criteria evidence provided, try automatic extraction
             if not criteria_evidence and current_node:
-                acceptance_criteria = getattr(current_node, 'acceptance_criteria', {})
+                acceptance_criteria = getattr(current_node, "acceptance_criteria", {})
                 if acceptance_criteria:
                     criteria_evidence = extract_automatic_evidence_from_session(
                         session, current_node_name, acceptance_criteria
                     )
-            
+
             # Update session
             update_dynamic_session_node(session.session_id, choice, workflow_def)
-            
+
             # Log the transition with evidence
             if criteria_evidence:
-                evidence_summary = ", ".join(f"{k}: {v[:50]}..." for k, v in criteria_evidence.items())
+                evidence_summary = ", ".join(
+                    f"{k}: {v[:50]}..." for k, v in criteria_evidence.items()
+                )
                 log_message = f"Transitioned from {current_node_name} to {choice} with evidence: {evidence_summary}"
             else:
                 log_message = f"Transitioned from {current_node_name} to {choice}"
-            
+
             add_log_to_session(session.session_id, log_message)
-            
+
             # Get updated session and display new node status
             updated_session = get_session(session.session_id)
             new_node = workflow_def.workflow.tree.get(choice)
-            
+
             if new_node:
-                return format_enhanced_node_status(new_node, workflow_def, updated_session)
+                return format_enhanced_node_status(
+                    new_node, workflow_def, updated_session
+                )
             else:
                 return f"❌ **Error:** Target node '{choice}' not found in workflow definition"
         else:
             return "❌ **Missing Choice:** Please specify which node to transition to using context format"
-    
+
     else:
         # Display current node status
         current_node = workflow_def.workflow.tree.get(current_node_name)
@@ -133,7 +143,7 @@ def _handle_cache_restore_operation(client_id: str) -> str:
     """Handle cache restore operation."""
     try:
         from ..utils.cache_manager import restore_sessions_from_cache
-        
+
         restored_count = restore_sessions_from_cache(client_id)
         return f"✅ **Cache Restore Complete:** Restored {restored_count} sessions from cache for client '{client_id}'"
     except Exception as e:
@@ -250,15 +260,15 @@ def register_phase_prompts(app: FastMCP, config=None):
         """
         try:
             # Handle FieldInfo objects passed as default values
-            if hasattr(action, 'default'):
+            if hasattr(action, "default"):
                 action = action.default or ""
-            if hasattr(context, 'default'):
+            if hasattr(context, "default"):
                 context = context.default or ""
-            if hasattr(options, 'default'):
+            if hasattr(options, "default"):
                 options = options.default or ""
-            if hasattr(session_id, 'default'):
+            if hasattr(session_id, "default"):
                 session_id = session_id.default or ""
-                
+
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(
                 session_id, context, ctx
@@ -319,34 +329,63 @@ Dynamic session exists but workflow definition is missing.
 
                 if action.lower() == "start" and context and isinstance(context, str):
                     # Parse and validate YAML context
-                    workflow_name, yaml_content, error_message = parse_and_validate_yaml_context(context)
+                    workflow_name, yaml_content, error_message = (
+                        parse_and_validate_yaml_context(context)
+                    )
 
                     if error_message:
                         return format_yaml_error_guidance(error_message, workflow_name)
 
-                    if not yaml_content:
-                        # Only workflow name provided - guide to complete YAML
-                        return format_yaml_error_guidance(
-                            "Workflow name provided but YAML content is missing",
-                            workflow_name
-                        )
-
                     # Validate task description format
                     try:
-                        validated_description = validate_task_description(task_description)
+                        validated_description = validate_task_description(
+                            task_description
+                        )
                     except ValueError as e:
                         return f"❌ **Task Description Error:** {str(e)}"
 
-                    # Parse and load the workflow from YAML
-                    try:
-                        workflow_def = loader.load_workflow_from_string(yaml_content, workflow_name)
+                    # Load workflow definition
+                    workflow_def = None
+                    
+                    if not yaml_content and workflow_name:
+                        # Only workflow name provided - load from yaml_loader
+                        workflow_def = loader.get_workflow_with_cache_fallback(workflow_name)
                         if not workflow_def:
-                            return format_yaml_error_guidance(
-                                "YAML parsing failed: Invalid workflow structure", workflow_name
+                            # Workflow not found - guide user
+                            return f"""❌ **Workflow Not Found:** '{workflow_name}'
+
+🔍 **Available Options:**
+
+1. **Run discovery to see available workflows:**
+   ```
+   workflow_discovery(task_description="{task_description}")
+   ```
+
+2. **Check workflow files in:** `.workflow-commander/workflows/`
+
+**💡 Note:** Ensure the workflow name matches exactly with available workflows."""
+                    
+                    elif yaml_content:
+                        # YAML content provided - parse it
+                        try:
+                            workflow_def = loader.load_workflow_from_string(
+                                yaml_content, workflow_name
                             )
-                    except Exception as e:
+                            if not workflow_def:
+                                return format_yaml_error_guidance(
+                                    "YAML parsing failed: Invalid workflow structure",
+                                    workflow_name,
+                                )
+                        except Exception as e:
+                            return format_yaml_error_guidance(
+                                f"YAML parsing failed: {str(e)}", workflow_name
+                            )
+                    
+                    else:
+                        # No workflow name or YAML content
                         return format_yaml_error_guidance(
-                            f"YAML parsing failed: {str(e)}", workflow_name
+                            "Workflow name or YAML content is required",
+                            workflow_name,
                         )
 
                     # Create new dynamic session
@@ -364,24 +403,31 @@ Dynamic session exists but workflow definition is missing.
 
                     # Set the session to start at the root node
                     root_node_name = workflow_def.workflow.root
-                    update_dynamic_session_node(session.session_id, root_node_name, workflow_def)
+                    update_dynamic_session_node(
+                        session.session_id, root_node_name, workflow_def
+                    )
                     update_dynamic_session_status(session.session_id, "RUNNING")
 
                     # Add log entry
                     add_log_to_session(
                         session.session_id,
-                        f"Workflow '{workflow_name}' started at node '{root_node_name}'"
+                        f"Workflow '{workflow_name}' started at node '{root_node_name}'",
                     )
 
                     # Get the root node and display its status
                     root_node = workflow_def.workflow.tree.get(root_node_name)
                     if root_node:
-                        result = f"✅ **Workflow Started:** {workflow_name}\n\n" + format_enhanced_node_status(root_node, workflow_def, session)
+                        result = (
+                            f"✅ **Workflow Started:** {workflow_name}\n\n"
+                            + format_enhanced_node_status(
+                                root_node, workflow_def, session
+                            )
+                        )
                         return add_session_id_to_response(result, session.session_id)
                     else:
                         return add_session_id_to_response(
                             f"❌ **Configuration Error:** Root node '{root_node_name}' not found in workflow tree",
-                            session.session_id
+                            session.session_id,
                         )
 
                 else:
@@ -426,9 +472,9 @@ Dynamic session exists but workflow definition is missing.
         """Get or update workflow state."""
         try:
             # Handle FieldInfo objects
-            if hasattr(updates, 'default'):
+            if hasattr(updates, "default"):
                 updates = updates.default or ""
-            if hasattr(session_id, 'default'):
+            if hasattr(session_id, "default"):
                 session_id = session_id.default or ""
 
             # Resolve session
@@ -439,7 +485,10 @@ Dynamic session exists but workflow definition is missing.
                     session = get_session(target_session_id)
                     if session:
                         state_info = export_session_to_markdown(session.client_id)
-                        return add_session_id_to_response(f"**Current Workflow State:**\n\n{state_info}", target_session_id)
+                        return add_session_id_to_response(
+                            f"**Current Workflow State:**\n\n{state_info}",
+                            target_session_id,
+                        )
                     else:
                         return f"❌ **Session Not Found:** {target_session_id}"
                 else:
@@ -454,14 +503,19 @@ Dynamic session exists but workflow definition is missing.
 
                 try:
                     update_data = json.loads(updates)
-                    
+
                     # Add log entry for the update
                     log_entry = update_data.get("log_entry")
                     if log_entry:
                         add_log_to_session(target_session_id, log_entry)
-                        return add_session_id_to_response(f"✅ **State Updated:** {log_entry}", target_session_id)
+                        return add_session_id_to_response(
+                            f"✅ **State Updated:** {log_entry}", target_session_id
+                        )
                     else:
-                        return add_session_id_to_response("✅ **State Updated:** Update applied to session", target_session_id)
+                        return add_session_id_to_response(
+                            "✅ **State Updated:** Update applied to session",
+                            target_session_id,
+                        )
 
                 except json.JSONDecodeError:
                     return "❌ **Invalid JSON:** Updates must be valid JSON format"
@@ -486,7 +540,7 @@ Dynamic session exists but workflow definition is missing.
         """Manage workflow session cache for persistence across MCP restarts."""
         try:
             # Handle FieldInfo objects
-            if hasattr(client_id, 'default'):
+            if hasattr(client_id, "default"):
                 client_id = client_id.default or "default"
 
             if operation == "restore":
@@ -522,7 +576,7 @@ Dynamic session exists but workflow definition is missing.
         """Find all relevant past workflow contexts and provide the raw context for agent analysis."""
         try:
             # Handle FieldInfo objects
-            if hasattr(client_id, 'default'):
+            if hasattr(client_id, "default"):
                 client_id = client_id.default or "default"
 
             # For now, return placeholder since semantic search is complex
@@ -539,4 +593,4 @@ Dynamic session exists but workflow definition is missing.
 - Consider the current task context when making decisions"""
 
         except Exception as e:
-            return f"❌ **Semantic Analysis Error:** {str(e)}" 
+            return f"❌ **Semantic Analysis Error:** {str(e)}"
