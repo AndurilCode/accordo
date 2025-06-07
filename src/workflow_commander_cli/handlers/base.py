@@ -70,7 +70,7 @@ class BaseConfigHandler(ABC):
             content = config_path.read_text()
             return json.loads(content)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in configuration file: {e}")
+            raise ValueError(f"Invalid JSON in configuration file: {e}") from e
     
     @abstractmethod
     def get_servers_from_config(self, config: dict[str, Any]) -> dict[str, MCPServer]:
@@ -188,7 +188,7 @@ class BaseConfigHandler(ABC):
             json.dumps(config)
             return True
         except (TypeError, ValueError) as e:
-            raise ConfigValidationError(f"Configuration is not valid JSON: {e}")
+            raise ConfigValidationError(f"Configuration is not valid JSON: {e}") from e
     
     def backup_config(self, config_path: Path) -> Path | None:
         """Create a backup of existing configuration.

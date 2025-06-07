@@ -346,10 +346,12 @@ Dynamic session exists but workflow definition is missing.
 
                     # Load workflow definition
                     workflow_def = None
-                    
+
                     if not yaml_content and workflow_name:
                         # Only workflow name provided - load from yaml_loader
-                        workflow_def = loader.get_workflow_with_cache_fallback(workflow_name)
+                        workflow_def = loader.get_workflow_with_cache_fallback(
+                            workflow_name
+                        )
                         if not workflow_def:
                             # Workflow not found - guide user
                             return f"""❌ **Workflow Not Found:** '{workflow_name}'
@@ -364,7 +366,7 @@ Dynamic session exists but workflow definition is missing.
 2. **Check workflow files in:** `.workflow-commander/workflows/`
 
 **💡 Note:** Ensure the workflow name matches exactly with available workflows."""
-                    
+
                     elif yaml_content:
                         # YAML content provided - parse it
                         try:
@@ -380,7 +382,7 @@ Dynamic session exists but workflow definition is missing.
                             return format_yaml_error_guidance(
                                 f"YAML parsing failed: {str(e)}", workflow_name
                             )
-                    
+
                     else:
                         # No workflow name or YAML content
                         return format_yaml_error_guidance(

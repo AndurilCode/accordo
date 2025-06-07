@@ -136,7 +136,7 @@ class WorkflowLoader:
 
     def get_workflow_with_cache_fallback(self, name: str) -> WorkflowDefinition | None:
         """Get workflow by name, trying cache first, then disk.
-        
+
         This method attempts to retrieve a workflow from the discovery cache first,
         and if not found, falls back to loading from disk. This provides the best
         performance while ensuring workflows can always be found.
@@ -150,13 +150,14 @@ class WorkflowLoader:
         # Try to get from discovery cache first (if available)
         try:
             from ..prompts.discovery_prompts import get_cached_workflow
+
             cached_workflow = get_cached_workflow(name)
             if cached_workflow:
                 return cached_workflow
         except (ImportError, AttributeError):
             # Cache not available, fall back to disk
             pass
-        
+
         # Fallback to loading from disk
         return self.get_workflow_by_name(name)
 
@@ -325,7 +326,7 @@ def load_workflow_with_cache_fallback(
     name: str, workflows_dir: str = ".workflow-commander/workflows"
 ) -> WorkflowDefinition | None:
     """Load workflow by name, trying cache first, then disk.
-    
+
     This function provides the recommended way to load workflows as it
     tries the discovery cache first for performance, then falls back to
     disk if needed.

@@ -35,7 +35,7 @@ def version_callback(value: bool):
 
 @app.callback()
 def main(
-    version: bool | None = typer.Option(
+    _version: bool | None = typer.Option(
         None, "--version", "-v", callback=version_callback, is_eager=True,
         help="Show version and exit"
     )
@@ -74,7 +74,7 @@ def configure(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
         else:
             if non_interactive:
                 display_error_message("Platform must be specified in non-interactive mode")
@@ -157,7 +157,7 @@ def configure(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 @app.command()
 def list_platforms():
@@ -201,7 +201,7 @@ def list_servers(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
         else:
             platform_enum = select_platform()
         
@@ -239,7 +239,7 @@ def list_servers(
                 
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 @app.command()
 def remove_server(
@@ -269,7 +269,7 @@ def remove_server(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
         else:
             platform_enum = select_platform()
         
@@ -316,7 +316,7 @@ def remove_server(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 @app.command()
 def validate(
@@ -341,7 +341,7 @@ def validate(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
         else:
             platform_enum = select_platform()
         
@@ -403,7 +403,7 @@ def validate(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 @app.command("bootstrap-rules")
 def bootstrap_rules(
@@ -467,7 +467,7 @@ def bootstrap_rules(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 if __name__ == "__main__":
     app() 

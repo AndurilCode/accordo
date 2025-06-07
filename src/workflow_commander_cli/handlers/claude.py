@@ -163,7 +163,7 @@ class ClaudeDesktopHandler(BaseConfigHandler):
             return False
         
         # Validate each server configuration
-        for server_name, server_config in mcp_servers.items():
+        for _server_name, server_config in mcp_servers.items():
             if not isinstance(server_config, dict):
                 return False
             
@@ -335,7 +335,7 @@ class ClaudeCodeHandler(BaseConfigHandler):
             return False
         
         # Validate each server configuration
-        for server_name, server_config in mcp_servers.items():
+        for _server_name, server_config in mcp_servers.items():
             if not isinstance(server_config, dict):
                 return False
             

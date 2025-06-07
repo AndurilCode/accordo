@@ -453,12 +453,12 @@ class TestAutomaticCacheRestoration:
 
         # Mock sys.argv without cache enabled
         test_args = ["server.py"]
-        with patch.object(sys, "argv", test_args):
-            with patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup") as mock_auto_restore:
-                result = main()
+        with patch.object(sys, "argv", test_args), \
+             patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup") as mock_auto_restore:
+            result = main()
 
-                # Verify cache restoration was NOT called
-                mock_auto_restore.assert_not_called()
+            # Verify cache restoration was NOT called
+            mock_auto_restore.assert_not_called()
 
         # Verify server started normally
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
