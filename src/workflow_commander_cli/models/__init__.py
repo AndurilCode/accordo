@@ -15,11 +15,11 @@ from .platform import (
 
 __all__ = [
     "MCPServer",
-    "MCPServerConfig",
+    "MCPServerConfig", 
     "CursorConfig",
     "ClaudeConfig",
     "VSCodeConfig",
     "Platform",
     "PlatformInfo",
     "ConfigLocation",
-]
+] 

@@ -13,7 +13,7 @@ __all__ = [
     "BaseConfigHandler",
     "CursorHandler",
     "ClaudeDesktopHandler",
-    "ClaudeCodeHandler",
+    "ClaudeCodeHandler", 
     "ClaudeHandler",  # Backward compatibility
     "VSCodeHandler",
-]
+] 
