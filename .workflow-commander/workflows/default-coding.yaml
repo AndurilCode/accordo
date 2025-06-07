@@ -19,27 +19,10 @@ execution:
 workflow:
   goal: Complete coding task with thorough analysis, planning, implementation, and validation
 
-  root: semantic_analysis
+  root: analyze
 
   tree:
     # Analysis phase - understand requirements and codebase
-    semantic_analysis:
-      goal: "Analyze with historical context"
-      instructions: |
-        1. Perform baseline analysis
-        2. Search for similar past work
-        3. Learn from completed projects  
-        4. Identify risks from historical failures
-        5. Synthesize current + historical insights
-        6. Create evidence-based recommendations
-      
-      acceptance_criteria:
-        historical_context: "Found relevant past work with semantic search"
-        lessons_integration: "Integrated lessons from completed similar workflows"
-        risk_assessment: "Identified risks based on historical patterns"
-        synthesis_report: "Combined current understanding with historical insights"
-      next_allowed_nodes: [analyze]
-
     analyze:
       goal: |
         **ANALYZE PHASE:** ${{ inputs.task_description }}
@@ -60,8 +43,7 @@ workflow:
       goal: |
         **BLUEPRINT PHASE:** ${{ inputs.task_description }}
 
-        Create a comprehensive implementation plan with clear architecture, step-by-step execution strategy, and testing approach. The plan should be detailed enough for systematic execution.
-        
+        Create a comprehensive implementation plan with clear architecture, step-by-step execution strategy, and testing approach. The plan should be detailed enough for systematic execution.        
       acceptance_criteria:
         solution_architecture: "MUST define overall technical approach and strategy, specify design patterns and architectural decisions, identify all files to create/modify with rationale, and plan for error handling and edge cases"
         step_breakdown: "MUST break implementation into atomic ordered steps, ensure each step is small specific and verifiable, include verification commands for each step, and specify success criteria and validation methods"
@@ -97,8 +79,10 @@ workflow:
 
         **Objective:** Confirm all requirements are met and the implementation is ready for deployment.
       acceptance_criteria:
-        functional_testing: "MUST run complete test suite with all tests passing, test all implemented functionality thoroughly, verify edge cases and error conditions, and ensure no regressions in existing functionality"
-        quality_verification: "MUST run linting checks with zero errors (ruff check .), verify code formatting (ruff format --check .), run type checking if applicable (mypy src/), and ensure code follows project standards"
+        unit_testing: "MUST run complete test suite with all tests passing, test all implemented functionality thoroughly, verify edge cases and error conditions, and ensure no regressions in existing functionality"
+        linting_verification: "MUST run linting checks with zero errors (ruff check .), verify code formatting (ruff format --check .), run type checking if applicable (mypy src/), and ensure code follows project standards"
+        dead_code_verification: "MUST run dead code detection with zero errors (vulture src/ --min-confidence 80), and ensure no dead code is present"
+        type_checking: "MUST run type checking with zero errors (mypy src/), and ensure all types are properly defined"
         integration_testing: "MUST verify backwards compatibility maintained, test all integration points work correctly, ensure imports resolve without circular dependencies, and validate system works end-to-end"
         requirements_verification: "MUST verify all original requirements implemented, confirm task objectives achieved, validate all acceptance criteria satisfied, and document any limitations or considerations"
         documentation_validation: "MUST ensure code is properly documented, update relevant project documentation, verify examples and usage instructions accurate, and check documentation completeness"

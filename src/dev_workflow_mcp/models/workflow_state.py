@@ -80,6 +80,7 @@ class DynamicWorkflowState(BaseModel):
         ):
             # Lazy import to avoid circular dependency
             from ..utils.session_id_utils import generate_session_id
+
             data["session_id"] = generate_session_id()
         return data
 
