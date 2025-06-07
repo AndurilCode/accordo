@@ -134,33 +134,6 @@ class WorkflowLoader:
         workflows = self.discover_workflows()
         return workflows.get(name)
 
-    def get_workflow_with_cache_fallback(self, name: str) -> WorkflowDefinition | None:
-        """Get workflow by name, trying cache first, then disk.
-
-        This method attempts to retrieve a workflow from the discovery cache first,
-        and if not found, falls back to loading from disk. This provides the best
-        performance while ensuring workflows can always be found.
-
-        Args:
-            name: Exact workflow name
-
-        Returns:
-            WorkflowDefinition or None if not found in cache or on disk
-        """
-        # Try to get from discovery cache first (if available)
-        try:
-            from ..prompts.discovery_prompts import get_cached_workflow
-
-            cached_workflow = get_cached_workflow(name)
-            if cached_workflow:
-                return cached_workflow
-        except (ImportError, AttributeError):
-            # Cache not available, fall back to disk
-            pass
-
-        # Fallback to loading from disk
-        return self.get_workflow_by_name(name)
-
     def validate_workflow_file(self, file_path: str) -> dict[str, any]:
         """Validate a workflow YAML file.
 
@@ -320,26 +293,6 @@ def load_workflow_by_name(
     """
     loader = WorkflowLoader(workflows_dir)
     return loader.get_workflow_by_name(name)
-
-
-def load_workflow_with_cache_fallback(
-    name: str, workflows_dir: str = ".workflow-commander/workflows"
-) -> WorkflowDefinition | None:
-    """Load workflow by name, trying cache first, then disk.
-
-    This function provides the recommended way to load workflows as it
-    tries the discovery cache first for performance, then falls back to
-    disk if needed.
-
-    Args:
-        name: Workflow name to load
-        workflows_dir: Directory containing workflows
-
-    Returns:
-        WorkflowDefinition or None if not found
-    """
-    loader = WorkflowLoader(workflows_dir)
-    return loader.get_workflow_with_cache_fallback(name)
 
 
 def get_available_workflows(
