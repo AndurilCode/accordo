@@ -82,6 +82,7 @@ workflow:
         unit_testing: "MUST run complete test suite with all tests passing, test all implemented functionality thoroughly, verify edge cases and error conditions, and ensure no regressions in existing functionality"
         linting_verification: "MUST run linting checks with zero errors (ruff check .), verify code formatting (ruff format --check .), run type checking if applicable (mypy src/), and ensure code follows project standards"
         dead_code_verification: "MUST run dead code detection with zero errors (vulture src/ --min-confidence 80), and ensure no dead code is present"
+        type_checking: "MUST run type checking with zero errors (mypy src/), and ensure all types are properly defined"
         integration_testing: "MUST verify backwards compatibility maintained, test all integration points work correctly, ensure imports resolve without circular dependencies, and validate system works end-to-end"
         requirements_verification: "MUST verify all original requirements implemented, confirm task objectives achieved, validate all acceptance criteria satisfied, and document any limitations or considerations"
         documentation_validation: "MUST ensure code is properly documented, update relevant project documentation, verify examples and usage instructions accurate, and check documentation completeness"
