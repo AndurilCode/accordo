@@ -91,4 +91,4 @@ def validate_task_description(description: str | None) -> str:
             "Examples: 'Add: user authentication', 'Fix: memory leak', 'Implement: OAuth login', 'Refactor: database queries'"
         )
 
-    return description 
+    return description

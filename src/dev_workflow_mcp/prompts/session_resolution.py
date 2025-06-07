@@ -4,7 +4,6 @@ This module handles session ID resolution and client context management for
 workflow operations.
 """
 
-
 from fastmcp import Context
 
 from ..utils.session_id_utils import extract_session_id_from_context
@@ -62,4 +61,4 @@ def resolve_session_context(
 
     # Priority 3: No explicit session - return None for new session creation
     # NOTE: This no longer triggers client-based conflict detection
-    return None, client_id 
+    return None, client_id

@@ -7,14 +7,14 @@ import typer
 
 class BootstrapManager:
     """Manages deployment of workflow guidelines to AI assistant configuration files."""
-    
+
     # Target file paths for each assistant
     CURSOR_TARGET = ".cursor/rules/execute-tasks.mdc"
     COPILOT_TARGET = ".github/copilot-instructions.md"
     CLAUDE_TARGET = "CLAUDE.md"
-    
+
     # Content with YAML frontmatter for Cursor
-    CURSOR_CONTENT = '''---
+    CURSOR_CONTENT = """---
 description: 
 globs: 
 alwaysApply: true
@@ -131,10 +131,10 @@ workflow_state(session_id="abc-123", operation="get")
 - **ALWAYS save session_id** from workflow start responses
 - **ALWAYS include session_id** in subsequent workflow calls
 - **Use session_id** when managing multiple concurrent workflows
-- **Fallback handling**: System supports backward compatibility without session_id'''
+- **Fallback handling**: System supports backward compatibility without session_id"""
 
     # Core content without YAML frontmatter for other assistants
-    CORE_CONTENT = '''## Task Execution Guidelines
+    CORE_CONTENT = """## Task Execution Guidelines
 
 ### 🚨 MANDATORY WORKFLOW COMPLIANCE 🚨
 **Before starting ANY task, evaluate it using these criteria:**
@@ -246,41 +246,43 @@ workflow_state(session_id="abc-123", operation="get")
 - **ALWAYS save session_id** from workflow start responses
 - **ALWAYS include session_id** in subsequent workflow calls
 - **Use session_id** when managing multiple concurrent workflows
-- **Fallback handling**: System supports backward compatibility without session_id'''
+- **Fallback handling**: System supports backward compatibility without session_id"""
 
     def _log_info(self, message: str) -> None:
         """Log info message with colored output."""
         typer.secho(f"[INFO] {message}", fg=typer.colors.BLUE)
-    
+
     def _log_success(self, message: str) -> None:
         """Log success message with colored output."""
         typer.secho(f"[SUCCESS] {message}", fg=typer.colors.GREEN)
-    
+
     def _log_warning(self, message: str) -> None:
         """Log warning message with colored output."""
         typer.secho(f"[WARNING] {message}", fg=typer.colors.YELLOW)
-    
+
     def _log_error(self, message: str) -> None:
         """Log error message with colored output."""
         typer.secho(f"[ERROR] {message}", fg=typer.colors.RED)
-    
+
     def _check_content_exists(self, target_file: Path) -> bool:
         """Check if workflow guidelines content already exists in target file."""
         if not target_file.exists():
             return False
-        
+
         try:
-            content = target_file.read_text(encoding='utf-8')
+            content = target_file.read_text(encoding="utf-8")
             # Check for key phrases that indicate execute-tasks content exists
-            return ("Task Execution Guidelines" in content and 
-                    "MANDATORY WORKFLOW COMPLIANCE" in content)
+            return (
+                "Task Execution Guidelines" in content
+                and "MANDATORY WORKFLOW COMPLIANCE" in content
+            )
         except Exception:
             return False
-    
+
     def _ensure_directory(self, target_file: Path) -> bool:
         """Ensure directory exists for target file."""
         target_dir = target_file.parent
-        
+
         if not target_dir.exists():
             self._log_info(f"Creating directory: {target_dir}")
             try:
@@ -290,111 +292,139 @@ workflow_state(session_id="abc-123", operation="get")
             except Exception as e:
                 self._log_error(f"Failed to create directory: {target_dir} - {e}")
                 return False
-        
+
         return True
-    
+
     def deploy_to_cursor(self, force: bool = False) -> bool:
         """Deploy content to Cursor."""
         self._log_info("Deploying to Cursor...")
-        
+
         target_file = Path(self.CURSOR_TARGET)
-        
+
         if not self._ensure_directory(target_file):
             return False
-        
+
         if not force and self._check_content_exists(target_file):
-            self._log_warning(f"Execute-tasks content already exists in {target_file}, skipping")
+            self._log_warning(
+                f"Execute-tasks content already exists in {target_file}, skipping"
+            )
             return True
-        
+
         try:
             if target_file.exists() and not force:
                 # File exists, append the content with separator
-                content_to_add = f"\n\n# Execute-Tasks Guidelines\n\n{self.CURSOR_CONTENT}"
-                with target_file.open('a', encoding='utf-8') as f:
+                content_to_add = (
+                    f"\n\n# Execute-Tasks Guidelines\n\n{self.CURSOR_CONTENT}"
+                )
+                with target_file.open("a", encoding="utf-8") as f:
                     f.write(content_to_add)
-                self._log_success(f"Execute-tasks content appended to existing {target_file}")
+                self._log_success(
+                    f"Execute-tasks content appended to existing {target_file}"
+                )
             else:
                 # File doesn't exist or force mode, create/overwrite with the content
-                target_file.write_text(self.CURSOR_CONTENT, encoding='utf-8')
+                target_file.write_text(self.CURSOR_CONTENT, encoding="utf-8")
                 action = "overwritten" if force and target_file.exists() else "created"
-                self._log_success(f"Execute-tasks content deployed to {action} {target_file}")
-            
+                self._log_success(
+                    f"Execute-tasks content deployed to {action} {target_file}"
+                )
+
             return True
-            
+
         except Exception as e:
             self._log_error(f"Failed to deploy to Cursor: {e}")
             return False
-    
+
     def deploy_to_copilot(self, force: bool = False) -> bool:
         """Deploy content to GitHub Copilot."""
         self._log_info("Deploying to GitHub Copilot...")
-        
+
         target_file = Path(self.COPILOT_TARGET)
-        
+
         if not self._ensure_directory(target_file):
             return False
-        
+
         if not force and self._check_content_exists(target_file):
-            self._log_warning(f"Execute-tasks content already exists in {target_file}, skipping")
+            self._log_warning(
+                f"Execute-tasks content already exists in {target_file}, skipping"
+            )
             return True
-        
+
         try:
             if target_file.exists() and not force:
                 # File exists, append the content with separator
-                content_to_add = f"\n\n# Execute-Tasks Guidelines\n\n{self.CORE_CONTENT}"
-                with target_file.open('a', encoding='utf-8') as f:
+                content_to_add = (
+                    f"\n\n# Execute-Tasks Guidelines\n\n{self.CORE_CONTENT}"
+                )
+                with target_file.open("a", encoding="utf-8") as f:
                     f.write(content_to_add)
-                self._log_success(f"Execute-tasks content appended to existing {target_file}")
+                self._log_success(
+                    f"Execute-tasks content appended to existing {target_file}"
+                )
             else:
                 # File doesn't exist or force mode, create/overwrite
                 if force or not target_file.exists():
                     header = "# GitHub Copilot Instructions\n\n"
                     content = f"{header}{self.CORE_CONTENT}"
-                    target_file.write_text(content, encoding='utf-8')
-                    action = "overwritten" if force and target_file.exists() else "created"
-                    self._log_success(f"Execute-tasks content deployed to {action} {target_file}")
-            
+                    target_file.write_text(content, encoding="utf-8")
+                    action = (
+                        "overwritten" if force and target_file.exists() else "created"
+                    )
+                    self._log_success(
+                        f"Execute-tasks content deployed to {action} {target_file}"
+                    )
+
             return True
-            
+
         except Exception as e:
             self._log_error(f"Failed to deploy to GitHub Copilot: {e}")
             return False
-    
+
     def deploy_to_claude(self, force: bool = False) -> bool:
         """Deploy content to Claude."""
         self._log_info("Deploying to Claude...")
-        
+
         target_file = Path(self.CLAUDE_TARGET)
-        
+
         if not self._ensure_directory(target_file):
             return False
-        
+
         if not force and self._check_content_exists(target_file):
-            self._log_warning(f"Execute-tasks content already exists in {target_file}, skipping")
+            self._log_warning(
+                f"Execute-tasks content already exists in {target_file}, skipping"
+            )
             return True
-        
+
         try:
             if target_file.exists() and not force:
                 # File exists, append the content with separator
-                content_to_add = f"\n\n# Execute-Tasks Guidelines\n\n{self.CORE_CONTENT}"
-                with target_file.open('a', encoding='utf-8') as f:
+                content_to_add = (
+                    f"\n\n# Execute-Tasks Guidelines\n\n{self.CORE_CONTENT}"
+                )
+                with target_file.open("a", encoding="utf-8") as f:
                     f.write(content_to_add)
-                self._log_success(f"Execute-tasks content appended to existing {target_file}")
+                self._log_success(
+                    f"Execute-tasks content appended to existing {target_file}"
+                )
             else:
                 # File doesn't exist or force mode, create/overwrite
                 if force or not target_file.exists():
                     header = "# Claude AI Instructions\n\n"
                     content = f"{header}{self.CORE_CONTENT}"
-                    target_file.write_text(content, encoding='utf-8')
-                    action = "overwritten" if force and target_file.exists() else "created"
-                    self._log_success(f"Execute-tasks content deployed to {action} {target_file}")
-            
+                    target_file.write_text(content, encoding="utf-8")
+                    action = (
+                        "overwritten" if force and target_file.exists() else "created"
+                    )
+                    self._log_success(
+                        f"Execute-tasks content deployed to {action} {target_file}"
+                    )
+
             return True
-            
+
         except Exception as e:
             self._log_error(f"Failed to deploy to Claude: {e}")
             return False
-    
+
     def deploy_to_assistant(self, assistant: str, force: bool = False) -> bool:
         """Deploy content to a specific assistant."""
         if assistant == "cursor":
@@ -406,11 +436,11 @@ workflow_state(session_id="abc-123", operation="get")
         else:
             self._log_error(f"Unknown assistant type: {assistant}")
             return False
-    
+
     def deploy_all(self, force: bool = False) -> dict[str, bool]:
         """Deploy content to all assistants."""
         results = {}
         results["cursor"] = self.deploy_to_cursor(force)
         results["copilot"] = self.deploy_to_copilot(force)
         results["claude"] = self.deploy_to_claude(force)
-        return results 
+        return results
