@@ -970,38 +970,50 @@ def _handle_dynamic_workflow(
         if not current_node:
             return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
-        # Handle workflow nodes (nodes that reference external workflows)
+        # SIMPLIFIED: Handle workflow nodes (nodes that reference external workflows)
         if current_node.is_workflow_node:
-            # Auto-execute workflow transition for workflow nodes
             try:
-                # Execute workflow transition automatically
-                success, new_workflow_def, message = engine.execute_workflow_transition(
-                    session, workflow_def, current_node.workflow, {}
+                # Store current workflow context in stack
+                workflow_context = {
+                    "workflow_name": session.workflow_name,
+                    "current_node": session.current_node,
+                }
+                session.workflow_stack.append(workflow_context)
+                
+                # Load the external workflow
+                external_workflow = engine.loader.load_external_workflow(
+                    current_node.workflow, 
+                    None  # No current path needed for simple case
                 )
                 
-                if success and new_workflow_def:
-                    # Update workflow definition and continue with new workflow
-                    workflow_def = new_workflow_def
+                if external_workflow:
+                    # Switch to external workflow
+                    session.workflow_name = external_workflow.name
+                    session.current_node = external_workflow.workflow.root
+                    session.status = "RUNNING"
                     
-                    # CRITICAL FIX: Update the cached workflow definition for this session
-                    # This ensures subsequent workflow_guidance calls use the new external workflow definition
+                    # Store external workflow definition in cache
                     from ..utils.session_manager import store_workflow_definition_in_cache
-                    store_workflow_definition_in_cache(session.session_id, new_workflow_def)
+                    store_workflow_definition_in_cache(session.session_id, external_workflow)
                     
-                    current_node = workflow_def.workflow.get_node(session.current_node)
+                    # Log the transition
+                    session.add_log_entry(f"🔀 SIMPLE WORKFLOW TRANSITION: {workflow_def.name} → {external_workflow.name}")
+                    session.add_log_entry(f"📍 Starting external workflow at: {external_workflow.workflow.root}")
                     
-                    if current_node:
-                        status = format_enhanced_node_status(current_node, workflow_def, session)
-                        return f"""✅ **Auto-Workflow Transition:** {message}
+                    # Show the external workflow status
+                    external_current_node = external_workflow.workflow.get_node(session.current_node)
+                    if external_current_node:
+                        status = format_enhanced_node_status(external_current_node, external_workflow, session)
+                        return f"""✅ **Started External Workflow:** {external_workflow.name}
 
 {status}"""
                     else:
-                        return f"✅ **Auto-Workflow Transition:** {message}"
+                        return f"✅ **Started External Workflow:** {external_workflow.name}"
                 else:
-                    return f"❌ **Auto-Workflow Transition Failed:** {message}"
+                    return f"❌ **Failed to load external workflow:** {current_node.workflow}"
                     
             except Exception as e:
-                return f"❌ **Auto-Workflow Transition Error:** {str(e)}"
+                return f"❌ **External Workflow Error:** {str(e)}"
 
         # Handle choice selection with enhanced context parsing
         if (
@@ -1052,42 +1064,51 @@ def _handle_dynamic_workflow(
                         return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Current node requires explicit user approval before transition. Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL."
 
                 elif choice in (current_node.next_allowed_workflows or []):
-                    # External workflow transition
+                    # SIMPLIFIED: External workflow transition
                     try:
-                        # Complete current node and capture outputs
+                        # Complete current node first
                         completion_outputs = _generate_node_completion_outputs(
                             session.current_node, current_node, session, criteria_evidence
                         )
                         session.complete_current_node(completion_outputs)
                         
-                        # Execute workflow transition
-                        success, new_workflow_def, message = engine.execute_workflow_transition(
-                            session, workflow_def, choice, completion_outputs
-                        )
+                        # Store current workflow context in stack
+                        workflow_context = {
+                            "workflow_name": session.workflow_name,
+                            "current_node": session.current_node,
+                        }
+                        session.workflow_stack.append(workflow_context)
                         
-                        if success and new_workflow_def:
-                            # Update workflow definition and continue with new workflow
-                            workflow_def = new_workflow_def
+                        # Load the external workflow
+                        external_workflow = engine.loader.load_external_workflow(choice, None)
+                        
+                        if external_workflow:
+                            # Switch to external workflow
+                            session.workflow_name = external_workflow.name
+                            session.current_node = external_workflow.workflow.root
+                            session.status = "RUNNING"
                             
-                            # CRITICAL FIX: Update the cached workflow definition for this session
-                            # This ensures subsequent workflow_guidance calls use the new external workflow definition
+                            # Store external workflow definition in cache
                             from ..utils.session_manager import store_workflow_definition_in_cache
-                            store_workflow_definition_in_cache(session.session_id, new_workflow_def)
+                            store_workflow_definition_in_cache(session.session_id, external_workflow)
                             
-                            current_node = workflow_def.workflow.get_node(session.current_node)
+                            # Log the transition
+                            session.add_log_entry(f"🔀 SIMPLE WORKFLOW TRANSITION: {workflow_def.name} → {external_workflow.name}")
                             
-                            if current_node:
-                                status = format_enhanced_node_status(current_node, workflow_def, session)
-                                return f"""✅ **Workflow Transition Successful:** {message}
+                            # Show the external workflow status
+                            external_current_node = external_workflow.workflow.get_node(session.current_node)
+                            if external_current_node:
+                                status = format_enhanced_node_status(external_current_node, external_workflow, session)
+                                return f"""✅ **Started External Workflow:** {external_workflow.name}
 
 {status}"""
                             else:
-                                return f"✅ **Workflow Transition Successful:** {message}"
+                                return f"✅ **Started External Workflow:** {external_workflow.name}"
                         else:
-                            return f"❌ **Workflow Transition Failed:** {message}"
+                            return f"❌ **Failed to load external workflow:** {choice}"
                             
                     except Exception as e:
-                        return f"❌ **Workflow Transition Error:** {str(e)}"
+                        return f"❌ **External Workflow Error:** {str(e)}"
 
             else:
                 # Invalid choice
@@ -1100,93 +1121,60 @@ def _handle_dynamic_workflow(
 
 **Usage:** Use context="choose: <option_name>" with exact option name."""
 
-        # Check if current external workflow is complete and trigger return
-        # Debug: Check workflow stack and completion status
-        has_stack = bool(session.workflow_stack)
-        is_complete = engine.is_workflow_complete(session, workflow_def)
-        
-        if has_stack and is_complete:
-            # External workflow is complete - trigger return to parent workflow
+        # SIMPLIFIED: Check if we're in an external workflow and it's complete
+        # If so, just mark it as finished and return to simple status display
+        if session.workflow_stack and engine.is_workflow_complete(session, workflow_def):
+            # External workflow is complete - mark as finished
             try:
-                # Generate final completion outputs for the external workflow
+                # Generate completion outputs for the external workflow
                 completion_outputs = _generate_node_completion_outputs(
                     session.current_node, current_node, session, {}
                 )
                 
-                # Execute workflow return
-                success, parent_workflow_def, message = engine.return_from_workflow(
-                    session, completion_outputs
-                )
+                # Store the external workflow completion
+                external_workflow_name = workflow_def.name
+                session.workflow_outputs[external_workflow_name] = completion_outputs
                 
-                if success and parent_workflow_def:
-                    # CRITICAL FIX: Instead of using the workflow definition from workflow_stack 
-                    # (which is the original, non-composed definition), retrieve the current 
-                    # composed workflow definition from cache
-                    from ..utils.session_manager import get_workflow_definition_from_cache
-                    cached_composed_workflow_def = get_workflow_definition_from_cache(session.session_id)
-                    
-                    if cached_composed_workflow_def:
-                        # Use the cached composed workflow definition
-                        workflow_def = cached_composed_workflow_def
-                    else:
-                        # Fallback to the workflow definition from return_from_workflow
-                        workflow_def = parent_workflow_def
-                        # Store it in cache for consistency
-                        from ..utils.session_manager import store_workflow_definition_in_cache
-                        store_workflow_definition_in_cache(session.session_id, parent_workflow_def)
-                    
-                    # Get current node from parent workflow (this is the composition node)
-                    current_composition_node = workflow_def.workflow.tree.get(session.current_node)
-                    
-                    if current_composition_node and current_composition_node.next_allowed_nodes:
-                        # The external workflow is complete, so we should transition to the next node
-                        # in the parent workflow (the composition node is now complete)
-                        next_node_name = current_composition_node.next_allowed_nodes[0]
-                        
-                        # Generate completion outputs for the composition node
-                        from datetime import datetime
-                        composition_completion_outputs = {
-                            "external_workflow_completed": True,
-                            "workflow_name": message.split(": ")[-1] if ": " in message else "External Workflow",
-                            "completion_timestamp": datetime.now().isoformat(),
-                            "transition_type": "auto_workflow_return"
-                        }
-                        
-                        # Transition to the next node in the parent workflow
-                        success = engine.execute_transition(
-                            session, 
-                            workflow_def, 
-                            next_node_name, 
-                            outputs=composition_completion_outputs
-                        )
-                        
-                        if success:
-                            # Get the new current node and show its status
-                            new_current_node = workflow_def.workflow.tree.get(session.current_node)
-                            if new_current_node:
-                                status = format_enhanced_node_status(new_current_node, workflow_def, session)
-                                return f"""✅ **Auto-Workflow Return:** {message}
-✅ **Auto-Transition:** Moved to next phase: {next_node_name}
+                # Get parent workflow context from stack
+                parent_context = session.workflow_stack[-1]  # Get last (most recent)
+                parent_workflow_name = parent_context["workflow_name"] 
+                parent_node = parent_context["current_node"]
+                
+                # Clear the workflow stack (we're done with external workflow)
+                session.workflow_stack.clear()
+                
+                # Restore parent workflow state
+                session.workflow_name = parent_workflow_name
+                session.current_node = parent_node
+                session.status = "RUNNING"
+                
+                # Mark the composition node as complete with external workflow outputs
+                from datetime import datetime
+                composition_outputs = {
+                    "external_workflow_completed": True,
+                    "external_workflow_name": external_workflow_name,
+                    "external_workflow_outputs": completion_outputs,
+                    "completion_timestamp": datetime.now().isoformat()
+                }
+                session.complete_current_node(composition_outputs)
+                
+                # Log the completion
+                session.add_log_entry(f"✅ EXTERNAL WORKFLOW COMPLETE: {external_workflow_name}")
+                session.add_log_entry(f"📍 Returned to parent workflow: {parent_workflow_name}")
+                session.add_log_entry(f"📍 Composition node '{parent_node}' marked complete")
+                
+                return f"""✅ **External Workflow Complete:** {external_workflow_name}
 
-{status}"""
-                            else:
-                                return f"""✅ **Auto-Workflow Return:** {message}
-✅ **Auto-Transition:** Moved to next phase: {next_node_name}"""
-                        else:
-                            # Transition failed, show the composition node status
-                            status = format_enhanced_node_status(current_composition_node, workflow_def, session)
-                            return f"""✅ **Auto-Workflow Return:** {message}
-⚠️ **Manual transition required to next phase**
+**🔄 Returned to:** {parent_workflow_name}
 
-{status}"""
-                    else:
-                        # No next nodes available or node not found
-                        return f"✅ **Auto-Workflow Return:** {message}"
-                else:
-                    return f"❌ **Auto-Workflow Return Failed:** {message}"
-                    
+**📍 Composition node `{parent_node}` has been completed.**
+
+**Next:** Use normal workflow transitions to proceed to the next phase.
+
+💡 **To continue:** Call workflow_guidance with context="choose: <next_node>" where <next_node> is your desired next phase."""
+                
             except Exception as e:
-                return f"❌ **Auto-Workflow Return Error:** {str(e)}"
+                return f"❌ **External Workflow Completion Error:** {str(e)}"
 
         # Default: show current status with enhanced guidance
         status = format_enhanced_node_status(current_node, workflow_def, session)
