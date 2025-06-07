@@ -17,6 +17,14 @@ class TestSchemaAnalyzerEmphasis:
         workflow_def = Mock(spec=WorkflowDefinition)
         workflow_def.name = "Test Workflow"
         workflow_def.description = "Test workflow description"
+        
+        # Mock the nested workflow structure
+        mock_workflow = Mock()
+        mock_next_node = Mock(spec=WorkflowNode)
+        mock_next_node.goal = "Next node goal"
+        mock_workflow.get_node.return_value = mock_next_node
+        workflow_def.workflow = mock_workflow
+        
         return workflow_def
 
     @pytest.fixture
