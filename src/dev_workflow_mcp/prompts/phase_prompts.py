@@ -1100,6 +1100,50 @@ def _handle_dynamic_workflow(
 
 **Usage:** Use context="choose: <option_name>" with exact option name."""
 
+        # Check if current external workflow is complete and trigger return
+        # Debug: Check workflow stack and completion status
+        has_stack = bool(session.workflow_stack)
+        is_complete = engine.is_workflow_complete(session, workflow_def)
+        
+        if has_stack and is_complete:
+            # External workflow is complete - trigger return to parent workflow
+            try:
+                # Generate final completion outputs for the external workflow
+                completion_outputs = _generate_node_completion_outputs(
+                    session.current_node, current_node, session, {}
+                )
+                
+                # Execute workflow return
+                success, parent_workflow_def, message = engine.return_from_workflow(
+                    session, completion_outputs
+                )
+                
+                if success and parent_workflow_def:
+                    # Update workflow definition to parent workflow
+                    workflow_def = parent_workflow_def
+                    
+                    # CRITICAL FIX: Update the cached workflow definition for this session
+                    # This ensures subsequent workflow_guidance calls use the parent workflow definition
+                    from ..utils.session_manager import store_workflow_definition_in_cache
+                    store_workflow_definition_in_cache(session.session_id, parent_workflow_def)
+                    
+                    # Get current node from parent workflow to determine next steps
+                    parent_node = workflow_def.workflow.tree.get(session.current_node)
+                    
+                    if parent_node:
+                        # Show the parent workflow node with next transitions
+                        status = format_enhanced_node_status(parent_node, workflow_def, session)
+                        return f"""✅ **Auto-Workflow Return:** {message}
+
+{status}"""
+                    else:
+                        return f"✅ **Auto-Workflow Return:** {message}"
+                else:
+                    return f"❌ **Auto-Workflow Return Failed:** {message}"
+                    
+            except Exception as e:
+                return f"❌ **Auto-Workflow Return Error:** {str(e)}"
+
         # Default: show current status with enhanced guidance
         status = format_enhanced_node_status(current_node, workflow_def, session)
         return status
