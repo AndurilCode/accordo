@@ -971,7 +971,7 @@ def _handle_dynamic_workflow(
             return f"❌ **Invalid workflow state:** Node '{session.current_node}' not found in workflow."
 
         # Handle workflow nodes (nodes that reference external workflows)
-        if current_node.is_workflow_node and not context:
+        if current_node.is_workflow_node:
             # Auto-execute workflow transition for workflow nodes
             try:
                 # Execute workflow transition automatically
