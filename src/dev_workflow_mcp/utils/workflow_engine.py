@@ -96,11 +96,10 @@ class WorkflowEngine:
             session.add_log_entry(
                 f"📍 Starting at root node: {workflow_def.workflow.root}"
             )
-
+            
             # Sync session after initialization updates
-            if hasattr(session, "session_id"):
+            if hasattr(session, 'session_id'):
                 from .session_id_utils import sync_session_after_modification
-
                 sync_session_after_modification(session.session_id)
 
             return True
@@ -178,7 +177,7 @@ class WorkflowEngine:
 
         # Check if current node requires approval for transition
         # Only check approval for non-terminal nodes (nodes with next_allowed_nodes)
-        needs_approval = getattr(current_node, "needs_approval", False)
+        needs_approval = getattr(current_node, 'needs_approval', False)
         if needs_approval and current_node.next_allowed_nodes and not user_approval:
             return (
                 False,
@@ -209,23 +208,15 @@ class WorkflowEngine:
             bool: True if transition was successful
         """
         # Validate transition including approval check
-        is_valid, reason = self.validate_transition(
-            state, workflow_def, target_node, user_approval
-        )
+        is_valid, reason = self.validate_transition(state, workflow_def, target_node, user_approval)
         if not is_valid:
             state.add_log_entry(f"❌ TRANSITION FAILED: {reason}")
             return False
 
         # Log approval if provided for a node that required it
         current_node = workflow_def.workflow.get_node(state.current_node)
-        if (
-            current_node
-            and getattr(current_node, "needs_approval", False)
-            and user_approval
-        ):
-            state.add_log_entry(
-                f"✅ USER APPROVAL GRANTED for transition from '{state.current_node}'"
-            )
+        if current_node and getattr(current_node, 'needs_approval', False) and user_approval:
+            state.add_log_entry(f"✅ USER APPROVAL GRANTED for transition from '{state.current_node}'")
 
         # Complete current node if outputs provided
         if outputs:

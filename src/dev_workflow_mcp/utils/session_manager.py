@@ -45,7 +45,7 @@ def set_server_config(server_config) -> None:
         _server_config = server_config
 
         # Initialize cache manager if cache mode is enabled
-        if server_config and server_config.enable_cache_mode:
+        if server_config.enable_cache_mode:
             _initialize_cache_manager(server_config)
 
 
@@ -367,7 +367,7 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     restored_count += 1
         else:
             print(
-                "DEBUG: Restoring all sessions from all clients (no specific client_id)"
+                f"DEBUG: Restoring all sessions from all clients (no specific client_id)"
             )
             # Restore all sessions from all clients when no specific client_id provided
             try:

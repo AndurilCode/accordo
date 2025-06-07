@@ -18,17 +18,10 @@
 - Pydantic - Data validation and settings management
 - uv - Package and dependency management
 
-### Development Tools
-- ruff - Linting and code formatting
-- pytest - Test framework with asyncio support
-- mypy - Static type checking
-- vulture - Dead code detection
-
 ## Test Commands
 ```bash
 # Run tests (when implemented)
 source .venv/bin/activate && python -m pytest tests/ --tb=short
-
 # Run linter
 ruff check .
 
@@ -38,11 +31,8 @@ ruff format .
 # Type checking
 mypy src/
 
-# Dead code detection
-vulture src/ --min-confidence 80
-
 # Check all quality tools
-ruff check . && ruff format --check . && mypy src/ && vulture src/ --min-confidence 80
+ruff check . && ruff format --check . && mypy src/
 ```
 
 ## Build Commands
@@ -101,8 +91,6 @@ Documentation should be updated when:
 - **YAML-Driven System**: Reflects the current pure YAML architecture without legacy references
 
 ## Changelog
-- [2025-01-10] Fixed major linting issues across codebase: resolved B904 exception chaining errors by adding proper 'from e' or 'from None' clauses, fixed B007 unused loop variables by renaming to _server_name in claude.py handlers, added noqa comments for N815 mixedCase variables required by external APIs (mcpServers), combined nested with statements in tests (SIM117), and reduced linting errors from 21 to 5 remaining B008 typer-specific warnings
-- [2025-01-10] Added Vulture for dead code detection and cleaned up codebase: added vulture>=2.7 to dev dependencies, integrated vulture src/ --min-confidence 80 into quality check commands, removed unused include_inactive parameter from semantic_search() method in cache_manager.py, renamed unused version parameter to _version in CLI main() function, and achieved zero dead code with all 427 tests passing
 - [2025-01-10] Refactored session manager input handling to be fully dynamic: replaced hardcoded input key checks (task_description, bug_severity, reproduction_steps) with dynamic iteration over workflow_def.inputs, created _prepare_dynamic_inputs() function with smart task mapping and type-based defaults, maintaining backward compatibility while supporting any workflow input structure defined in YAML
 - [2025-06-04] Optimized session file structure and enhanced node completion tracking: deprecated unused plan field in YAML workflows, enhanced complete_current_node() to always populate node_outputs with acceptance criteria evidence, added validation helpers has_node_completion_evidence() and get_node_completion_summary(), improved logging for criteria satisfaction, and maintained backward compatibility while eliminating empty node_outputs in session files
 - [2025-06-04] Implemented unique session file management system to prevent overrides: added timestamp-based unique filenames (client_timestamp_counter.ext), session archiving with completion timestamps, configurable retention policies (--session-retention-hours), and comprehensive test suite ensuring concurrent sessions no longer overwrite each other's files
