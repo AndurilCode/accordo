@@ -1358,9 +1358,14 @@ def register_phase_prompts(app: FastMCP, config=None):
                 session_id, context, ctx
             )
 
-            # Initialize workflow engine and loader
-            engine = WorkflowEngine()
-            loader = WorkflowLoader()
+            # Initialize workflow engine and loader with correct paths from config
+            if config is not None:
+                workflows_dir = str(config.workflows_dir)
+                engine = WorkflowEngine(workflows_dir)
+                loader = WorkflowLoader(workflows_dir)
+            else:
+                engine = WorkflowEngine()
+                loader = WorkflowLoader()
 
             # Determine session handling approach
             if target_session_id:

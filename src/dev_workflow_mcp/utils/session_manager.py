@@ -1315,13 +1315,19 @@ def get_dynamic_session_workflow_def(session_id: str) -> WorkflowDefinition | No
 
         # Try to load the workflow definition from filesystem
         try:
+            # Use server config to get correct workflows directory
+            if _server_config is not None:
+                workflows_dir = str(_server_config.workflows_dir)
+            else:
+                workflows_dir = ".workflow-commander/workflows"
+                
             if session.workflow_file:
                 # Load from specific file
-                loader = WorkflowLoader()
+                loader = WorkflowLoader(workflows_dir)
                 return loader.load_workflow(Path(session.workflow_file))
             else:
                 # Load from workflows directory by name
-                loader = WorkflowLoader()
+                loader = WorkflowLoader(workflows_dir)
                 workflows = loader.load_all_workflows()
                 return workflows.get(session.workflow_name)
         except Exception:
