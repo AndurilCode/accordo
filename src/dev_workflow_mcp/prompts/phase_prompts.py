@@ -1119,13 +1119,21 @@ def _handle_dynamic_workflow(
                 )
                 
                 if success and parent_workflow_def:
-                    # Update workflow definition to parent workflow
-                    workflow_def = parent_workflow_def
+                    # CRITICAL FIX: Instead of using the workflow definition from workflow_stack 
+                    # (which is the original, non-composed definition), retrieve the current 
+                    # composed workflow definition from cache
+                    from ..utils.session_manager import get_workflow_definition_from_cache
+                    cached_composed_workflow_def = get_workflow_definition_from_cache(session.session_id)
                     
-                    # CRITICAL FIX: Update the cached workflow definition for this session
-                    # This ensures subsequent workflow_guidance calls use the parent workflow definition
-                    from ..utils.session_manager import store_workflow_definition_in_cache
-                    store_workflow_definition_in_cache(session.session_id, parent_workflow_def)
+                    if cached_composed_workflow_def:
+                        # Use the cached composed workflow definition
+                        workflow_def = cached_composed_workflow_def
+                    else:
+                        # Fallback to the workflow definition from return_from_workflow
+                        workflow_def = parent_workflow_def
+                        # Store it in cache for consistency
+                        from ..utils.session_manager import store_workflow_definition_in_cache
+                        store_workflow_definition_in_cache(session.session_id, parent_workflow_def)
                     
                     # Get current node from parent workflow to determine next steps
                     parent_node = workflow_def.workflow.tree.get(session.current_node)
