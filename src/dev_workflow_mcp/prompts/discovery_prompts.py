@@ -51,13 +51,14 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
     def workflow_discovery(
         task_description: str,
         workflows_dir: str = None,
+        client_id: str = "default",
     ) -> dict:
         """Discover available workflows and provide them to the agent for selection.
 
         The MCP server now performs server-side workflow discovery and provides
         the actual workflow content to the agent for selection.
 
-        🎯 **SESSION_ID WORKFLOW**: When starting workflows, they auto-generate unique session_ids
+        🎯 **SESSION_ID WORKFLOW**: When starting workflows, they auto-generate unique session_ids 
         that are returned in all responses. Use these session_ids for multi-session support:
         - workflow_guidance(session_id='returned-uuid', ...) to target specific sessions
         - workflow_state(session_id='returned-uuid', ...) to check specific session status
@@ -65,6 +66,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         Args:
             task_description: Description of the task to be performed
             workflows_dir: Directory containing workflow YAML files (optional, uses config if available)
+            client_id: Client session identifier
 
         Returns:
             dict: Available workflows with their content or session conflict information.
@@ -74,7 +76,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         # Previously, this function would check for existing sessions using client_id,
         # but this created false conflicts in environments like Cursor where multiple
         # chat windows share the same client_id. Each chat now operates independently.
-
+        
         # REMOVED: Client-based conflict detection that caused false positives
         # in multi-chat environments. Sessions are now truly independent.
 
@@ -200,6 +202,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
         task_description: str,
         workflow_type: str = "general",
         complexity_level: str = "medium",
+        client_id: str = "default",
     ) -> dict:
         """Guide agent through creating a custom YAML workflow for specific task requirements.
 
@@ -217,6 +220,7 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
             task_description: Description of the task requiring a custom workflow
             workflow_type: Type of workflow (coding, documentation, debugging, testing, analysis, etc.)
             complexity_level: Complexity level (simple, medium, complex)
+            client_id: Client session identifier
 
         Returns:
             dict: Comprehensive guidance for creating a YAML workflow that will auto-generate session_ids

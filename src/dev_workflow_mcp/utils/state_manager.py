@@ -34,30 +34,22 @@ def get_file_operation_instructions(
         # Use repository-scoped sessions directory with session-specific naming
         # NOTE: Changed from client_id-based naming to avoid collisions in multi-chat environments
         format_ext = server_config.local_state_file_format.lower()
-
+        
         # Generate session-aware filename to prevent collisions
         # If there's an active session, use session-based naming; otherwise use timestamp-based
         from .session_manager import get_sessions_by_client
-
         sessions = get_sessions_by_client(client_id)
         if sessions:
             # Use most recent session for filename
             latest_session = max(sessions, key=lambda s: s.last_updated)
-            safe_session_id = latest_session.session_id.replace("-", "_")[
-                :16
-            ]  # Truncate for filesystem safety
-            file_path = (
-                server_config.sessions_dir / f"session_{safe_session_id}.{format_ext}"
-            )
+            safe_session_id = latest_session.session_id.replace('-', '_')[:16]  # Truncate for filesystem safety
+            file_path = server_config.sessions_dir / f"session_{safe_session_id}.{format_ext}"
         else:
             # No active sessions - use timestamp-based naming
             from datetime import UTC, datetime
-
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-            file_path = (
-                server_config.sessions_dir / f"workflow_{timestamp}.{format_ext}"
-            )
-
+            file_path = server_config.sessions_dir / f"workflow_{timestamp}.{format_ext}"
+            
         content_type = (
             "JSON" if server_config.local_state_file_format == "JSON" else "markdown"
         )
