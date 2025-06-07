@@ -294,7 +294,6 @@ class TestToolStructures:
         assert "Discover available workflows" in discovery_tool.description
         assert "task_description" in discovery_tool.parameters["properties"]
         assert "workflows_dir" in discovery_tool.parameters["properties"]
-        assert "client_id" in discovery_tool.parameters["properties"]
         assert "task_description" in discovery_tool.parameters["required"]
 
 
@@ -305,16 +304,18 @@ class TestAutomaticCacheRestoration:
     @patch("src.dev_workflow_mcp.server.ServerConfig")
     @patch("src.dev_workflow_mcp.server.register_phase_prompts")
     @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch(
+        "src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+    )
     @patch("builtins.print")
     def test_main_with_cache_enabled_successful_restoration(
-        self, 
-        mock_print, 
-        mock_auto_restore, 
-        mock_register_discovery, 
-        mock_register_phase, 
-        mock_config, 
-        mock_fastmcp
+        self,
+        mock_print,
+        mock_auto_restore,
+        mock_register_discovery,
+        mock_register_phase,
+        mock_config,
+        mock_fastmcp,
     ):
         """Test main function with cache enabled and successful restoration."""
         # Mock FastMCP instance
@@ -338,7 +339,9 @@ class TestAutomaticCacheRestoration:
         mock_auto_restore.assert_called_once()
 
         # Verify success message was printed
-        mock_print.assert_called_with("Info: Automatically restored 3 workflow session(s) from cache")
+        mock_print.assert_called_with(
+            "Info: Automatically restored 3 workflow session(s) from cache"
+        )
 
         # Verify server started normally
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
@@ -348,16 +351,18 @@ class TestAutomaticCacheRestoration:
     @patch("src.dev_workflow_mcp.server.ServerConfig")
     @patch("src.dev_workflow_mcp.server.register_phase_prompts")
     @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch(
+        "src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+    )
     @patch("builtins.print")
     def test_main_with_cache_enabled_no_sessions_to_restore(
-        self, 
-        mock_print, 
-        mock_auto_restore, 
-        mock_register_discovery, 
-        mock_register_phase, 
-        mock_config, 
-        mock_fastmcp
+        self,
+        mock_print,
+        mock_auto_restore,
+        mock_register_discovery,
+        mock_register_phase,
+        mock_config,
+        mock_fastmcp,
     ):
         """Test main function with cache enabled but no sessions to restore."""
         # Mock FastMCP instance
@@ -391,16 +396,18 @@ class TestAutomaticCacheRestoration:
     @patch("src.dev_workflow_mcp.server.ServerConfig")
     @patch("src.dev_workflow_mcp.server.register_phase_prompts")
     @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch(
+        "src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+    )
     @patch("builtins.print")
     def test_main_with_cache_enabled_restoration_failure(
-        self, 
-        mock_print, 
-        mock_auto_restore, 
-        mock_register_discovery, 
-        mock_register_phase, 
-        mock_config, 
-        mock_fastmcp
+        self,
+        mock_print,
+        mock_auto_restore,
+        mock_register_discovery,
+        mock_register_phase,
+        mock_config,
+        mock_fastmcp,
     ):
         """Test main function with cache enabled but restoration failure."""
         # Mock FastMCP instance
@@ -424,7 +431,9 @@ class TestAutomaticCacheRestoration:
         mock_auto_restore.assert_called_once()
 
         # Verify error message was printed
-        mock_print.assert_called_with("Info: Automatic cache restoration skipped: Cache connection failed")
+        mock_print.assert_called_with(
+            "Info: Automatic cache restoration skipped: Cache connection failed"
+        )
 
         # Verify server started normally despite restoration failure
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
@@ -435,11 +444,7 @@ class TestAutomaticCacheRestoration:
     @patch("src.dev_workflow_mcp.server.register_phase_prompts")
     @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
     def test_main_with_cache_disabled_no_restoration(
-        self, 
-        mock_register_discovery, 
-        mock_register_phase, 
-        mock_config, 
-        mock_fastmcp
+        self, mock_register_discovery, mock_register_phase, mock_config, mock_fastmcp
     ):
         """Test main function with cache disabled - no restoration should occur."""
         # Mock FastMCP instance
@@ -453,12 +458,16 @@ class TestAutomaticCacheRestoration:
 
         # Mock sys.argv without cache enabled
         test_args = ["server.py"]
-        with patch.object(sys, "argv", test_args):
-            with patch("src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup") as mock_auto_restore:
-                result = main()
+        with (
+            patch.object(sys, "argv", test_args),
+            patch(
+                "src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+            ) as mock_auto_restore,
+        ):
+            result = main()
 
-                # Verify cache restoration was NOT called
-                mock_auto_restore.assert_not_called()
+            # Verify cache restoration was NOT called
+            mock_auto_restore.assert_not_called()
 
         # Verify server started normally
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
@@ -467,15 +476,20 @@ class TestAutomaticCacheRestoration:
     def test_auto_restore_sessions_on_startup_function_exists(self):
         """Test that the auto_restore_sessions_on_startup function exists and is importable."""
         try:
-            from src.dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
-            
+            from src.dev_workflow_mcp.utils.session_manager import (
+                auto_restore_sessions_on_startup,
+            )
+
             # Verify it's callable
             assert callable(auto_restore_sessions_on_startup)
-            
+
             # Verify function signature (should return int)
             import inspect
+
             sig = inspect.signature(auto_restore_sessions_on_startup)
             assert len(sig.parameters) == 0  # No parameters expected
-            
+
         except ImportError:
-            pytest.fail("auto_restore_sessions_on_startup function should be importable")
+            pytest.fail(
+                "auto_restore_sessions_on_startup function should be importable"
+            )

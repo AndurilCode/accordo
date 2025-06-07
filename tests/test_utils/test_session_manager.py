@@ -143,15 +143,15 @@ class TestSessionExportFunctions:
 
     def test_export_session_to_json_structure(self):
         """Test JSON export returns expected structure."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
         session_manager.update_session(
-            "test-client",
+            session.session_id,
             status="RUNNING",
             current_item="Analysis task",
         )
-        session_manager.add_log_to_session("test-client", "Test log entry")
+        session_manager.add_log_to_session(session.session_id, "Test log entry")
 
-        json_str = session_manager.export_session_to_json("test-client")
+        json_str = session_manager.export_session_to_json(session.session_id)
         data = json.loads(json_str)
 
         # Check top-level DynamicWorkflowState structure (flat JSON)
@@ -164,8 +164,8 @@ class TestSessionExportFunctions:
 
     def test_export_session_to_json_metadata_fields(self):
         """Test JSON export client identification fields."""
-        create_test_session("test-client", "Test task")
-        json_str = session_manager.export_session_to_json("test-client")
+        session = create_test_session("test-client", "Test task")
+        json_str = session_manager.export_session_to_json(session.session_id)
         data = json.loads(json_str)
 
         # Check client identification fields in flat structure
@@ -176,14 +176,14 @@ class TestSessionExportFunctions:
 
     def test_export_session_to_json_state_fields(self):
         """Test JSON export state fields."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
         session_manager.update_session(
-            "test-client",
+            session.session_id,
             status="RUNNING",
             current_item="Current task",
         )
 
-        json_str = session_manager.export_session_to_json("test-client")
+        json_str = session_manager.export_session_to_json(session.session_id)
         data = json.loads(json_str)
 
         # Check workflow state fields in flat structure
@@ -193,14 +193,13 @@ class TestSessionExportFunctions:
 
     def test_export_session_to_json_with_items(self):
         """Test JSON export includes items array."""
-        create_test_session("test-client", "Test task")
-        session = session_manager.get_session("test-client")
+        session = create_test_session("test-client", "Test task")
         session.items = [
             WorkflowItem(id=1, description="Task 1", status="pending"),
             WorkflowItem(id=2, description="Task 2", status="completed"),
         ]
 
-        json_str = session_manager.export_session_to_json("test-client")
+        json_str = session_manager.export_session_to_json(session.session_id)
         data = json.loads(json_str)
 
         items_data = data["items"]
@@ -216,9 +215,9 @@ class TestSessionExportFunctions:
 
     def test_export_session_format_dispatch_md(self):
         """Test export_session function dispatches to markdown for MD format."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
 
-        result = session_manager.export_session("test-client", "MD")
+        result = session_manager.export_session(session.session_id, "MD")
 
         assert result is not None
         assert "# Dynamic Workflow State" in result  # Markdown format
@@ -226,9 +225,9 @@ class TestSessionExportFunctions:
 
     def test_export_session_format_dispatch_json(self):
         """Test export_session function dispatches to JSON for JSON format."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
 
-        result = session_manager.export_session("test-client", "JSON")
+        result = session_manager.export_session(session.session_id, "JSON")
 
         assert result is not None
         assert result.startswith("{")  # JSON format
@@ -238,11 +237,11 @@ class TestSessionExportFunctions:
 
     def test_export_session_format_dispatch_case_insensitive(self):
         """Test export_session format parameter is case-insensitive."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
 
         # Test lowercase
-        md_result = session_manager.export_session("test-client", "md")
-        json_result = session_manager.export_session("test-client", "json")
+        md_result = session_manager.export_session(session.session_id, "md")
+        json_result = session_manager.export_session(session.session_id, "json")
 
         assert md_result is not None
         assert "# Dynamic Workflow State" in md_result
@@ -252,9 +251,9 @@ class TestSessionExportFunctions:
 
     def test_export_session_format_dispatch_invalid_format(self):
         """Test export_session with invalid format defaults to markdown."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
 
-        result = session_manager.export_session("test-client", "INVALID")
+        result = session_manager.export_session(session.session_id, "INVALID")
 
         assert result is not None
         assert "# Dynamic Workflow State" in result  # Should default to markdown
@@ -266,14 +265,14 @@ class TestSessionExportFunctions:
 
     def test_export_session_json_complete_data_integrity(self):
         """Test complete data integrity for JSON export."""
-        create_test_session("complex-client", "Complex task")
+        session = create_test_session("complex-client", "Complex task")
 
         # Add some data to test
-        session_manager.add_log_to_session("complex-client", "First log entry")
-        session_manager.add_log_to_session("complex-client", "Second log entry")
-        session_manager.add_item_to_session("complex-client", "Additional task")
+        session_manager.add_log_to_session(session.session_id, "First log entry")
+        session_manager.add_log_to_session(session.session_id, "Second log entry")
+        session_manager.add_item_to_session(session.session_id, "Additional task")
 
-        json_str = session_manager.export_session_to_json("complex-client")
+        json_str = session_manager.export_session_to_json(session.session_id)
         data = json.loads(json_str)
 
         # Verify flat DynamicWorkflowState structure
@@ -292,13 +291,13 @@ class TestSessionExportFunctions:
 
     def test_export_session_format_consistency(self):
         """Test that export format is consistent between calls."""
-        create_test_session("test-client", "Test task")
+        session = create_test_session("test-client", "Test task")
 
         # Multiple calls should return consistent format
-        md1 = session_manager.export_session("test-client", "MD")
-        md2 = session_manager.export_session("test-client", "MD")
-        json1 = session_manager.export_session("test-client", "JSON")
-        json2 = session_manager.export_session("test-client", "JSON")
+        md1 = session_manager.export_session(session.session_id, "MD")
+        md2 = session_manager.export_session(session.session_id, "MD")
+        json1 = session_manager.export_session(session.session_id, "JSON")
+        json2 = session_manager.export_session(session.session_id, "JSON")
 
         assert md1 == md2
         assert json1 == json2

@@ -9,7 +9,7 @@ from .prompts import (
 
 __all__ = [
     "confirm_action",
-    "select_platform", 
+    "select_platform",
     "get_workflow_commander_details",
     "select_config_location",
-] 
+]
