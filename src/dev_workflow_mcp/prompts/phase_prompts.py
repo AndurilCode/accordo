@@ -982,6 +982,12 @@ def _handle_dynamic_workflow(
                 if success and new_workflow_def:
                     # Update workflow definition and continue with new workflow
                     workflow_def = new_workflow_def
+                    
+                    # CRITICAL FIX: Update the cached workflow definition for this session
+                    # This ensures subsequent workflow_guidance calls use the new external workflow definition
+                    from ..utils.session_manager import store_workflow_definition_in_cache
+                    store_workflow_definition_in_cache(session.session_id, new_workflow_def)
+                    
                     current_node = workflow_def.workflow.get_node(session.current_node)
                     
                     if current_node:
@@ -1062,6 +1068,12 @@ def _handle_dynamic_workflow(
                         if success and new_workflow_def:
                             # Update workflow definition and continue with new workflow
                             workflow_def = new_workflow_def
+                            
+                            # CRITICAL FIX: Update the cached workflow definition for this session
+                            # This ensures subsequent workflow_guidance calls use the new external workflow definition
+                            from ..utils.session_manager import store_workflow_definition_in_cache
+                            store_workflow_definition_in_cache(session.session_id, new_workflow_def)
+                            
                             current_node = workflow_def.workflow.get_node(session.current_node)
                             
                             if current_node:
