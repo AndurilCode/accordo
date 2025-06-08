@@ -99,8 +99,13 @@ def set_server_config(server_config) -> None:
         _server_config = server_config
 
         # Initialize cache manager if cache mode is enabled
+        print(f"🔍 set_server_config called with enable_cache_mode: {getattr(server_config, 'enable_cache_mode', 'MISSING')}")
         if server_config.enable_cache_mode:
-            _initialize_cache_manager(server_config)
+            print("🔍 Attempting cache manager initialization...")
+            success = _initialize_cache_manager(server_config)
+            print(f"🔍 Cache manager initialization result: {success}")
+        else:
+            print("🔍 Cache mode not enabled, skipping cache manager initialization")
 
 
 def _initialize_cache_manager(server_config) -> bool:
@@ -135,7 +140,9 @@ def _initialize_cache_manager(server_config) -> bool:
             return True
 
         except Exception as e:
-            print(f"Warning: Failed to initialize cache manager: {e}")
+            print(f"❌ Failed to initialize cache manager: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
 
