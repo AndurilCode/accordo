@@ -39,7 +39,7 @@ Examples:
   %(prog)s --repository-path ../my-project --enable-local-state-file --local-state-file-format JSON
   
   # Enable cache mode for persistent workflow states
-              %(prog)s --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
+              %(prog)s --enable-cache-mode --cache-embedding-model all-mpnet-base-v2
   
   # Enable both file storage and cache mode
   %(prog)s --enable-local-state-file --enable-cache-mode --cache-db-path ./cache
@@ -114,7 +114,7 @@ Examples:
     parser.add_argument(
         "--cache-embedding-model",
         type=str,
-        default="all-MiniLM-L6-v2",
+        default="all-mpnet-base-v2",
         help="Sentence transformer model for semantic embeddings. (default: %(default)s)",
         metavar="MODEL",
     )

@@ -196,7 +196,7 @@ def _reinitialize_cache_from_environment() -> bool:
 
         # Determine appropriate cache configuration
         cache_path = None
-        embedding_model = "all-MiniLM-L6-v2"  # Safe default
+        embedding_model = "all-mpnet-base-v2"  # Safe default
         max_results = 50
 
         # Try to find existing cache directory

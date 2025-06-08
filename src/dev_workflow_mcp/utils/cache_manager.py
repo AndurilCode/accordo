@@ -33,7 +33,7 @@ class WorkflowCacheManager:
         self,
         db_path: str,
         collection_name: str = "workflow_states",
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "all-mpnet-base-v2",
         max_results: int = 50,
     ):
         """Initialize the cache manager.
@@ -166,8 +166,8 @@ class WorkflowCacheManager:
         In test environments, returns a mock object to avoid heavy loading.
         Otherwise uses a fallback chain for model selection:
         1. Configured model (self.embedding_model_name)
-        2. all-MiniLM-L6-v2 (fast, good quality)
-        3. all-mpnet-base-v2 (slower, high quality)
+        2. all-mpnet-base-v2 (balanced quality/speed)
+        3. all-MiniLM-L6-v2 (fast fallback)
         
         Returns:
             SentenceTransformer model or None if loading fails
@@ -185,11 +185,11 @@ class WorkflowCacheManager:
             # Lazy import SentenceTransformer only when actually needed
             from sentence_transformers import SentenceTransformer
             
-            # Define fallback model chain (fast → high quality)
+            # Define fallback model chain (balanced → high quality → fast)
             model_chain = [
                 self.embedding_model_name,  # User-configured model
-                "all-MiniLM-L6-v2",         # Fast default (91MB)
-                "all-mpnet-base-v2",        # High quality fallback (335MB)
+                "all-mpnet-base-v2",        # Balanced default (335MB)
+                "all-MiniLM-L6-v2",         # Fast fallback (91MB)
             ]
             
             # Remove duplicates while preserving order

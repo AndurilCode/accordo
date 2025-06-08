@@ -16,7 +16,7 @@ class ServerConfig:
         enable_cache_mode: bool = False,
         cache_db_path: str | None = None,
         cache_collection_name: str = "workflow_states",
-        cache_embedding_model: str = "all-MiniLM-L6-v2",
+        cache_embedding_model: str = "all-mpnet-base-v2",
         cache_max_results: int = 50,
     ):
         """Initialize server configuration.
@@ -32,7 +32,7 @@ class ServerConfig:
             enable_cache_mode: Enable ChromaDB-based caching for workflow state persistence (default: False).
             cache_db_path: Path to ChromaDB database directory. Defaults to .workflow-commander/cache.
             cache_collection_name: Name of ChromaDB collection for workflow states (default: workflow_states).
-            cache_embedding_model: Sentence transformer model for semantic embeddings (default: all-MiniLM-L6-v2).
+            cache_embedding_model: Sentence transformer model for semantic embeddings (default: all-mpnet-base-v2).
             cache_max_results: Maximum number of results for semantic search queries (default: 50).
         """
         if repository_path:
