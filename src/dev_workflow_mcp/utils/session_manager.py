@@ -119,25 +119,40 @@ def _initialize_cache_manager(server_config) -> bool:
             return True  # Already initialized
 
         try:
-            from .cache_manager import WorkflowCacheManager
-
-            # Ensure cache directory exists
-            if not server_config.ensure_cache_dir():
+            # Step 1: Test import
+            try:
+                from .cache_manager import WorkflowCacheManager
+                import_success = True
+            except Exception as import_error:
+                # Store error details for diagnostics
+                _cache_manager = f"IMPORT_ERROR: {import_error}"
                 return False
 
-            _cache_manager = WorkflowCacheManager(
-                db_path=str(server_config.cache_dir),
-                collection_name=server_config.cache_collection_name,
-                embedding_model=server_config.cache_embedding_model,
-                max_results=server_config.cache_max_results,
-            )
+            # Step 2: Test directory creation
+            try:
+                dir_success = server_config.ensure_cache_dir()
+                if not dir_success:
+                    _cache_manager = f"DIR_ERROR: ensure_cache_dir() returned False"
+                    return False
+            except Exception as dir_error:
+                _cache_manager = f"DIR_EXCEPTION: {dir_error}"
+                return False
 
-            return True
+            # Step 3: Test cache manager creation
+            try:
+                _cache_manager = WorkflowCacheManager(
+                    db_path=str(server_config.cache_dir),
+                    collection_name=server_config.cache_collection_name,
+                    embedding_model=server_config.cache_embedding_model,
+                    max_results=server_config.cache_max_results,
+                )
+                return True
+            except Exception as creation_error:
+                _cache_manager = f"CREATION_ERROR: {creation_error}"
+                return False
 
         except Exception as e:
-            print(f"❌ Failed to initialize cache manager: {e}")
-            import traceback
-            traceback.print_exc()
+            _cache_manager = f"UNEXPECTED_ERROR: {e}"
             return False
 
 
