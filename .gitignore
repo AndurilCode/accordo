@@ -189,4 +189,6 @@ dev_*.txt
 dev_*.log
 debug_*
 
-.workflow-commander/
+# Workflow Commander
+.workflow-commander/sessions/
+.workflow-commander/cache/
