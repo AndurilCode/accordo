@@ -265,7 +265,7 @@ class ServerConfiguration(BaseModel):
     )
 
     cache_embedding_model: str = Field(
-        default="all-MiniLM-L6-v2",
+        default="all-mpnet-base-v2",
         description="Sentence transformer model for semantic embeddings",
     )
 
