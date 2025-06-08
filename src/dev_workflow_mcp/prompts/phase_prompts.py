@@ -17,7 +17,6 @@ from ..utils.placeholder_processor import replace_placeholders
 from ..utils.schema_analyzer import (
     analyze_node_from_schema,
     extract_choice_from_context,
-    format_node_status,
     get_available_transitions,
     get_workflow_summary,
     validate_transition,
@@ -840,26 +839,28 @@ def format_enhanced_node_status(
     """
     analysis = analyze_node_from_schema(node, workflow)
     transitions = get_available_transitions(node, workflow)
-    
+
     # Apply placeholder replacement to the goal and acceptance criteria
-    session_inputs = getattr(session, 'inputs', {}) or {}
-    
+    session_inputs = getattr(session, "inputs", {}) or {}
+
     # Process the goal with placeholder replacement
     processed_goal = replace_placeholders(analysis["goal"], session_inputs)
     analysis["goal"] = processed_goal
-    
+
     # Process acceptance criteria with placeholder replacement
     if analysis["acceptance_criteria"]:
         processed_criteria = {}
         for key, value in analysis["acceptance_criteria"].items():
             processed_criteria[key] = replace_placeholders(value, session_inputs)
         analysis["acceptance_criteria"] = processed_criteria
-    
+
     # Process transition goals with placeholder replacement
     processed_transitions = []
     for transition in transitions:
         processed_transition = transition.copy()
-        processed_transition["goal"] = replace_placeholders(transition["goal"], session_inputs)
+        processed_transition["goal"] = replace_placeholders(
+            transition["goal"], session_inputs
+        )
         processed_transitions.append(processed_transition)
     transitions = processed_transitions
 
@@ -933,7 +934,7 @@ def format_enhanced_node_status(
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
     # Get current session state for display
-    session_state = export_session_to_markdown(session.client_id)
+    session_state = export_session_to_markdown(session.session_id)
 
     return f"""{analysis["goal"]}
 
@@ -1298,6 +1299,22 @@ def register_phase_prompts(app: FastMCP, config=None):
         - Use JSON format for ALL node transitions to capture real work details
         """
         try:
+            # Handle direct function calls where Field defaults may be FieldInfo objects
+            if hasattr(action, "default"):  # FieldInfo object
+                action = action.default if action.default else ""
+            if hasattr(context, "default"):  # FieldInfo object
+                context = context.default if context.default else ""
+            if hasattr(session_id, "default"):  # FieldInfo object
+                session_id = session_id.default if session_id.default else ""
+            if hasattr(options, "default"):  # FieldInfo object
+                options = options.default if options.default else ""
+
+            # Ensure parameters are strings
+            action = str(action) if action is not None else ""
+            context = str(context) if context is not None else ""
+            session_id = str(session_id) if session_id is not None else ""
+            options = str(options) if options is not None else ""
+
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(
                 session_id, context, ctx
@@ -1334,10 +1351,35 @@ def register_phase_prompts(app: FastMCP, config=None):
                 # Continue with existing dynamic workflow
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
+                # Try on-demand workflow definition restoration if missing
+                if not workflow_def and session and session.workflow_name:
+                    try:
+                        # Use config to construct correct workflows directory
+                        if config is not None:
+                            workflows_dir = str(config.workflows_dir)
+                        else:
+                            workflows_dir = ".workflow-commander/workflows"
+
+                        # Import the restoration function
+                        from ..utils.session_manager import _restore_workflow_definition
+
+                        # Attempt restore with proper path
+                        _restore_workflow_definition(session, workflows_dir)
+
+                        # Check if workflow definition is now available
+                        workflow_def = get_dynamic_session_workflow_def(
+                            target_session_id
+                        )
+
+                    except Exception:
+                        # If on-demand loading fails, continue to discovery requirement
+                        pass
+
+                # If on-demand loading failed, fall back to discovery requirement
                 if not workflow_def:
                     # Try on-demand workflow definition loading before giving up
                     from ..utils.session_manager import _restore_workflow_definition
-                    
+
                     if session and session.workflow_name:
                         try:
                             # Use config to construct correct workflows directory
@@ -1345,17 +1387,19 @@ def register_phase_prompts(app: FastMCP, config=None):
                                 workflows_dir = str(config.workflows_dir)
                             else:
                                 workflows_dir = ".workflow-commander/workflows"
-                            
+
                             # Attempt restore with proper path
                             _restore_workflow_definition(session, workflows_dir)
-                            
+
                             # Check if workflow definition is now available
-                            workflow_def = get_dynamic_session_workflow_def(target_session_id)
-                                
+                            workflow_def = get_dynamic_session_workflow_def(
+                                target_session_id
+                            )
+
                         except Exception:
                             # If on-demand loading fails, continue to discovery requirement
                             pass
-                    
+
                     # If on-demand loading failed, fall back to discovery requirement
                     if not workflow_def:
                         return add_session_id_to_response(

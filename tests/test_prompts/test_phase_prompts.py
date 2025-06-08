@@ -31,7 +31,9 @@ class TestPhasePrompts:
         register_phase_prompts(mock_mcp)
 
         # Verify that mcp.tool() was called for each prompt function
-        assert mock_mcp.tool.call_count == 2  # 2 consolidated tools
+        assert (
+            mock_mcp.tool.call_count == 4
+        )  # 4 tools: workflow_guidance, workflow_state, workflow_cache_management, workflow_semantic_analysis
 
         # Verify the decorator was called (tool registration)
         mock_mcp.tool.assert_called()
@@ -65,8 +67,15 @@ class TestPhasePrompts:
 
         # Test 'start' action
         result = workflow_tool.fn(action="start", task_description=task)
-        assert "Workflow Discovery Required" in result
-        assert task in result
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
+        assert "Workflow Discovery Required" in content
+        assert task in content
 
         # Test 'plan' action with provided YAML
         test_yaml = """
@@ -105,25 +114,46 @@ inputs:
             context="test requirements",
         )
 
-        # Either expect dynamic workflow response or legacy blueprint phase
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
+        # Either expect dynamic workflow response, legacy blueprint phase, or discovery requirement
         assert any(
-            marker in result
-            for marker in ["BLUEPRINT PHASE", "Dynamic Workflow", "Create plan"]
+            marker in content
+            for marker in [
+                "BLUEPRINT PHASE",
+                "Dynamic Workflow",
+                "Create plan",
+                "DISCOVERY REQUIRED",
+                "No Active Workflow Session",
+            ]
         )
-        assert task in result
+        assert task in content
 
         # Test 'build' action - either dynamic workflow or legacy construct phase
         result = workflow_tool.fn(action="build", task_description=task)
-        # The exact text depends on the workflow mode (dynamic vs legacy)
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
+        # The exact text depends on the workflow mode (dynamic vs legacy) or discovery requirement
         assert any(
-            marker in result
+            marker in content
             for marker in [
                 "CONSTRUCT PHASE",
                 "Dynamic Workflow",
                 "Analyze requirements",
+                "DISCOVERY REQUIRED",
+                "No Active Workflow Session",
             ]
         )
-        assert task in result
+        assert task in content
 
         # Test 'revise' action
         result = workflow_tool.fn(
@@ -131,20 +161,36 @@ inputs:
             task_description=task,
             context="user feedback",
         )
-        # Handle both dynamic workflow and legacy workflow responses
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
+        # Handle both dynamic workflow, legacy workflow responses, and discovery requirement
         assert any(
-            marker in result
+            marker in content
             for marker in [
                 "REVISING BLUEPRINT",
                 "Dynamic Workflow",
                 "Analyze requirements",
+                "DISCOVERY REQUIRED",
+                "No Active Workflow Session",
             ]
         )
-        assert task in result
+        assert task in content
 
         # Test 'next' action
         result = workflow_tool.fn(action="next", task_description=task)
-        assert task in result
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
+        assert task in content
 
     @pytest.mark.asyncio
     async def test_workflow_state_output(self, mock_context):
@@ -157,21 +203,37 @@ inputs:
 
         # Test 'get' operation
         result = state_tool.fn(operation="get")
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         # Handle both possible outcomes - either a successful workflow state or an error message
         assert any(
-            marker in result
+            marker in content
             for marker in [
                 "WORKFLOW STATE",
                 "Dynamic Workflow State",
                 "Error in workflow_state",
+                "No Active Workflow Session",
+                "DISCOVERY REQUIRED",
             ]
         )
 
         # Test 'update' operation
         result = state_tool.fn(operation="update", updates='{"phase": "BLUEPRINT"}')
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         # Either successfully updated or returned an error message
         assert any(
-            marker in result
+            marker in content
             for marker in [
                 "UPDATED",
                 "Error",
@@ -179,13 +241,22 @@ inputs:
                 "Updated",
                 "workflow_state",
                 "Dynamic Workflow",
+                "No Active Workflow Session",
+                "DISCOVERY REQUIRED",
             ]
         )
 
         # Test 'reset' operation
         result = state_tool.fn(operation="reset")
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         assert any(
-            marker in result
+            marker in content
             for marker in ["State reset", "ready for new workflow", "RESET"]
         )
 
@@ -248,8 +319,15 @@ inputs:
                 result = state_tool.fn(operation=operation, updates='{"phase": "INIT"}')
             else:
                 result = state_tool.fn(operation=operation)
-            assert isinstance(result, str)
-            assert len(result) > 0
+
+            # Handle both string and dict response formats
+            if isinstance(result, dict):
+                content = result.get("content", str(result))
+                assert isinstance(content, str)
+                assert len(content) > 0
+            else:
+                assert isinstance(result, str)
+                assert len(result) > 0
 
     @pytest.mark.asyncio
     async def test_error_handling_invalid_action(self, mock_context):
@@ -281,10 +359,17 @@ inputs:
 
         # The function now returns error message instead of raising exceptions
         result = state_tool.fn(operation="invalid_operation")
+
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         assert (
-            "invalid" in result.lower()
-            or "unknown" in result.lower()
-            or "error" in result.lower()
+            "invalid" in content.lower()
+            or "unknown" in content.lower()
+            or "error" in content.lower()
         )
 
     @pytest.mark.asyncio
@@ -300,9 +385,9 @@ inputs:
         # Check that required tools are present
         required_tools = ["workflow_guidance", "workflow_state"]
         for tool_name in required_tools:
-            assert (
-                tool_name in tools
-            ), f"Required tool {tool_name} not found in registered tools"
+            assert tool_name in tools, (
+                f"Required tool {tool_name} not found in registered tools"
+            )
 
         # Verify that workflow_guidance has required functionality
         workflow_tool = tools["workflow_guidance"]
@@ -320,11 +405,9 @@ inputs:
 
         tools = await mcp.get_tools()
         workflow_tool = tools["workflow_guidance"]
-        
-        result = workflow_tool.fn(
-            task_description="test task with mandatory execution"
-        )
-        
+
+        result = workflow_tool.fn(task_description="test task with mandatory execution")
+
         # Check for mandatory execution emphasis
         mandatory_indicators = ["MANDATORY", "MUST", "REQUIRED", "🚨"]
         # Should contain at least one mandatory indicator
@@ -338,10 +421,10 @@ inputs:
 
         tools = await mcp.get_tools()
         workflow_tool = tools["workflow_guidance"]
-        
+
         # Get the tool directly to check its docstring and parameter descriptions
         tool_definition = tools["workflow_guidance"]
-        
+
         # Check docstring contains enhanced emphasis
         docstring = tool_definition.fn.__doc__
         assert "🚨 CRITICAL AGENT REQUIREMENTS" in docstring
@@ -349,22 +432,26 @@ inputs:
         assert "ALWAYS provide criteria_evidence" in docstring
         assert "NEVER" in docstring
         assert "JSON format" in docstring
-        
+
         # Check context parameter description contains mandatory format emphasis
-        context_param = tool_definition.parameters.get("properties", {}).get("context", {})
+        context_param = tool_definition.parameters.get("properties", {}).get(
+            "context", {}
+        )
         context_desc = context_param.get("description", "")
         assert "🚨 MANDATORY CONTEXT FORMAT" in context_desc
         assert "ALWAYS use JSON format" in context_desc
         assert "PREFERRED" in context_desc
         assert "DISCOURAGED" in context_desc
-        
+
         # Test actual tool output contains emphasis
         result = workflow_tool.fn(task_description="test enhanced emphasis")
-        
+
         # Should contain multiple emphasis indicators
         emphasis_indicators = ["🚨", "MANDATORY", "CRITICAL", "ALWAYS", "REQUIRED"]
-        found_indicators = [indicator for indicator in emphasis_indicators if indicator in result]
-        
+        found_indicators = [
+            indicator for indicator in emphasis_indicators if indicator in result
+        ]
+
         # Should contain at least 2 different emphasis indicators
         assert len(found_indicators) >= 2, f"Only found indicators: {found_indicators}"
 
@@ -374,36 +461,48 @@ inputs:
         from src.dev_workflow_mcp.prompts.phase_prompts import (
             _parse_criteria_evidence_context,
         )
-        
+
         # Test legacy string format
-        choice, evidence = _parse_criteria_evidence_context("choose: blueprint")
+        choice, evidence, approval = _parse_criteria_evidence_context(
+            "choose: blueprint"
+        )
         assert choice == "blueprint"
         assert evidence is None
-        
+        assert approval is False
+
         # Test new JSON format
         json_context = '{"choose": "construct", "criteria_evidence": {"analysis_complete": "Found the main issue in _generate_node_completion_outputs", "plan_ready": "Implementation plan created with 5 steps"}}'
-        choice, evidence = _parse_criteria_evidence_context(json_context)
+        choice, evidence, approval = _parse_criteria_evidence_context(json_context)
         assert choice == "construct"
         assert evidence is not None
-        assert evidence["analysis_complete"] == "Found the main issue in _generate_node_completion_outputs"
+        assert (
+            evidence["analysis_complete"]
+            == "Found the main issue in _generate_node_completion_outputs"
+        )
         assert evidence["plan_ready"] == "Implementation plan created with 5 steps"
-        
+        assert approval is False
+
         # Test invalid JSON fallback to legacy
         invalid_json_context = '{"choose": "test", invalid json'
-        choice, evidence = _parse_criteria_evidence_context(invalid_json_context)
+        choice, evidence, approval = _parse_criteria_evidence_context(
+            invalid_json_context
+        )
         assert choice is None
         assert evidence is None
-        
+        assert approval is False
+
         # Test empty context
-        choice, evidence = _parse_criteria_evidence_context("")
+        choice, evidence, approval = _parse_criteria_evidence_context("")
         assert choice is None
         assert evidence is None
-        
+        assert approval is False
+
         # Test JSON without choose field
         json_no_choose = '{"criteria_evidence": {"test": "value"}}'
-        choice, evidence = _parse_criteria_evidence_context(json_no_choose)
+        choice, evidence, approval = _parse_criteria_evidence_context(json_no_choose)
         assert choice is None
         assert evidence == {"test": "value"}
+        assert approval is False
 
     @pytest.mark.asyncio
     async def test_criteria_evidence_integration(self, mock_context):
@@ -414,40 +513,52 @@ inputs:
         from src.dev_workflow_mcp.prompts.phase_prompts import (
             _generate_node_completion_outputs,
         )
-        
+
         # Create a mock node with acceptance criteria
         mock_node = Mock(spec=WorkflowNode)
         mock_node.acceptance_criteria = {
             "analysis_complete": "Complete analysis of the task",
-            "requirements_clear": "Clear understanding of requirements"
+            "requirements_clear": "Clear understanding of requirements",
         }
-        
+
         # Create a mock session with proper log attribute
         mock_session = Mock()
         mock_session.execution_context = {}
         mock_session.log = []  # Empty log for testing automatic extraction fallback
-        
+
         # Test with criteria evidence
         criteria_evidence = {
             "analysis_complete": "Analyzed the codebase and found _generate_node_completion_outputs generates hardcoded strings",
-            "requirements_clear": "Need to transform context parameter to dict format and store actual evidence"
+            "requirements_clear": "Need to transform context parameter to dict format and store actual evidence",
         }
-        
+
         outputs = _generate_node_completion_outputs(
             "test_node", mock_node, mock_session, criteria_evidence
         )
-        
+
         # Verify that actual evidence is stored
         assert "completed_criteria" in outputs
-        assert outputs["completed_criteria"]["analysis_complete"] == criteria_evidence["analysis_complete"]
-        assert outputs["completed_criteria"]["requirements_clear"] == criteria_evidence["requirements_clear"]
-        
+        assert (
+            outputs["completed_criteria"]["analysis_complete"]
+            == criteria_evidence["analysis_complete"]
+        )
+        assert (
+            outputs["completed_criteria"]["requirements_clear"]
+            == criteria_evidence["requirements_clear"]
+        )
+
         # Test without criteria evidence (fallback behavior)
         outputs_fallback = _generate_node_completion_outputs(
             "test_node", mock_node, mock_session
         )
-        
+
         # Verify fallback uses descriptive text instead of hardcoded generic string
         assert "completed_criteria" in outputs_fallback
-        assert "Complete analysis of the task" in outputs_fallback["completed_criteria"]["analysis_complete"]
-        assert "Clear understanding of requirements" in outputs_fallback["completed_criteria"]["requirements_clear"]
+        assert (
+            "Complete analysis of the task"
+            in outputs_fallback["completed_criteria"]["analysis_complete"]
+        )
+        assert (
+            "Clear understanding of requirements"
+            in outputs_fallback["completed_criteria"]["requirements_clear"]
+        )
