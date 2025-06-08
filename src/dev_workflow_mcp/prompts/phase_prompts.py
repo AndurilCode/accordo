@@ -1851,7 +1851,10 @@ Cannot update state - no YAML workflow session is currently active.
                     debug_info = []
                     debug_info.append(f"get_cache_manager() returned: {type(cache_manager).__name__ if cache_manager else 'None'}")
                     debug_info.append(f"_server_config global: {type(_server_config).__name__ if _server_config else 'None'}")
-                    debug_info.append(f"_cache_manager global: {type(_cache_manager).__name__ if _cache_manager else 'None'}")
+                    if isinstance(_cache_manager, str):
+                        debug_info.append(f"_cache_manager global: {_cache_manager}")  # Error message
+                    else:
+                        debug_info.append(f"_cache_manager global: {type(_cache_manager).__name__ if _cache_manager else 'None'}")
                     
                     if _server_config:
                         debug_info.append(f"_server_config.enable_cache_mode: {getattr(_server_config, 'enable_cache_mode', 'MISSING')}")
