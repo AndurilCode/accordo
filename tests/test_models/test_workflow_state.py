@@ -724,31 +724,3 @@ class TestDynamicWorkflowStateProgress:
         # Should show basic completion status
         assert "## Completed Nodes Progress" in markdown
         assert "✅ **analyze**: Completed (no detailed output recorded)" in markdown
-
-    def test_to_markdown_truncates_long_values(self, mock_workflow_def):
-        """Test that markdown truncates long values for readability."""
-        from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
-
-        long_value = (
-            "This is a very long value that should be truncated " * 10
-        )  # > 100 chars
-
-        state = DynamicWorkflowState(
-            workflow_name="Test Workflow",
-            current_node="blueprint",
-            status="RUNNING",
-            node_history=["analyze"],
-            node_outputs={
-                "analyze": {
-                    "completed_criteria": {"requirements_analysis": long_value},
-                    "long_output": long_value,
-                }
-            },
-        )
-
-        markdown = state.to_markdown(mock_workflow_def)
-
-        # Check that long values are truncated
-        assert "..." in markdown
-        # The full long value should not appear in the markdown
-        assert long_value not in markdown

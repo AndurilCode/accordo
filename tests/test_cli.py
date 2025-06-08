@@ -451,7 +451,10 @@ class TestConfigurationTemplates:
     
     def test_get_template_by_enum(self):
         """Test getting template by enum value."""
-        from workflow_commander_cli.models.config import TemplateConfig, ConfigurationTemplate
+        from workflow_commander_cli.models.config import (
+            ConfigurationTemplate,
+            TemplateConfig,
+        )
         
         basic = TemplateConfig.get_template(ConfigurationTemplate.BASIC)
         assert basic.name == "Basic Setup"
@@ -484,7 +487,10 @@ class TestConfigurationBuilder:
     
     def test_builder_with_template(self):
         """Test builder initialization with template."""
-        from workflow_commander_cli.models.config import ConfigurationBuilder, ConfigurationTemplate
+        from workflow_commander_cli.models.config import (
+            ConfigurationBuilder,
+            ConfigurationTemplate,
+        )
         
         builder = ConfigurationBuilder(ConfigurationTemplate.CACHE_ENABLED)
         assert len(builder.options) > 0
@@ -561,7 +567,10 @@ class TestConfigurationBuilder:
     
     def test_builder_update_existing_option(self):
         """Test updating existing option."""
-        from workflow_commander_cli.models.config import ConfigurationBuilder, ConfigurationTemplate
+        from workflow_commander_cli.models.config import (
+            ConfigurationBuilder,
+            ConfigurationTemplate,
+        )
         
         builder = ConfigurationBuilder(ConfigurationTemplate.CACHE_ENABLED)
         
@@ -607,8 +616,8 @@ class TestEnhancedPrompts:
     
     def test_select_configuration_template_basic(self):
         """Test selecting basic configuration template."""
-        from workflow_commander_cli.utils.prompts import select_configuration_template
         from workflow_commander_cli.models.config import ConfigurationTemplate
+        from workflow_commander_cli.utils.prompts import select_configuration_template
         
         with (
             patch('workflow_commander_cli.utils.prompts.typer.prompt', return_value=1),

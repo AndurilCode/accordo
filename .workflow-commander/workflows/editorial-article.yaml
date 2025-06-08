@@ -1,0 +1,275 @@
+name: Editorial Article Workflow
+description: Specialized workflow for researching, planning, writing, and editing editorial articles on specified topics
+
+inputs:
+  task_description:
+    type: string
+    description: Editorial article task provided by the user
+    required: true
+  topic:
+    type: string
+    description: Main topic or subject matter for the editorial article
+    required: false
+    default: "general"
+  target_audience:
+    type: string
+    description: Intended audience (general public, experts, professionals, etc.)
+    required: false
+    default: "general public"
+  article_length:
+    type: string
+    description: Target length (short, medium, long, specific word count)
+    required: false
+    default: "medium"
+
+execution:
+  max_depth: 10
+  allow_backtracking: true
+
+workflow:
+  goal: Create a compelling, well-researched editorial article through systematic research, planning, writing, and editing phases
+
+  root: research_and_analyze
+
+  tree:
+    # Research and analyze the topic
+    research_and_analyze:
+      goal: |
+        **MANDATORY RESEARCH AND ANALYZE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TOPIC:** ${{ inputs.topic }}
+        **AUDIENCE:** ${{ inputs.target_audience }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. TOPIC RESEARCH** ⚠️ MANDATORY
+           - MUST conduct comprehensive research on the topic
+           - MUST gather current facts, statistics, and relevant data
+           - MUST identify key issues, debates, and perspectives
+           - MUST examine recent developments and trends
+           - MUST collect credible sources and expert opinions
+
+        **2. AUDIENCE ANALYSIS** ⚠️ MANDATORY
+           - MUST define target audience demographics and interests
+           - MUST understand audience knowledge level on the topic
+           - MUST identify what matters most to this audience
+           - MUST determine appropriate tone and complexity level
+           - MUST consider audience's likely biases and concerns
+
+        **3. PERSPECTIVE DEVELOPMENT** ⚠️ MANDATORY
+           - MUST identify the editorial angle or stance to take
+           - MUST analyze different viewpoints on the topic
+           - MUST determine the unique value proposition of the article
+           - MUST consider counterarguments and opposing views
+           - MUST establish the article's purpose and intended impact
+
+        **4. COMPETITIVE ANALYSIS** ⚠️ MANDATORY
+           - MUST research existing articles on similar topics
+           - MUST identify gaps in current coverage
+           - MUST determine how to differentiate this article
+           - MUST understand what has been said before
+           - MUST find fresh angles or new insights to contribute
+
+        **DO NOT:** Start writing content during research phase.
+        **FOCUS:** Building comprehensive knowledge foundation and perspective.
+      acceptance_criteria:
+        topic_research: "Comprehensive research completed with current facts, data, and credible sources gathered"
+        audience_analysis: "Target audience clearly defined with demographics, knowledge level, and interests documented"
+        perspective_clarity: "Clear editorial angle and unique value proposition established"
+        competitive_understanding: "Existing coverage analyzed with differentiation strategy identified"
+        source_validation: "All sources verified for credibility and relevance"
+      next_allowed_nodes: [plan_article]
+
+    # Plan the article structure and content
+    plan_article:
+      goal: |
+        **MANDATORY PLAN ARTICLE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TOPIC:** ${{ inputs.topic }}
+        **LENGTH:** ${{ inputs.article_length }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. ARTICLE STRUCTURE PLANNING** ⚠️ MANDATORY
+           - MUST create detailed outline with clear sections
+           - MUST plan compelling headline and subheadings
+           - MUST design logical flow from introduction to conclusion
+           - MUST determine section lengths and pacing
+           - MUST plan smooth transitions between sections
+
+        **2. CONTENT STRATEGY DEVELOPMENT** ⚠️ MANDATORY
+           - MUST define key arguments and supporting evidence
+           - MUST plan integration of research findings and data
+           - MUST design compelling narrative arc
+           - MUST identify specific examples and case studies to include
+           - MUST plan call-to-action or concluding message
+
+        **3. TONE AND STYLE DEFINITION** ⚠️ MANDATORY
+           - MUST establish consistent voice and tone
+           - MUST define writing style appropriate for audience
+           - MUST plan use of rhetorical devices and persuasive techniques
+           - MUST determine level of formality and technical depth
+           - MUST establish personality and character of the piece
+
+        **4. ENGAGEMENT STRATEGY** ⚠️ MANDATORY
+           - MUST plan hooks and attention-grabbing elements
+           - MUST design reader engagement techniques
+           - MUST plan use of questions, anecdotes, or storytelling
+           - MUST identify emotional appeals and logical arguments
+           - MUST plan memorable quotes or impactful statements
+
+        **FORMAT:** Plan must provide clear roadmap for systematic writing.
+      acceptance_criteria:
+        structure_outline: "Detailed article structure with sections, headings, and logical flow planned"
+        content_strategy: "Comprehensive strategy for arguments, evidence, and narrative development"
+        tone_definition: "Clear voice, tone, and style guidelines established for consistent writing"
+        engagement_plan: "Specific strategy for reader engagement and persuasive techniques defined"
+        writing_roadmap: "Complete roadmap ready for systematic article creation"
+      next_allowed_nodes: [write_article]
+
+    # Write the article content
+    write_article:
+      goal: |
+        **MANDATORY WRITE ARTICLE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TOPIC:** ${{ inputs.topic }}
+        **AUDIENCE:** ${{ inputs.target_audience }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. EXECUTE WRITING PLAN SYSTEMATICALLY** ⚠️ MANDATORY
+           - MUST write each section according to planned outline
+           - MUST maintain consistent voice and tone throughout
+           - MUST integrate research findings and supporting evidence
+           - MUST follow planned narrative arc and logical flow
+           - MUST complete each section fully before proceeding
+
+        **2. MANDATORY PROGRESS LOGGING** ⚠️ CRITICAL
+           - MUST call workflow_state tool after EVERY major section completion
+           - MUST log: `workflow_state(operation="update", updates='{"log_entry": "Section: [name] - [word_count] words - [status]"}')`
+           - MUST track article length and pacing progress
+           - MUST document any deviations from plan with rationale
+
+        **3. CRAFT COMPELLING CONTENT** ⚠️ MANDATORY
+           - MUST create engaging introduction that hooks readers
+           - MUST develop strong, persuasive arguments with evidence
+           - MUST use vivid examples and concrete illustrations
+           - MUST maintain reader interest throughout the piece
+           - MUST build toward impactful conclusion with clear message
+
+        **4. INTEGRATE RESEARCH EFFECTIVELY** ⚠️ MANDATORY
+           - MUST weave research findings naturally into narrative
+           - MUST cite sources appropriately for credibility
+           - MUST use data and statistics to support arguments
+           - MUST balance factual content with engaging storytelling
+           - MUST ensure all claims are properly substantiated
+
+        **WRITING QUALITY:** Must maintain professional editorial standards throughout.
+
+        **PROGRESS TRACKING:** Must maintain detailed log of section completion using workflow_state tool.
+      acceptance_criteria:
+        content_creation: "All planned sections written according to outline with consistent voice and quality"
+        research_integration: "Research findings and evidence effectively integrated throughout the article"
+        engagement_delivery: "Compelling content that maintains reader interest and delivers planned impact"
+        length_target: "Article length meets target specifications with appropriate pacing and depth"
+        progress_logging: "Complete log of writing progress maintained in workflow_state with section details"
+      next_allowed_nodes: [edit_and_refine]
+
+    # Edit and refine the article
+    edit_and_refine:
+      goal: |
+        **MANDATORY EDIT AND REFINE PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TOPIC:** ${{ inputs.topic }}
+        **AUDIENCE:** ${{ inputs.target_audience }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. STRUCTURAL EDITING** ⚠️ MANDATORY
+           - MUST review overall article structure and flow
+           - MUST ensure logical progression of arguments
+           - MUST verify smooth transitions between sections
+           - MUST assess paragraph organization and coherence
+           - MUST strengthen weak or unclear sections
+
+        **2. CONTENT EDITING** ⚠️ MANDATORY
+           - MUST verify accuracy of all facts and claims
+           - MUST strengthen arguments and supporting evidence
+           - MUST eliminate redundancy and improve clarity
+           - MUST enhance persuasive elements and impact
+           - MUST ensure content serves target audience effectively
+
+        **3. COPY EDITING** ⚠️ MANDATORY
+           - MUST correct grammar, punctuation, and spelling errors
+           - MUST improve sentence structure and readability
+           - MUST ensure consistent style and tone
+           - MUST polish word choice and eliminate awkward phrasing
+           - MUST verify proper citation format and source attribution
+
+        **4. ENGAGEMENT OPTIMIZATION** ⚠️ MANDATORY
+           - MUST strengthen headline and subheadings for impact
+           - MUST enhance introduction and conclusion for maximum effect
+           - MUST improve hooks and attention-grabbing elements
+           - MUST optimize pacing and reader engagement techniques
+           - MUST ensure memorable and actionable takeaways
+
+        **QUALITY ASSURANCE:** Article must meet professional editorial standards.
+      acceptance_criteria:
+        structural_refinement: "Article structure and flow optimized for clarity and logical progression"
+        content_accuracy: "All content verified for accuracy with strengthened arguments and evidence"
+        copy_quality: "Grammar, style, and readability polished to professional standards"
+        engagement_optimization: "Headlines, hooks, and persuasive elements optimized for maximum impact"
+        editorial_standards: "Article meets professional editorial publication standards"
+      next_allowed_nodes: [final_review]
+
+    # Final review and publication preparation
+    final_review:
+      goal: |
+        **MANDATORY FINAL REVIEW PHASE - FOLLOW EXACTLY:**
+
+        **TASK:** ${{ inputs.task_description }}
+        **TOPIC:** ${{ inputs.topic }}
+        **AUDIENCE:** ${{ inputs.target_audience }}
+
+        **🔨 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**
+
+        **1. COMPREHENSIVE QUALITY REVIEW** ⚠️ MANDATORY
+           - MUST conduct thorough final read-through
+           - MUST verify article achieves intended purpose and impact
+           - MUST ensure content appropriately serves target audience
+           - MUST confirm adherence to editorial standards
+           - MUST validate overall quality and effectiveness
+
+        **2. FACT-CHECKING AND VERIFICATION** ⚠️ MANDATORY
+           - MUST verify all facts, statistics, and claims
+           - MUST confirm accuracy of all sources and citations
+           - MUST check for potential legal or ethical issues
+           - MUST ensure balanced and fair representation
+           - MUST validate any controversial statements
+
+        **3. FORMATTING AND PRESENTATION** ⚠️ MANDATORY
+           - MUST ensure proper formatting for intended publication
+           - MUST optimize headings and subheadings for readability
+           - MUST verify appropriate length and structure
+           - MUST check for consistent style throughout
+           - MUST prepare article for publication platform
+
+        **4. IMPACT ASSESSMENT** ⚠️ MANDATORY
+           - MUST evaluate potential impact and reader response
+           - MUST ensure article delivers on intended purpose
+           - MUST confirm compelling and memorable presentation
+           - MUST validate persuasive effectiveness
+           - MUST assess differentiation from existing content
+
+        **FINAL STATUS:** Article ready for publication with editorial approval.
+      acceptance_criteria:
+        quality_assurance: "Article thoroughly reviewed and confirmed to meet all quality standards"
+        fact_verification: "All facts, sources, and claims verified for accuracy and credibility"
+        publication_ready: "Article properly formatted and prepared for intended publication platform"
+        impact_validation: "Article effectiveness and potential impact assessed and confirmed"
+        editorial_approval: "Article meets professional editorial standards and ready for publication"
+      next_allowed_nodes: [] 
