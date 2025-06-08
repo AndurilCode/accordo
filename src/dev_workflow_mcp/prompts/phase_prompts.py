@@ -1142,7 +1142,6 @@ def _handle_cache_restore_operation(client_id: str) -> str:
     except Exception as e:
         return f"❌ Error restoring sessions from cache: {str(e)}"
 
-
 def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
     """Extract actual acceptance criteria from text content."""
     if not text:
