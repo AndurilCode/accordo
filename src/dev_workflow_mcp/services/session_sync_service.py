@@ -114,23 +114,14 @@ class SessionSyncService:
             return False
 
         try:
-            # Store session in cache
-            context_text = self._generate_session_context_text(session)
-            metadata = {
-                "session_id": session_id,
-                "client_id": session.client_id,
-                "workflow_name": session.workflow_name or "",
-                "status": session.status,
-                "created_at": session.created_at.isoformat(),
-            }
-
-            self._cache_manager.store(
-                session_id=session_id,
-                context_text=context_text,
-                metadata=metadata,
-            )
-
-            return True
+            # Store session in cache using the correct method name
+            result = self._cache_manager.store_workflow_state(session)
+            
+            if result.success:
+                return True
+            else:
+                print(f"Warning: Failed to sync session {session_id} to cache: {result.error_message}")
+                return False
 
         except Exception as e:
             print(f"Warning: Failed to sync session {session_id} to cache: {e}")
@@ -185,46 +176,96 @@ class SessionSyncService:
             return 0
 
         try:
-            # Get all sessions from cache
-            cached_sessions = self._cache_manager.get_all_sessions_for_client(client_id)
+            # Default to "default" client if None or empty string is passed - this is the standard client_id
+            # used by the MCP server when no specific client is specified
+            effective_client_id = client_id if client_id and client_id.strip() else "default"
+            
+            # Debug logging to track restoration process
+            print(f"DEBUG: Restoring sessions for client_id='{effective_client_id}' (original: {repr(client_id)})")
+            
+            # WORKAROUND: Instead of using problematic get_all_sessions_for_client() with ChromaDB metadata filtering,
+            # get all sessions from cache and filter them ourselves using working session_id based retrieval
+            
+            # Get cache stats to access all session metadata
+            cache_stats = self._cache_manager.get_cache_stats()
+            if not cache_stats or cache_stats.total_entries == 0:
+                print(f"DEBUG: No sessions found in cache")
+                return 0
+            
+            # Use the working approach: get all session IDs using proper cache manager method
+            try:
+                # Get all session IDs from cache using the proper method
+                all_session_ids = self._cache_manager.get_all_session_ids()
+                
+                if not all_session_ids:
+                    print(f"DEBUG: No session IDs found in cache")
+                    return 0
+                
+                print(f"DEBUG: Found {len(all_session_ids)} total sessions in cache")
+                
+                restored_count = 0
+                for session_id in all_session_ids:
+                    try:
+                        # Use the working retrieve_workflow_state method for individual session lookup
+                        session = self._cache_manager.retrieve_workflow_state(session_id)
+                        if not session:
+                            print(f"DEBUG: Could not retrieve session {session_id[:8]}...")
+                            continue
+                        
+                        # Filter by client_id after retrieval (since direct filtering doesn't work)
+                        if session.client_id != effective_client_id:
+                            continue  # Skip sessions that don't match our target client
+                        
+                        print(f"DEBUG: Restoring session {session_id[:8]}... for client {session.client_id}")
+                        
+                        # Restore workflow definition
+                        self._restore_workflow_definition(session)
 
-            restored_count = 0
-            for session_data in cached_sessions:
-                try:
-                    # Restore workflow definition
-                    session = DynamicWorkflowState(**session_data)
-                    self._restore_workflow_definition(session)
+                        # Store in repository using proper repository storage
+                        with self._session_repository._lock:
+                            self._session_repository._sessions[session.session_id] = session
 
-                    # Store in repository
-                    with self._session_repository._lock:
-                        self._session_repository._sessions[session.session_id] = session
+                        # Register for client using repository method
+                        self._session_repository._register_session_for_client(
+                            session.client_id, session.session_id
+                        )
 
-                    # Register for client
-                    self._session_repository._register_session_for_client(
-                        session.client_id, session.session_id
-                    )
+                        print(f"DEBUG: Successfully restored session {session_id[:8]}... to repository")
+                        restored_count += 1
 
-                    restored_count += 1
+                    except Exception as e:
+                        print(f"Warning: Failed to restore session {session_id}: {e}")
+                        continue
 
-                except Exception as e:
-                    print(
-                        f"Warning: Failed to restore session {session_data.get('session_id', 'unknown')}: {e}"
-                    )
-                    continue
-
-            return restored_count
+                print(f"DEBUG: Session restoration completed. Restored {restored_count} sessions for client '{effective_client_id}'")
+                return restored_count
+                
+            except Exception as e:
+                print(f"WARNING: Direct cache access failed, falling back to empty result: {e}")
+                return 0
 
         except Exception as e:
             print(f"Warning: Failed to restore sessions from cache: {e}")
+            import traceback
+            traceback.print_exc()
             return 0
 
     def auto_restore_sessions_on_startup(self) -> int:
         """Auto-restore sessions on startup."""
+        # TEMPORARY DEBUG: Create visible evidence that this method is called
+        print("=" * 80)
+        print("🚨 DEBUG: auto_restore_sessions_on_startup() CALLED!")
+        print("=" * 80)
+        
         server_config = self._get_effective_server_config()
         if not server_config or not server_config.enable_cache_mode:
+            print("🚨 DEBUG: Cache mode not enabled or no server config")
             return 0
 
-        return self.restore_sessions_from_cache()
+        print("🚨 DEBUG: Cache mode enabled, calling restore_sessions_from_cache()")
+        result = self.restore_sessions_from_cache()
+        print(f"🚨 DEBUG: auto_restore_sessions_on_startup() returning {result}")
+        return result
 
     def list_cached_sessions(
         self, client_id: str | None = None
@@ -373,22 +414,49 @@ class SessionSyncService:
 
     def _get_effective_server_config(self) -> Any:
         """Get effective server configuration."""
+        print("🚨 DEBUG: _get_effective_server_config() called")
+        
         try:
             from ..services.config_service import ConfigurationService
             from ..services.dependency_injection import get_service
 
+            print("🚨 DEBUG: Trying to get ConfigurationService via dependency injection...")
             config_service = get_service(ConfigurationService)
             if config_service:
-                return config_service.to_legacy_server_config()
-        except Exception:
-            pass
+                legacy_config = config_service.to_legacy_server_config()
+                print(f"🚨 DEBUG: Got config via DI - enable_cache_mode: {getattr(legacy_config, 'enable_cache_mode', None)}")
+                return legacy_config
+            else:
+                print("🚨 DEBUG: ConfigurationService not found via dependency injection")
+        except Exception as e:
+            print(f"🚨 DEBUG: Exception getting config via DI: {e}")
 
         try:
             from ..services.config_service import get_configuration_service
 
+            print("🚨 DEBUG: Trying get_configuration_service()...")
             config_service = get_configuration_service()
-            return config_service.to_legacy_server_config()
-        except Exception:
-            pass
+            legacy_config = config_service.to_legacy_server_config()
+            print(f"🚨 DEBUG: Got config via get_configuration_service() - enable_cache_mode: {getattr(legacy_config, 'enable_cache_mode', None)}")
+            return legacy_config
+        except Exception as e:
+            print(f"🚨 DEBUG: Exception getting config via get_configuration_service(): {e}")
 
+        # FALLBACK: Try to detect cache mode from environment or server state
+        print("🚨 DEBUG: Trying fallback config detection...")
+        try:
+            # Check if cache manager exists (indicates cache mode is enabled)
+            if self._cache_manager is not None:
+                print("🚨 DEBUG: Cache manager exists, assuming cache mode enabled")
+                # Create a minimal config object with cache mode enabled
+                class FallbackConfig:
+                    def __init__(self):
+                        self.enable_cache_mode = True
+                return FallbackConfig()
+            else:
+                print("🚨 DEBUG: No cache manager, cache mode disabled")
+        except Exception as e:
+            print(f"🚨 DEBUG: Exception in fallback detection: {e}")
+
+        print("🚨 DEBUG: No config found, returning None")
         return None

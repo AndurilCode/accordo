@@ -181,8 +181,11 @@ def main():
         register_singleton(ConfigurationService, lambda: config_service)
 
         # Initialize cache service for dependency injection
-        from .services import initialize_cache_service
+        from .services import initialize_cache_service, initialize_session_services
         initialize_cache_service()
+        
+        # Initialize session services for dependency injection
+        initialize_session_services()
 
         # Create legacy config for backward compatibility
         legacy_config = config_service.to_legacy_server_config()
@@ -199,12 +202,19 @@ def main():
     register_phase_prompts(mcp, legacy_config)
     register_discovery_prompts(mcp, legacy_config)
 
-    # Perform automatic cache restoration if cache mode is enabled
+    # Perform automatic cache restoration AFTER all services are initialized
+    print(f"🚨 DEBUG: server_config.enable_cache_mode = {server_config.enable_cache_mode}")
     if server_config.enable_cache_mode:
+        print("🚨 DEBUG: Cache mode is enabled, attempting auto-restore with SessionSyncService...")
         try:
-            from .utils.session_manager import auto_restore_sessions_on_startup
+            from .services import get_session_sync_service
 
-            restored_count = auto_restore_sessions_on_startup()
+            print("🚨 DEBUG: Getting SessionSyncService...")
+            session_sync_service = get_session_sync_service()
+            
+            print("🚨 DEBUG: Calling session_sync_service.auto_restore_sessions_on_startup()...")
+            restored_count = session_sync_service.auto_restore_sessions_on_startup()
+            print(f"🚨 DEBUG: SessionSyncService auto_restore_sessions_on_startup() returned {restored_count}")
             if restored_count > 0:
                 print(
                     f"Info: Automatically restored {restored_count} workflow session(s) from cache"
@@ -212,7 +222,12 @@ def main():
 
         except Exception as e:
             # Non-blocking: don't let cache restoration prevent server startup
+            print(f"🚨 DEBUG: Exception in SessionSyncService auto-restore: {e}")
+            import traceback
+            traceback.print_exc()
             print(f"Info: Automatic cache restoration skipped: {e}")
+    else:
+        print("🚨 DEBUG: Cache mode is NOT enabled, skipping auto-restore")
 
     # Run the server
     mcp.run(transport="stdio")

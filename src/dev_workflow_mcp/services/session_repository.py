@@ -102,6 +102,18 @@ class SessionRepository:
         # Register session for client
         self._register_session_for_client(client_id, session_id)
 
+        # FIX: Automatically sync new session to cache for persistence across restarts
+        # ISSUE: Previously, sessions were only cached during workflow transitions (updates),
+        # not during initial creation. This meant sessions created but not progressed were
+        # lost when the MCP server restarted (e.g., when Cursor was killed).
+        # SOLUTION: Add immediate cache sync after session creation to ensure all sessions
+        # survive server restarts, eliminating the race condition between creation and first update.
+        try:
+            self._sync_session_to_cache(session)
+        except Exception as e:
+            # Non-blocking: don't prevent session creation if cache sync fails
+            print(f"Warning: Failed to sync new session {session_id[:8]} to cache during creation: {e}")
+
         return session
 
     def update_session(self, session_id: str, **kwargs: Any) -> bool:
@@ -229,3 +241,65 @@ class SessionRepository:
                         del self._client_session_registry[client_id]
                 except ValueError:
                     pass  # Session not in list
+
+    def _sync_session_to_cache(self, session: DynamicWorkflowState) -> bool:
+        """Sync session to cache when cache is available.
+        
+        Args:
+            session: The session to sync to cache
+            
+        Returns:
+            bool: True if sync succeeded or was skipped, False on error
+        """
+        try:
+            # Import cache manager dynamically to avoid circular imports
+            from ..services import get_cache_service
+            
+            # Check if cache service is available first
+            try:
+                cache_service = get_cache_service()
+            except Exception as e:
+                # Cache service not initialized or not available
+                print(f"Debug: Cache service not available during session creation: {e}")
+                return True  # Not an error - cache may be disabled
+            
+            if not cache_service or not cache_service.is_available():
+                # Cache not available - this is normal if cache mode disabled
+                print(f"Debug: Cache service not available for session {session.session_id[:8]} - cache mode may be disabled")
+                return True
+                
+            try:
+                cache_manager = cache_service.get_cache_manager()
+            except Exception as e:
+                print(f"Debug: Failed to get cache manager for session {session.session_id[:8]}: {e}")
+                return True  # Not blocking
+                
+            if not cache_manager:
+                print(f"Debug: Cache manager is None for session {session.session_id[:8]}")
+                return True
+                
+            # Validate session before caching
+            if not session.session_id:
+                print(f"Warning: Cannot cache session with empty session_id")
+                return False
+                
+            # Store session in cache
+            result = cache_manager.store_workflow_state(session)
+            
+            # Log success/failure for debugging
+            if result and result.success:
+                print(f"Debug: Session {session.session_id[:8]} successfully cached during creation")
+                return True
+            else:
+                error_msg = result.error_message if result else "Unknown error"
+                print(f"Debug: Failed to cache session {session.session_id[:8]} during creation: {error_msg}")
+                return False
+                
+        except ImportError as e:
+            # Cache services not available - might be in test environment or cache disabled
+            print(f"Debug: Cache services not importable for session {session.session_id[:8]}: {e}")
+            return True  # Not an error in this context
+        except Exception as e:
+            # Non-blocking: cache failures shouldn't prevent session creation
+            print(f"Debug: Exception during cache sync for session {session.session_id[:8]}: {e}")
+            return False
