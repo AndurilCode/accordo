@@ -100,14 +100,7 @@ def set_server_config(server_config) -> None:
 
         # Initialize cache manager if cache mode is enabled
         if server_config.enable_cache_mode:
-            result = _initialize_cache_manager(server_config)
-            # Store result for diagnostics if initialization was attempted but failed
-            if not result and _cache_manager is None:
-                _cache_manager = "INIT_CALLED_BUT_NO_ERROR_STORED"
-        else:
-            # Store diagnostic info about why cache wasn't initialized
-            global _cache_manager
-            _cache_manager = f"CACHE_DISABLED: enable_cache_mode={getattr(server_config, 'enable_cache_mode', 'MISSING')}"
+            _initialize_cache_manager(server_config)
 
 
 def _initialize_cache_manager(server_config) -> bool:
@@ -122,48 +115,26 @@ def _initialize_cache_manager(server_config) -> bool:
     global _cache_manager
 
     with _cache_manager_lock:
-        # Mark that this function was called for diagnostics
-        if _cache_manager is None:
-            _cache_manager = "INIT_FUNCTION_CALLED"
-            
-        if _cache_manager is not None and not isinstance(_cache_manager, str):
-            return True  # Already initialized with real cache manager
+        if _cache_manager is not None:
+            return True  # Already initialized
 
         try:
-            # Step 1: Test import
-            try:
-                from .cache_manager import WorkflowCacheManager
-                import_success = True
-            except Exception as import_error:
-                # Store error details for diagnostics
-                _cache_manager = f"IMPORT_ERROR: {import_error}"
+            from .cache_manager import WorkflowCacheManager
+
+            # Ensure cache directory exists
+            if not server_config.ensure_cache_dir():
                 return False
 
-            # Step 2: Test directory creation
-            try:
-                dir_success = server_config.ensure_cache_dir()
-                if not dir_success:
-                    _cache_manager = f"DIR_ERROR: ensure_cache_dir() returned False"
-                    return False
-            except Exception as dir_error:
-                _cache_manager = f"DIR_EXCEPTION: {dir_error}"
-                return False
+            _cache_manager = WorkflowCacheManager(
+                db_path=str(server_config.cache_dir),
+                collection_name=server_config.cache_collection_name,
+                embedding_model=server_config.cache_embedding_model,
+                max_results=server_config.cache_max_results,
+            )
 
-            # Step 3: Test cache manager creation
-            try:
-                _cache_manager = WorkflowCacheManager(
-                    db_path=str(server_config.cache_dir),
-                    collection_name=server_config.cache_collection_name,
-                    embedding_model=server_config.cache_embedding_model,
-                    max_results=server_config.cache_max_results,
-                )
-                return True
-            except Exception as creation_error:
-                _cache_manager = f"CREATION_ERROR: {creation_error}"
-                return False
+            return True
 
         except Exception as e:
-            _cache_manager = f"UNEXPECTED_ERROR: {e}"
             return False
 
 
