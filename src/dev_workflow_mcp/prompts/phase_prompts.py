@@ -934,7 +934,7 @@ def format_enhanced_node_status(
         options_text = "**🏁 Status:** This is a terminal node (workflow complete)"
 
     # Get current session state for display
-    session_state = export_session_to_markdown(session.client_id)
+    session_state = export_session_to_markdown(session.session_id)
 
     return f"""{analysis["goal"]}
 
