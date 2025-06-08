@@ -4,6 +4,7 @@ This module provides a clean interface to the session services,
 replacing the previous monolithic session manager implementation.
 """
 
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,27 @@ from typing import Any
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
 
+# Thread locks for global variable access
+_server_config_lock = threading.Lock()
+_cache_manager_lock = threading.Lock()
+session_lock = threading.Lock()
+
 # Services will be initialized lazily when first accessed
+
+
+def _get_server_config_from_service():
+    """Get server configuration from the modern configuration service.
+    
+    Returns:
+        ServerConfig or None: Configuration instance from service
+    """
+    try:
+        from ..services.config_service import get_configuration_service
+        
+        config_service = get_configuration_service()
+        return config_service.to_legacy_server_config()
+    except Exception:
+        return None
 
 
 def _ensure_services_initialized():
