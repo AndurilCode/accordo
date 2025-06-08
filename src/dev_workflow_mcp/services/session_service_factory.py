@@ -25,25 +25,37 @@ class SessionServiceFactory:
     def initialize_session_services(self) -> None:
         """Initialize and register all session services."""
         if self._initialized:
+            print("🚨 DEBUG: SessionServiceFactory already initialized, skipping")
             return
 
+        print("🚨 DEBUG: SessionServiceFactory.initialize_session_services() called")
+
         # Create core services
+        print("🚨 DEBUG: Creating SessionRepository...")
         session_repository = SessionRepository()
+
+        print("🚨 DEBUG: Creating WorkflowDefinitionCache...")
         workflow_definition_cache = WorkflowDefinitionCache()
 
         # Get cache manager if available
+        print("🚨 DEBUG: Getting cache manager for SessionSyncService...")
         cache_manager = self._get_cache_manager()
+        print(f"🚨 DEBUG: Cache manager for SessionSyncService: {cache_manager}")
 
         # Create dependent services
+        print("🚨 DEBUG: Creating SessionSyncService...")
         session_sync_service = SessionSyncService(
             session_repository=session_repository, cache_manager=cache_manager
         )
 
+        print("🚨 DEBUG: Creating SessionLifecycleManager...")
         session_lifecycle_manager = SessionLifecycleManager(
             session_repository=session_repository,
             session_sync_service=session_sync_service,
             cache_manager=cache_manager,
         )
+
+        print("🚨 DEBUG: Registering services with dependency injection...")
 
         # Register services with dependency injection
         self._service_registry.register_service(
@@ -71,6 +83,7 @@ class SessionServiceFactory:
             WorkflowDefinitionCache, workflow_definition_cache
         )
 
+        print("🚨 DEBUG: SessionServiceFactory initialization complete")
         self._initialized = True
 
     def get_session_repository(self) -> SessionRepository:
@@ -95,13 +108,36 @@ class SessionServiceFactory:
 
     def _get_cache_manager(self) -> Any:
         """Get cache manager if available."""
+        print("🚨 DEBUG: SessionServiceFactory._get_cache_manager() called")
+        
+        # First, try to get cache manager from the new cache service
         try:
-            # Try to get cache manager from existing session manager
+            from .cache_service import get_cache_service
+            
+            print("🚨 DEBUG: Trying to get cache manager from new cache service...")
+            cache_service = get_cache_service()
+            if cache_service.is_available():
+                cache_manager = cache_service.get_cache_manager()
+                print(f"🚨 DEBUG: Got cache manager from new cache service: {type(cache_manager)}")
+                return cache_manager
+            else:
+                print("🚨 DEBUG: New cache service not available")
+        except Exception as e:
+            print(f"🚨 DEBUG: Exception getting cache manager from new cache service: {e}")
+
+        # Fallback to legacy session manager cache
+        try:
+            print("🚨 DEBUG: Falling back to legacy session manager cache...")
             from ..utils.session_manager import get_cache_manager
 
-            return get_cache_manager()
-        except Exception:
-            return None
+            cache_manager = get_cache_manager()
+            print(f"🚨 DEBUG: Got cache manager from legacy session manager: {type(cache_manager)}")
+            return cache_manager
+        except Exception as e:
+            print(f"🚨 DEBUG: Exception getting cache manager from legacy session manager: {e}")
+
+        print("🚨 DEBUG: No cache manager available")
+        return None
 
     def is_initialized(self) -> bool:
         """Check if services are initialized."""

@@ -4,6 +4,7 @@ This module provides a clean interface to the session services,
 replacing the previous monolithic session manager implementation.
 """
 
+import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -425,9 +426,18 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                 session_id = metadata.session_id
                 restored_state = cache_manager.retrieve_workflow_state(session_id)
                 if restored_state:
-                    with session_lock:
-                        sessions[session_id] = restored_state
-                        _register_session_for_client(client_id, session_id)
+                    # FIX: Use proper session repository storage instead of legacy proxy pattern
+                    _ensure_services_initialized()
+                    from ..services import get_session_repository
+                    
+                    repository = get_session_repository()
+                    
+                    # Store session directly in repository with proper initialization
+                    with repository._lock:
+                        repository._sessions[session_id] = restored_state
+                    
+                    # Ensure proper client registration
+                    repository._register_session_for_client(client_id, session_id)
 
                     # Automatically restore workflow definition
                     _restore_workflow_definition(restored_state)
@@ -451,13 +461,29 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     # Attempt to restore each session
                     restored_state = cache_manager.retrieve_workflow_state(session_id)
                     if restored_state:
-                        with session_lock:
-                            sessions[session_id] = restored_state
-                            _register_session_for_client(metadata_client_id, session_id)
+                        # FIX: Use proper session repository storage instead of legacy proxy pattern
+                        # ISSUE: Original code used sessions[session_id] = restored_state which bypassed
+                        # proper session initialization in the new repository architecture
+                        # SOLUTION: Store session directly in repository using proper methods
+                        _ensure_services_initialized()
+                        from ..services import get_session_repository
+                        
+                        repository = get_session_repository()
+                        
+                        # Store session directly in repository with proper initialization
+                        with repository._lock:
+                            repository._sessions[session_id] = restored_state
+                        
+                        # Ensure proper client registration
+                        repository._register_session_for_client(metadata_client_id, session_id)
 
+                        print(f"DEBUG: Session {session_id[:8]}... restored to memory via repository")
+                        
                         # Automatically restore workflow definition
                         _restore_workflow_definition(restored_state)
                         restored_count += 1
+                    else:
+                        print(f"DEBUG: Failed to retrieve state for session {session_id[:8]}...")
 
             except AttributeError:
                 # Fallback: If cache manager doesn't have get_all_sessions method,
@@ -473,83 +499,22 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
 
 
 def auto_restore_sessions_on_startup() -> int:
-    """Automatically restore all workflow sessions from cache during server startup.
-
-    This function is designed to be called during MCP server initialization
-    to restore any existing workflow sessions from the cache. It operates
-    in a completely non-blocking manner and will not prevent server startup
-    even if cache restoration fails.
-
-    Returns:
-        Number of sessions restored from cache (0 if cache unavailable or disabled)
-    """
-    print("DEBUG: auto_restore_sessions_on_startup called")
+    """Legacy auto-restore function for backward compatibility.
     
-    # Check if we're in a test environment - skip auto-restoration during tests
-    if _is_test_environment():
-        print("DEBUG: Skipping auto-restore - test environment detected")
-        return 0
-
-    cache_manager = get_cache_manager()
-    if not cache_manager:
-        print("DEBUG: Skipping auto-restore - no cache manager")
-        return 0
-    if not cache_manager.is_available():
-        print("DEBUG: Skipping auto-restore - cache manager not available")
-        return 0
-
-    print("DEBUG: Cache manager available, proceeding with auto-restore")
-
+    NOTE: This is a legacy function that is no longer actively used.
+    The actual auto-restore logic has been moved to SessionSyncService.
+    This function remains for backward compatibility only.
+    
+    Returns:
+        Number of sessions restored from cache (0 if unavailable)
+    """
+    print("DEBUG: Legacy auto_restore_sessions_on_startup called")
+    
+    # For backward compatibility, delegate to the legacy restore function
     try:
-        restored_count = 0
-
-        # Get all available sessions from cache
-        try:
-            # Use cache manager to get all sessions across all clients
-            all_session_metadata = cache_manager.get_all_sessions()
-            print(f"DEBUG: Found {len(all_session_metadata)} sessions in cache")
-
-            for metadata in all_session_metadata:
-                session_id = metadata.session_id
-                client_id = metadata.client_id
-                print(f"DEBUG: Restoring session {session_id[:8]}... for client {client_id}")
-
-                # Attempt to restore each session
-                restored_state = cache_manager.retrieve_workflow_state(session_id)
-                if restored_state:
-                    with session_lock:
-                        sessions[session_id] = restored_state
-                        _register_session_for_client(client_id, session_id)
-
-                    print(f"DEBUG: Session {session_id[:8]}... restored to memory")
-                    
-                    # Automatically restore workflow definition
-                    _restore_workflow_definition(restored_state)
-                    restored_count += 1
-                    print(f"DEBUG: Workflow definition restoration attempted for session {session_id[:8]}...")
-                else:
-                    print(f"DEBUG: Failed to retrieve state for session {session_id[:8]}...")
-
-        except AttributeError as e:
-            print(f"DEBUG: Cache manager missing get_all_sessions method: {e}")
-            # Fallback: If cache manager doesn't have get_all_sessions method,
-            # we'll use the existing per-client restoration approach for known clients
-            # This ensures backward compatibility with different cache manager versions
-
-            # For now, we'll try to restore for the default client
-            # This approach is safer and doesn't require knowledge of all client IDs
-            print("DEBUG: Using fallback restore for default client")
-            restored_count = restore_sessions_from_cache("default")
-
-        print(f"DEBUG: Auto-restore completed. Restored {restored_count} sessions")
-        return restored_count
-
+        return restore_sessions_from_cache("default")
     except Exception as e:
-        # Completely non-blocking: log error but don't prevent server startup
-        # In production, you might want to use proper logging instead of print
-        print(f"Error: Automatic cache restoration failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Warning: Legacy auto-restore failed: {e}")
         return 0
 
 
@@ -1163,7 +1128,7 @@ def export_session_to_markdown(
         return None
 
     try:
-        from ..prompts.formatting import (
+        from ..prompts.formatting import ( # type: ignore
             export_session_to_markdown as format_export_func,
         )
 

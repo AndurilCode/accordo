@@ -1132,9 +1132,11 @@ def _generate_node_completion_outputs(
 def _handle_cache_restore_operation(client_id: str) -> str:
     """Handle cache restore operation."""
     try:
-        from ..utils.session_manager import restore_sessions_from_cache
+        # Use the fixed session sync service instead of the old broken session manager function
+        from ..services import get_session_sync_service
 
-        restored_count = restore_sessions_from_cache(client_id)
+        session_sync_service = get_session_sync_service()
+        restored_count = session_sync_service.restore_sessions_from_cache(client_id)
         if restored_count > 0:
             return f"✅ Successfully restored {restored_count} workflow session(s) from cache for client '{client_id}'"
         else:
@@ -1196,9 +1198,11 @@ def _generate_temporal_insights(results: list) -> str:
 def _handle_cache_list_operation(client_id: str) -> str:
     """Handle cache list operation."""
     try:
-        from ..utils.session_manager import list_cached_sessions
+        # Use the session sync service for consistency
+        from ..services import get_session_sync_service
 
-        sessions = list_cached_sessions(client_id)
+        session_sync_service = get_session_sync_service()
+        sessions = session_sync_service.list_cached_sessions(client_id)
         if not sessions:
             return f"📭 No cached sessions found for client '{client_id}'"
 
@@ -1517,7 +1521,7 @@ The workflow '{workflow_name}' was not found in the server cache.
 
                                         # Store workflow definition in cache for later retrieval
                                         store_workflow_definition_in_cache(
-                                            client_id, selected_workflow
+                                            session.session_id, selected_workflow
                                         )
 
                                         # Get current node info
@@ -1575,7 +1579,7 @@ The workflow '{workflow_name}' was not found in the server cache.
 
                                     # Store workflow definition in cache for later retrieval
                                     store_workflow_definition_in_cache(
-                                        client_id, selected_workflow
+                                        session.session_id, selected_workflow
                                     )
 
                                     # Get current node info
@@ -1694,6 +1698,37 @@ You called workflow_guidance with action="{action}" but there's no active workfl
                         session = None
                         workflow_def = None
 
+                # Try on-demand workflow definition restoration if missing
+                if session and not workflow_def and session.workflow_name:
+                    try:
+                        # Get correct workflows directory from configuration
+                        from ..services.dependency_injection import get_service
+                        from ..services.config_service import ConfigurationService
+                        
+                        config_service = get_service(ConfigurationService)
+                        workflows_dir = str(config_service.server_config.repository_path / ".workflow-commander" / "workflows")
+                        
+                        print(f"🚨 DEBUG: Attempting on-demand workflow definition restore for session {target_session_id}")
+                        print(f"🚨 DEBUG: Session workflow_name: {session.workflow_name}")
+                        print(f"🚨 DEBUG: Using workflows_dir: {workflows_dir}")
+                        
+                        # Import the restoration function
+                        from ..utils.session_manager import _restore_workflow_definition
+
+                        # Attempt restore with proper path
+                        _restore_workflow_definition(session, workflows_dir)
+                        print(f"🚨 DEBUG: _restore_workflow_definition completed without exception")
+
+                        # Check if workflow definition is now available
+                        workflow_def = get_dynamic_session_workflow_def(target_session_id)
+                        print(f"🚨 DEBUG: After restore, workflow_def is: {workflow_def is not None}")
+
+                    except Exception as e:
+                        # If on-demand loading fails, continue with error
+                        print(f"🚨 DEBUG: On-demand workflow definition restore failed: {e}")
+                        import traceback
+                        traceback.print_exc()
+
                 if session and workflow_def:
                     current_node = workflow_def.workflow.tree.get(session.current_node)
                     summary = get_workflow_summary(workflow_def)
@@ -1721,7 +1756,7 @@ You called workflow_guidance with action="{action}" but there's no active workfl
                     return add_session_id_to_response(result, target_session_id)
                 elif session:
                     return add_session_id_to_response(
-                        "❌ **Error:** Dynamic session has no workflow definition.",
+                        "❌ **Error:** Dynamic session has no workflow definition. Try manually restoring cache with workflow_cache_management(operation='restore').",
                         target_session_id,
                     )
 
