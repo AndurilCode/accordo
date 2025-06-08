@@ -1843,11 +1843,25 @@ Cannot update state - no YAML workflow session is currently active.
                 return _handle_cache_list_operation(client_id)
             elif operation == "stats":
                 try:
-                    from ..utils.session_manager import get_cache_manager
+                    from ..utils.session_manager import get_cache_manager, _server_config, _cache_manager
 
                     cache_manager = get_cache_manager()
-                    if not cache_manager or not cache_manager.is_available():
-                        return "❌ Cache mode is not enabled or not available"
+                    
+                    # Debug information about cache manager state
+                    debug_info = []
+                    debug_info.append(f"get_cache_manager() returned: {type(cache_manager).__name__ if cache_manager else 'None'}")
+                    debug_info.append(f"_server_config global: {type(_server_config).__name__ if _server_config else 'None'}")
+                    debug_info.append(f"_cache_manager global: {type(_cache_manager).__name__ if _cache_manager else 'None'}")
+                    
+                    if _server_config:
+                        debug_info.append(f"_server_config.enable_cache_mode: {getattr(_server_config, 'enable_cache_mode', 'MISSING')}")
+                    
+                    if not cache_manager:
+                        return f"❌ Cache mode is not enabled or not available\n\n🔍 DEBUG INFO:\n" + "\n".join(debug_info)
+                    
+                    if not cache_manager.is_available():
+                        debug_info.append(f"cache_manager.is_available(): False")
+                        return f"❌ Cache mode is not enabled or not available\n\n🔍 DEBUG INFO:\n" + "\n".join(debug_info)
 
                     stats = cache_manager.get_cache_stats()
                     if not stats:
