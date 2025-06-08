@@ -467,7 +467,9 @@ class TestAutomaticCacheRestoration:
     def test_auto_restore_sessions_on_startup_function_exists(self):
         """Test that the auto_restore_sessions_on_startup function exists and is importable."""
         try:
-            from src.dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+            from src.dev_workflow_mcp.utils.session_manager import (
+                auto_restore_sessions_on_startup,
+            )
             
             # Verify it's callable
             assert callable(auto_restore_sessions_on_startup)

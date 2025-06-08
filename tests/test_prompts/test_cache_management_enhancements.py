@@ -1,7 +1,8 @@
 """Tests for cache management enhancements we added to workflow_cache_management."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastmcp import FastMCP
 
 from src.dev_workflow_mcp.prompts.phase_prompts import register_phase_prompts

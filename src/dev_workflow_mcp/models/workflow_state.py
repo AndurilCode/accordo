@@ -342,11 +342,8 @@ class DynamicWorkflowState(BaseModel):
                         progress_lines.append(f"### 🎯 {node_name}")
 
                         if node_def and node_def.goal:
-                            # Truncate long goals for readability
-                            goal_summary = node_def.goal.split("\n")[0][:100]
-                            if len(node_def.goal) > 100:
-                                goal_summary += "..."
-                            progress_lines.append(f"**Goal:** {goal_summary}")
+                            # Display full goal without truncation
+                            progress_lines.append(f"**Goal:** {node_def.goal}")
 
                         # Show acceptance criteria satisfaction
                         if node_def and node_def.acceptance_criteria:
@@ -361,12 +358,6 @@ class DynamicWorkflowState(BaseModel):
                                 ) in node_def.acceptance_criteria.items():
                                     if criterion in criteria_evidence:
                                         evidence = criteria_evidence[criterion]
-                                        # Truncate long evidence for readability
-                                        if (
-                                            isinstance(evidence, str)
-                                            and len(evidence) > 100
-                                        ):
-                                            evidence = evidence[:100] + "..."
                                         progress_lines.append(
                                             f"- ✅ **{criterion}**: {evidence}"
                                         )

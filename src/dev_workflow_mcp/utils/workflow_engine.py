@@ -302,11 +302,7 @@ class WorkflowEngine:
             if provided_evidence and criterion_name in provided_evidence:
                 # Evidence provided for this criterion with truncation for readability
                 evidence_text = provided_evidence[criterion_name].strip()
-                log_evidence = (
-                    evidence_text
-                    if len(evidence_text) <= 100
-                    else evidence_text[:100] + "..."
-                )
+                log_evidence = evidence_text
                 state.add_log_entry(
                     f"✅ CRITERION MET: {criterion_name} - {log_evidence}"
                 )

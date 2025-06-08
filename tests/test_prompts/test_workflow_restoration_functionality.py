@@ -1,7 +1,8 @@
 """Tests specifically for the on-demand workflow definition restoration functionality."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
 
 
 class TestWorkflowRestorationFunctionality:
@@ -10,7 +11,9 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_enhanced_debug_output(self):
         """Test that the enhanced auto-restore function produces proper debug output."""
         
-        from dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from dev_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
         
         # Mock the test environment check to bypass it
         with patch('dev_workflow_mcp.utils.session_manager._is_test_environment', return_value=False), \
@@ -34,7 +37,9 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_with_cache_manager_available(self):
         """Test auto-restore when cache manager is available."""
         
-        from dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from dev_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
         
         # Mock cache manager that is available with empty sessions list
         mock_cache_manager = Mock()
@@ -62,8 +67,8 @@ class TestWorkflowRestorationFunctionality:
     def test_restore_workflow_definition_debug_functionality(self):
         """Test that _restore_workflow_definition produces the enhanced debug output."""
         
-        from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
         from dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+        from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
         
         # Create a test session
         session = DynamicWorkflowState(
@@ -91,8 +96,8 @@ class TestWorkflowRestorationFunctionality:
     def test_restore_workflow_definition_handles_missing_workflow_name(self):
         """Test that _restore_workflow_definition handles missing workflow name properly."""
         
-        from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
         from dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
+        from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
         
         # Create a session and manually set workflow_name to None 
         session = DynamicWorkflowState(
@@ -118,7 +123,9 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_exception_handling_with_traceback(self):
         """Test that auto-restore handles exceptions with proper tracebacks."""
         
-        from dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from dev_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
         
         # Mock cache manager that throws an exception
         mock_cache_manager = Mock()
@@ -150,7 +157,9 @@ class TestWorkflowRestorationFunctionality:
         # This test will only pass if our enhanced functionality is working
         # If it passes, it means our enhanced restoration is being tested
         
-        from dev_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from dev_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
         
         # Mock to simulate our enhanced debug functionality
         with patch('dev_workflow_mcp.utils.session_manager._is_test_environment', return_value=False), \
@@ -177,6 +186,7 @@ class TestOnDemandRestorationLogic:
         
         # Read the phase_prompts file to verify our on-demand restoration logic exists
         import inspect
+
         from dev_workflow_mcp.prompts import phase_prompts
         
         # Get the source code
@@ -196,7 +206,9 @@ class TestOnDemandRestorationLogic:
         
         # This test validates that the import we added is working
         try:
-            from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
+            from dev_workflow_mcp.utils.session_manager import (
+                _restore_workflow_definition,
+            )
             assert callable(_restore_workflow_definition), "Restoration function should be callable"
             
             # If we can import it, our fix is working
@@ -232,7 +244,9 @@ class TestOnDemandRestorationLogic:
             mock_loader.get_workflow_by_name.return_value = mock_workflow_def
             mock_loader_class.return_value = mock_loader
             
-            from dev_workflow_mcp.utils.session_manager import _restore_workflow_definition
+            from dev_workflow_mcp.utils.session_manager import (
+                _restore_workflow_definition,
+            )
             
             # Call the restoration function
             _restore_workflow_definition(session, "/test/workflows")

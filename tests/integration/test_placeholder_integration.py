@@ -1,10 +1,9 @@
 """Integration tests for placeholder replacement in the workflow system."""
 
-import pytest
 
-from src.dev_workflow_mcp.utils.yaml_loader import WorkflowLoader
 from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
 from src.dev_workflow_mcp.prompts.phase_prompts import format_enhanced_node_status
+from src.dev_workflow_mcp.utils.yaml_loader import WorkflowLoader
 
 
 class TestPlaceholderIntegration:

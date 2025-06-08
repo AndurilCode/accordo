@@ -1,10 +1,9 @@
 """Tests for placeholder processor functionality."""
 
-import pytest
 
 from src.dev_workflow_mcp.utils.placeholder_processor import (
-    replace_placeholders,
     process_workflow_content,
+    replace_placeholders,
 )
 
 

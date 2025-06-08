@@ -367,7 +367,7 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
                     restored_count += 1
         else:
             print(
-                f"DEBUG: Restoring all sessions from all clients (no specific client_id)"
+                "DEBUG: Restoring all sessions from all clients (no specific client_id)"
             )
             # Restore all sessions from all clients when no specific client_id provided
             try:
