@@ -416,13 +416,22 @@ def auto_restore_sessions_on_startup() -> int:
     Returns:
         Number of sessions restored from cache (0 if cache unavailable or disabled)
     """
+    print("DEBUG: auto_restore_sessions_on_startup called")
+    
     # Check if we're in a test environment - skip auto-restoration during tests
     if _is_test_environment():
+        print("DEBUG: Skipping auto-restore - test environment detected")
         return 0
 
     cache_manager = get_cache_manager()
-    if not cache_manager or not cache_manager.is_available():
+    if not cache_manager:
+        print("DEBUG: Skipping auto-restore - no cache manager")
         return 0
+    if not cache_manager.is_available():
+        print("DEBUG: Skipping auto-restore - cache manager not available")
+        return 0
+
+    print("DEBUG: Cache manager available, proceeding with auto-restore")
 
     try:
         restored_count = 0
@@ -431,10 +440,12 @@ def auto_restore_sessions_on_startup() -> int:
         try:
             # Use cache manager to get all sessions across all clients
             all_session_metadata = cache_manager.get_all_sessions()
+            print(f"DEBUG: Found {len(all_session_metadata)} sessions in cache")
 
             for metadata in all_session_metadata:
                 session_id = metadata.session_id
                 client_id = metadata.client_id
+                print(f"DEBUG: Restoring session {session_id[:8]}... for client {client_id}")
 
                 # Attempt to restore each session
                 restored_state = cache_manager.retrieve_workflow_state(session_id)
@@ -443,25 +454,35 @@ def auto_restore_sessions_on_startup() -> int:
                         sessions[session_id] = restored_state
                         _register_session_for_client(client_id, session_id)
 
+                    print(f"DEBUG: Session {session_id[:8]}... restored to memory")
+                    
                     # Automatically restore workflow definition
                     _restore_workflow_definition(restored_state)
                     restored_count += 1
+                    print(f"DEBUG: Workflow definition restoration attempted for session {session_id[:8]}...")
+                else:
+                    print(f"DEBUG: Failed to retrieve state for session {session_id[:8]}...")
 
-        except AttributeError:
+        except AttributeError as e:
+            print(f"DEBUG: Cache manager missing get_all_sessions method: {e}")
             # Fallback: If cache manager doesn't have get_all_sessions method,
             # we'll use the existing per-client restoration approach for known clients
             # This ensures backward compatibility with different cache manager versions
 
             # For now, we'll try to restore for the default client
             # This approach is safer and doesn't require knowledge of all client IDs
+            print("DEBUG: Using fallback restore for default client")
             restored_count = restore_sessions_from_cache("default")
 
+        print(f"DEBUG: Auto-restore completed. Restored {restored_count} sessions")
         return restored_count
 
     except Exception as e:
         # Completely non-blocking: log error but don't prevent server startup
         # In production, you might want to use proper logging instead of print
-        print(f"Info: Automatic cache restoration skipped due to error: {e}")
+        print(f"Error: Automatic cache restoration failed: {e}")
+        import traceback
+        traceback.print_exc()
         return 0
 
 
