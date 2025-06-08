@@ -180,6 +180,10 @@ def main():
         # Register configuration service in dependency injection container
         register_singleton(ConfigurationService, lambda: config_service)
 
+        # Initialize cache service for dependency injection
+        from .services import initialize_cache_service
+        initialize_cache_service()
+
         # Create legacy config for backward compatibility
         legacy_config = config_service.to_legacy_server_config()
 
