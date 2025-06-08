@@ -313,6 +313,20 @@ def get_cache_manager():
                 f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}"
             )
 
+        # NEW: Try configuration service if legacy approach hasn't worked
+        if _cache_manager is None:
+            print("Debug: Attempting cache manager initialization from configuration service")
+            try:
+                config = _get_effective_server_config()
+                if config and hasattr(config, 'enable_cache_mode') and config.enable_cache_mode:
+                    print("Debug: Configuration service has cache enabled, initializing cache manager")
+                    success = _initialize_cache_manager(config)
+                    print(f"Debug: Cache manager initialization from config service {'succeeded' if success else 'failed'}")
+                else:
+                    print("Debug: Configuration service does not have cache enabled or config unavailable")
+            except Exception as e:
+                print(f"Debug: Exception during configuration service cache initialization: {e}")
+
         if _cache_manager is None:
             print("Debug: Cache manager unavailable - skipping cache operations")
         else:
