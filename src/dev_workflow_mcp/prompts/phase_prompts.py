@@ -1333,6 +1333,29 @@ def register_phase_prompts(app: FastMCP, config=None):
                 # Continue with existing dynamic workflow
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
+                # Try on-demand workflow definition restoration if missing
+                if not workflow_def and session and session.workflow_name:
+                    try:
+                        # Use config to construct correct workflows directory
+                        if config is not None:
+                            workflows_dir = str(config.workflows_dir)
+                        else:
+                            workflows_dir = ".workflow-commander/workflows"
+                        
+                        # Import the restoration function
+                        from ..utils.session_manager import _restore_workflow_definition
+                        
+                        # Attempt restore with proper path
+                        _restore_workflow_definition(session, workflows_dir)
+                        
+                        # Check if workflow definition is now available
+                        workflow_def = get_dynamic_session_workflow_def(target_session_id)
+                            
+                    except Exception:
+                        # If on-demand loading fails, continue to discovery requirement
+                        pass
+
+                # If on-demand loading failed, fall back to discovery requirement
                 if not workflow_def:
                     # Try on-demand workflow definition loading before giving up
                     from ..utils.session_manager import _restore_workflow_definition
