@@ -1843,28 +1843,14 @@ Cannot update state - no YAML workflow session is currently active.
                 return _handle_cache_list_operation(client_id)
             elif operation == "stats":
                 try:
-                    from ..utils.session_manager import get_cache_manager, _server_config, _cache_manager
+                    from ..services import get_cache_service
 
-                    cache_manager = get_cache_manager()
+                    cache_service = get_cache_service()
                     
-                    # Debug information about cache manager state
-                    debug_info = []
-                    debug_info.append(f"get_cache_manager() returned: {type(cache_manager).__name__ if cache_manager else 'None'}")
-                    debug_info.append(f"_server_config global: {type(_server_config).__name__ if _server_config else 'None'}")
-                    if isinstance(_cache_manager, str):
-                        debug_info.append(f"_cache_manager global: {_cache_manager}")  # Error message
-                    else:
-                        debug_info.append(f"_cache_manager global: {type(_cache_manager).__name__ if _cache_manager else 'None'}")
+                    if not cache_service.is_available():
+                        return "❌ Cache mode is not enabled or not available"
                     
-                    if _server_config:
-                        debug_info.append(f"_server_config.enable_cache_mode: {getattr(_server_config, 'enable_cache_mode', 'MISSING')}")
-                    
-                    if not cache_manager:
-                        return f"❌ Cache mode is not enabled or not available\n\n🔍 DEBUG INFO:\n" + "\n".join(debug_info)
-                    
-                    if not cache_manager.is_available():
-                        debug_info.append(f"cache_manager.is_available(): False")
-                        return f"❌ Cache mode is not enabled or not available\n\n🔍 DEBUG INFO:\n" + "\n".join(debug_info)
+                    cache_manager = cache_service.get_cache_manager()
 
                     stats = cache_manager.get_cache_stats()
                     if not stats:
@@ -1889,11 +1875,13 @@ Cannot update state - no YAML workflow session is currently active.
                     return f"❌ Error getting cache statistics: {str(e)}"
             elif operation == "regenerate_embeddings":
                 try:
-                    from ..utils.session_manager import get_cache_manager
+                    from ..services import get_cache_service
 
-                    cache_manager = get_cache_manager()
-                    if not cache_manager or not cache_manager.is_available():
+                    cache_service = get_cache_service()
+                    if not cache_service.is_available():
                         return "❌ Cache mode is not enabled or not available"
+                    
+                    cache_manager = cache_service.get_cache_manager()
 
                     # Regenerate embeddings with enhanced semantic content
                     regenerated_count = (
@@ -1916,11 +1904,13 @@ Cannot update state - no YAML workflow session is currently active.
                     return f"❌ Error regenerating embeddings: {str(e)}"
             elif operation == "force_regenerate_embeddings":
                 try:
-                    from ..utils.session_manager import get_cache_manager
+                    from ..services import get_cache_service
 
-                    cache_manager = get_cache_manager()
-                    if not cache_manager or not cache_manager.is_available():
+                    cache_service = get_cache_service()
+                    if not cache_service.is_available():
                         return "❌ Cache mode is not enabled or not available"
+                    
+                    cache_manager = cache_service.get_cache_manager()
 
                     # Force regenerate all embeddings regardless of text changes
                     regenerated_count = (
@@ -1985,11 +1975,13 @@ Cannot update state - no YAML workflow session is currently active.
             max_results = max(1, min(100, max_results))
             min_similarity = max(0.0, min(1.0, min_similarity))
 
-            from ..utils.session_manager import get_cache_manager
+            from ..services import get_cache_service
 
-            cache_manager = get_cache_manager()
-            if not cache_manager or not cache_manager.is_available():
+            cache_service = get_cache_service()
+            if not cache_service.is_available():
                 return "❌ Cache mode not enabled. Semantic analysis unavailable."
+            
+            cache_manager = cache_service.get_cache_manager()
 
             # Perform semantic search
             results = cache_manager.semantic_search(

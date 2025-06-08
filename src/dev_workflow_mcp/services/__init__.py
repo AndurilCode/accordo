@@ -57,6 +57,13 @@ from .workflow_definition_cache import (
     WorkflowDefinitionCache,
     WorkflowDefinitionCacheProtocol,
 )
+from .cache_service import (
+    CacheService,
+    CacheServiceProtocol,
+    get_cache_service,
+    initialize_cache_service,
+    reset_cache_service,
+)
 
 __all__ = [
     # Configuration Service
@@ -105,4 +112,10 @@ __all__ = [
     "get_session_sync_service",
     "get_session_lifecycle_manager",
     "get_workflow_definition_cache",
+    # Cache Service
+    "CacheService",
+    "CacheServiceProtocol",
+    "get_cache_service", 
+    "initialize_cache_service",
+    "reset_cache_service",
 ]
