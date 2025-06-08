@@ -100,7 +100,14 @@ def set_server_config(server_config) -> None:
 
         # Initialize cache manager if cache mode is enabled
         if server_config.enable_cache_mode:
-            _initialize_cache_manager(server_config)
+            result = _initialize_cache_manager(server_config)
+            # Store result for diagnostics if initialization was attempted but failed
+            if not result and _cache_manager is None:
+                _cache_manager = "INIT_CALLED_BUT_NO_ERROR_STORED"
+        else:
+            # Store diagnostic info about why cache wasn't initialized
+            global _cache_manager
+            _cache_manager = f"CACHE_DISABLED: enable_cache_mode={getattr(server_config, 'enable_cache_mode', 'MISSING')}"
 
 
 def _initialize_cache_manager(server_config) -> bool:
@@ -115,8 +122,12 @@ def _initialize_cache_manager(server_config) -> bool:
     global _cache_manager
 
     with _cache_manager_lock:
-        if _cache_manager is not None:
-            return True  # Already initialized
+        # Mark that this function was called for diagnostics
+        if _cache_manager is None:
+            _cache_manager = "INIT_FUNCTION_CALLED"
+            
+        if _cache_manager is not None and not isinstance(_cache_manager, str):
+            return True  # Already initialized with real cache manager
 
         try:
             # Step 1: Test import
