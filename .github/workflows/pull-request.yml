@@ -34,4 +34,9 @@ jobs:
         run: uv run ruff check .
 
       - name: 🧪 Run tests
-        run: uv run pytest tests/ --tb=short
+        run: uv run pytest --cov=src --cov-report=term --cov-report=xml tests/ --tb=short
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
