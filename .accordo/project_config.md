@@ -1,7 +1,7 @@
 # Project Configuration
 
 ## Project Structure
-- `src/dev_workflow_mcp/` - Main package source code
+- `src/accordo-mcp/` - Main package source code
   - `server.py` - Main MCP server implementation
   - `models/` - Pydantic models for workflow state and responses
   - `prompts/` - Workflow prompt definitions organized by category
@@ -47,7 +47,7 @@ uv pip install -e .
 python -m build
 
 # Run the MCP server
-python -m src.dev_workflow_mcp.server
+python -m src.accordo-mcp.server
 ```
 
 ## Documentation Maintenance Plan

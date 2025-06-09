@@ -33,7 +33,7 @@ needs_approval: bool = Field(
 **Properties:**
 - **Type**: Boolean (`true` or `false`)
 - **Default**: `false` 
-- **Location**: WorkflowNode model in `src/dev_workflow_mcp/models/yaml_workflow.py`
+- **Location**: WorkflowNode model in `src/accordo-mcp/models/yaml_workflow.py`
 - **Scope**: Applies only to non-terminal nodes (nodes with `next_allowed_nodes`)
 
 ### Usage Guide

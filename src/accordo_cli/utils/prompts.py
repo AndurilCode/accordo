@@ -242,7 +242,7 @@ def build_custom_configuration() -> ConfigurationBuilder:
 
 
 def get_workflow_commander_details() -> tuple[str, MCPServer]:
-    """Get workflow-commander server configuration details with guided setup.
+    """Get accordo server configuration details with guided setup.
 
     Returns:
         Tuple of (server_name, MCPServer)
@@ -254,7 +254,7 @@ def get_workflow_commander_details() -> tuple[str, MCPServer]:
     typer.echo()
 
     # Server name
-    server_name = typer.prompt("Server name", default="workflow-commander")
+    server_name = typer.prompt("Server name", default="accordo")
 
     # Template selection
     template = select_configuration_template()
@@ -348,7 +348,7 @@ def display_success_message(platform: str, server_name: str, config_path: Path) 
     typer.echo()
     typer.secho("🚀 Next steps:", bold=True)
     typer.echo("1. Restart your editor to load the new MCP server")
-    typer.echo("2. The workflow-commander server should now be available")
+    typer.echo("2. The accordo server should now be available")
 
 
 def display_error_message(error: str, suggestions: list[str] | None = None) -> None:

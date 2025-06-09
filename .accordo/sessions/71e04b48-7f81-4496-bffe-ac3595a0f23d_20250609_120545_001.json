@@ -31,10 +31,10 @@
       "completion_timestamp": "2025-06-09T10:04:29.251685+00:00",
       "node_name": "analyze",
       "completed_criteria": {
-        "project_config_analysis": "Read .accordo/project_config.md completely - found package structure (src/dev_workflow_mcp/, src/workflow_commander_cli/), dependencies (Python 3.12+, FastMCP, Pydantic), test commands (ruff, pytest, mypy), and build commands (uv sync, python -m build)",
-        "codebase_exploration": "Used grep_search to find 200+ instances of 'workflow-commander' across codebase including: directory names (.accordo/), GitHub URLs (AndurilCode/accordo), package names (dev_workflow_mcp, workflow_commander_cli), configuration files, and documentation",
+        "project_config_analysis": "Read .accordo/project_config.md completely - found package structure (src/accordo-mcp/, src/workflow_commander_cli/), dependencies (Python 3.12+, FastMCP, Pydantic), test commands (ruff, pytest, mypy), and build commands (uv sync, python -m build)",
+        "codebase_exploration": "Used grep_search to find 200+ instances of 'workflow-commander' across codebase including: directory names (.accordo/), GitHub URLs (AndurilCode/accordo), package names (accordo-mcp, workflow_commander_cli), configuration files, and documentation",
         "requirements_analysis": "Decomposed task into: 1) Rename GitHub repository (if needed), 2) Update package names in pyproject.toml, 3) Rename source directories, 4) Update all import statements, 5) Update documentation and README, 6) Update configuration examples, 7) Update GitHub URLs, 8) Update install script, 9) Rename .accordo directory to .accordo",
-        "documentation_review": "Identified affected components: pyproject.toml (package names, scripts), src/ directories (dev_workflow_mcp -> accordo_mcp, workflow_commander_cli -> accordo_cli), README.md, install.sh, examples/, docs/, tests/, .accordo/ directory, GitHub URLs in 20+ files",
+        "documentation_review": "Identified affected components: pyproject.toml (package names, scripts), src/ directories (accordo-mcp -> accordo_mcp, workflow_commander_cli -> accordo_cli), README.md, install.sh, examples/, docs/, tests/, .accordo/ directory, GitHub URLs in 20+ files",
         "understanding_validation": "Can clearly explain task requires systematic renaming of: package names, directory structures, import paths, configuration files, documentation, GitHub references, and CLI commands from workflow-commander ecosystem to accordo ecosystem"
       }
     },

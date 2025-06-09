@@ -190,5 +190,5 @@ dev_*.log
 debug_*
 
 # Workflow Commander
-.workflow-commander/sessions/
-.workflow-commander/cache/
+.accordo/sessions/
+.accordo/cache/
