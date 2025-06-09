@@ -21,7 +21,7 @@ from .utils.prompts import (
 
 # Create the main Typer application
 app = typer.Typer(
-    name="workflow-commander",
+    name="accordo",
     help="Configure MCP servers for AI coding platforms",
     rich_markup_mode="rich",
 )
@@ -31,7 +31,7 @@ def version_callback(value: bool):
     if value:
         from . import __description__, __version__
 
-        typer.echo(f"workflow-commander {__version__}")
+        typer.echo(f"accordo {__version__}")
         typer.echo(__description__)
         raise typer.Exit()
 
@@ -69,7 +69,7 @@ def configure(
         help="Run in non-interactive mode with defaults",
     ),
 ):
-    """🚀 Configure workflow-commander MCP server for your preferred platform."""
+    """🚀 Configure accordo MCP server for your preferred platform."""
 
     try:
         # Step 1: Platform Selection
@@ -92,11 +92,11 @@ def configure(
 
         platform_info = PlatformInfo.for_platform(platform_enum)
 
-        # Step 2: Server Configuration (hardcoded to workflow-commander)
+        # Step 2: Server Configuration (hardcoded to accordo)
         if non_interactive:
             # Non-interactive mode - use defaults
             server_name_configured = (
-                server_name if server_name else "workflow-commander"
+                server_name if server_name else "accordo"
             )
             server_config = MCPServer(
                 command="uvx",
@@ -107,7 +107,7 @@ def configure(
                 ],
             )
         else:
-            # Interactive mode - get workflow-commander details
+            # Interactive mode - get accordo details
             server_name_configured, server_config = get_workflow_commander_details()
 
         # Step 3: Configuration Location

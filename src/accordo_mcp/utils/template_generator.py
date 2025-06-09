@@ -15,7 +15,7 @@ from ..utils.yaml_loader import WorkflowLoader
 class WorkflowTemplateGenerator:
     """Schema-driven workflow template generator."""
 
-    def __init__(self, templates_dir: str = "src/dev_workflow_mcp/templates"):
+    def __init__(self, templates_dir: str = "src/accordo-mcp/templates"):
         """Initialize the template generator.
 
         Args:

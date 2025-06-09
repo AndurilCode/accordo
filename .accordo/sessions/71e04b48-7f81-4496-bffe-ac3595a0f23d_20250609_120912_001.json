@@ -31,10 +31,10 @@
       "completion_timestamp": "2025-06-09T10:04:29.251685+00:00",
       "node_name": "analyze",
       "completed_criteria": {
-        "project_config_analysis": "Read .accordo/project_config.md completely - found package structure (src/dev_workflow_mcp/, src/workflow_commander_cli/), dependencies (Python 3.12+, FastMCP, Pydantic), test commands (ruff, pytest, mypy), and build commands (uv sync, python -m build)",
-        "codebase_exploration": "Used grep_search to find 200+ instances of 'workflow-commander' across codebase including: directory names (.accordo/), GitHub URLs (AndurilCode/accordo), package names (dev_workflow_mcp, workflow_commander_cli), configuration files, and documentation",
+        "project_config_analysis": "Read .accordo/project_config.md completely - found package structure (src/accordo-mcp/, src/workflow_commander_cli/), dependencies (Python 3.12+, FastMCP, Pydantic), test commands (ruff, pytest, mypy), and build commands (uv sync, python -m build)",
+        "codebase_exploration": "Used grep_search to find 200+ instances of 'workflow-commander' across codebase including: directory names (.accordo/), GitHub URLs (AndurilCode/accordo), package names (accordo-mcp, workflow_commander_cli), configuration files, and documentation",
         "requirements_analysis": "Decomposed task into: 1) Rename GitHub repository (if needed), 2) Update package names in pyproject.toml, 3) Rename source directories, 4) Update all import statements, 5) Update documentation and README, 6) Update configuration examples, 7) Update GitHub URLs, 8) Update install script, 9) Rename .accordo directory to .accordo",
-        "documentation_review": "Identified affected components: pyproject.toml (package names, scripts), src/ directories (dev_workflow_mcp -> accordo_mcp, workflow_commander_cli -> accordo_cli), README.md, install.sh, examples/, docs/, tests/, .accordo/ directory, GitHub URLs in 20+ files",
+        "documentation_review": "Identified affected components: pyproject.toml (package names, scripts), src/ directories (accordo-mcp -> accordo_mcp, workflow_commander_cli -> accordo_cli), README.md, install.sh, examples/, docs/, tests/, .accordo/ directory, GitHub URLs in 20+ files",
         "understanding_validation": "Can clearly explain task requires systematic renaming of: package names, directory structures, import paths, configuration files, documentation, GitHub references, and CLI commands from workflow-commander ecosystem to accordo ecosystem"
       }
     },
@@ -82,8 +82,8 @@
     "[12:05:29] \ud83d\udcdd CURRENT GOAL: **CONSTRUCT PHASE:** ${{ inputs.task_description }}\n\nExecute the approved implementation plan systematically, following each step in sequence with proper verification and progress tracking.\n\n**Key Points:** Complete each step fully before proceeding, maintain detailed progress logs, and ensure quality standards throughout.\n",
     "Step 0: Created backup branch 'rename-to-accordo' - SUCCESS",
     "Step 1.1: Updated pyproject.toml package names (dev-workflow-mcp\u2192accordo-mcp, workflow-commander\u2192accordo) and descriptions - SUCCESS (ruff check passed)",
-    "Step 1.2: Renamed source directories (dev_workflow_mcp\u2192accordo_mcp, workflow_commander_cli\u2192accordo_cli) - SUCCESS (verified with ls -la src/)",
-    "Step 1.3: Updated all import statements (find/sed for src.dev_workflow_mcp\u2192src.accordo_mcp, dev_workflow_mcp\u2192accordo_mcp, workflow_commander_cli\u2192accordo_cli), removed old egg-info - SUCCESS (import test passed)"
+    "Step 1.2: Renamed source directories (accordo-mcp\u2192accordo_mcp, workflow_commander_cli\u2192accordo_cli) - SUCCESS (verified with ls -la src/)",
+    "Step 1.3: Updated all import statements (find/sed for src.accordo-mcp\u2192src.accordo_mcp, accordo-mcp\u2192accordo_mcp, workflow_commander_cli\u2192accordo_cli), removed old egg-info - SUCCESS (import test passed)"
   ],
   "archive_log": [],
   "node_history": [

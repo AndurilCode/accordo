@@ -261,7 +261,7 @@ To enable semantic analysis capabilities:
 
 ```bash
 # Start MCP server with cache mode
-python -m dev_workflow_mcp.server \
+python -m accordo-mcp.server \
   --enable-cache-mode \
   --cache-embedding-model all-MiniLM-L6-v2 \
   --cache-db-path .accordo/cache \

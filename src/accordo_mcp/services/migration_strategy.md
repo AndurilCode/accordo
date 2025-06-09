@@ -7,20 +7,20 @@ This document outlines the systematic migration strategy for extracting configur
 ## Current State Analysis
 
 ### Configuration Sources Identified
-1. **ServerConfig** (`src/dev_workflow_mcp/config.py`)
+1. **ServerConfig** (`src/accordo-mcp/config.py`)
    - CLI argument parsing and server configuration
    - Repository path, session management, cache settings
    - Directory creation and validation methods
 
-2. **WorkflowConfig** (`src/dev_workflow_mcp/models/config.py`)
+2. **WorkflowConfig** (`src/accordo-mcp/models/config.py`)
    - CLI-driven workflow behavior configuration
    - Local state file settings and format options
 
-3. **S3Config** (`src/dev_workflow_mcp/models/config.py`)
+3. **S3Config** (`src/accordo-mcp/models/config.py`)
    - Environment variable-based configuration
    - AWS S3 integration settings
 
-4. **Global State** (`src/dev_workflow_mcp/utils/session_manager.py`)
+4. **Global State** (`src/accordo-mcp/utils/session_manager.py`)
    - `_server_config` global variable with threading locks
    - Cache manager initialization dependencies
 
@@ -49,9 +49,9 @@ This document outlines the systematic migration strategy for extracting configur
 5. Add integration tests for server startup
 
 **Files Modified**:
-- `src/dev_workflow_mcp/server.py`
-- `src/dev_workflow_mcp/prompts/phase_prompts.py`
-- `src/dev_workflow_mcp/prompts/discovery_prompts.py`
+- `src/accordo-mcp/server.py`
+- `src/accordo-mcp/prompts/phase_prompts.py`
+- `src/accordo-mcp/prompts/discovery_prompts.py`
 
 ### Phase 3: Session Manager Migration
 **Target**: Remove global _server_config variable from session_manager.py
@@ -64,8 +64,8 @@ This document outlines the systematic migration strategy for extracting configur
 5. Add session manager integration tests
 
 **Files Modified**:
-- `src/dev_workflow_mcp/utils/session_manager.py`
-- `src/dev_workflow_mcp/utils/cache_manager.py`
+- `src/accordo-mcp/utils/session_manager.py`
+- `src/accordo-mcp/utils/cache_manager.py`
 
 ### Phase 4: Workflow Configuration Migration
 **Target**: Migrate WorkflowConfig and config utilities
@@ -78,8 +78,8 @@ This document outlines the systematic migration strategy for extracting configur
 5. Add workflow configuration tests
 
 **Files Modified**:
-- `src/dev_workflow_mcp/utils/config_utils.py`
-- `src/dev_workflow_mcp/models/config.py`
+- `src/accordo-mcp/utils/config_utils.py`
+- `src/accordo-mcp/models/config.py`
 - Workflow loading components
 
 ### Phase 5: Platform Configuration Migration
@@ -108,7 +108,7 @@ This document outlines the systematic migration strategy for extracting configur
 5. Final integration testing
 
 **Files Modified**:
-- `src/dev_workflow_mcp/config.py` (potential removal)
+- `src/accordo-mcp/config.py` (potential removal)
 - Various files with configuration imports
 - Documentation updates
 

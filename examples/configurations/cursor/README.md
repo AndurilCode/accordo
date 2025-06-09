@@ -1,6 +1,6 @@
 # Cursor MCP Configuration Examples
 
-This directory contains example MCP configurations for Cursor IDE. These configurations show how to set up Workflow Commander with different feature sets and options.
+This directory contains example MCP configurations for Cursor. These configurations show how to set up Workflow Commander with different feature sets and options.
 
 ## Configuration Files
 
@@ -44,7 +44,7 @@ This directory contains example MCP configurations for Cursor IDE. These configu
 ##### `--repository-path`
 - **Purpose**: Specify the repository root where `.accordo` folder should be located
 - **Default**: Current directory
-- **Example**: `--repository-path /path/to/my/project`
+- **Example**: `--repository-path /path/to/your/project`
 - **Use Case**: Essential for project-specific workflow organization
 
 #### State File Configuration
@@ -147,14 +147,14 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 ```json
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
       "args": [
-        "--from", 
-        "git+https://github.com/AndurilCode/accordo@main", 
-        "dev-workflow-mcp",
-        "--repository-path", ".",
-        "--enable-local-state-file"
+        "--from",
+        "git+https://github.com/AndurilCode/accordo@main",
+        "accordo-mcp",
+        "--repository-path",
+        "/path/to/your/project"
       ]
     }
   }
@@ -165,17 +165,25 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 ```json
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
       "args": [
-        "--from", 
-        "git+https://github.com/AndurilCode/accordo@main", 
-        "dev-workflow-mcp",
-        "--repository-path", ".",
+        "--from",
+        "git+https://github.com/AndurilCode/accordo@main",
+        "accordo-mcp",
+        "--repository-path",
+        "/path/to/your/project",
         "--enable-local-state-file",
-        "--local-state-file-format", "JSON",
-        "--enable-cache-mode",
-        "--cache-embedding-model", "all-MiniLM-L6-v2"
+        "--local-state-file-format",
+        "JSON",
+        "--session-retention-hours",
+        "72",
+        "--cache-db-path",
+        ".accordo/cache",
+        "--cache-embedding-model",
+        "all-MiniLM-L6-v2",
+        "--cache-max-results",
+        "50"
       ]
     }
   }
@@ -186,20 +194,25 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 ```json
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
       "args": [
-        "--from", 
-        "git+https://github.com/AndurilCode/accordo@main", 
-        "dev-workflow-mcp",
-        "--repository-path", ".",
+        "--from",
+        "git+https://github.com/AndurilCode/accordo@main",
+        "accordo-mcp",
+        "--repository-path",
+        "/path/to/your/project",
         "--enable-local-state-file",
-        "--local-state-file-format", "JSON",
-        "--session-retention-hours", "48",
-        "--enable-cache-mode",
-        "--cache-embedding-model", "all-MiniLM-L6-v2",
-        "--cache-db-path", "/fast-storage/.workflow-cache",
-        "--cache-max-results", "25"
+        "--local-state-file-format",
+        "JSON",
+        "--session-retention-hours",
+        "72",
+        "--cache-db-path",
+        ".accordo/cache",
+        "--cache-embedding-model",
+        "all-MiniLM-L6-v2",
+        "--cache-max-results",
+        "50"
       ]
     }
   }
