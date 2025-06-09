@@ -1701,12 +1701,11 @@ You called workflow_guidance with action="{action}" but there's no active workfl
                 # Try on-demand workflow definition restoration if missing
                 if session and not workflow_def and session.workflow_name:
                     try:
-                        # Get correct workflows directory from configuration
-                        from ..services.dependency_injection import get_service
-                        from ..services.config_service import ConfigurationService
-                        
-                        config_service = get_service(ConfigurationService)
-                        workflows_dir = str(config_service.server_config.repository_path / ".workflow-commander" / "workflows")
+                        # Use config to construct correct workflows directory (same approach as workflow_guidance)
+                        if config is not None:
+                            workflows_dir = str(config.workflows_dir)
+                        else:
+                            workflows_dir = ".workflow-commander/workflows"
                         
                         print(f"🚨 DEBUG: Attempting on-demand workflow definition restore for session {target_session_id}")
                         print(f"🚨 DEBUG: Session workflow_name: {session.workflow_name}")
