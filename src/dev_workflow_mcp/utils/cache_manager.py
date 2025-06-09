@@ -278,7 +278,7 @@ class WorkflowCacheManager:
             for model_name in model_chain:
                 try:
                     print(f"Loading embedding model: {model_name}")
-                    self._embedding_model = SentenceTransformer(model_name)
+                    self._embedding_model = SentenceTransformer(model_name, device="cpu")
                     if model_name != self.embedding_model_name:
                         print(f"Note: Using fallback model {model_name} instead of {self.embedding_model_name}")
                     
