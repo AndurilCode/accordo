@@ -134,7 +134,7 @@ class TestSessionArchiving:
             )
 
             # Initialize configuration service
-            config_service = initialize_configuration_service(
+            initialize_configuration_service(
                 server_config=server_config
             )
 
@@ -142,7 +142,9 @@ class TestSessionArchiving:
             server_config.sessions_dir.mkdir(parents=True, exist_ok=True)
 
             # Create test session with file
-            from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+            from src.accordo_workflow_mcp.models.workflow_state import (
+                DynamicWorkflowState,
+            )
 
             session = DynamicWorkflowState(
                 client_id="test_client",
@@ -196,7 +198,9 @@ class TestSessionArchiving:
             )
             set_server_config(config)
 
-            from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+            from src.accordo_workflow_mcp.models.workflow_state import (
+                DynamicWorkflowState,
+            )
 
             session = DynamicWorkflowState(
                 client_id="test_client",
@@ -238,7 +242,7 @@ class TestCleanupWithArchiving:
             )
 
             # Initialize configuration service
-            config_service = initialize_configuration_service(
+            initialize_configuration_service(
                 server_config=server_config
             )
 
@@ -248,7 +252,9 @@ class TestCleanupWithArchiving:
             # Create completed session
             from datetime import UTC, datetime, timedelta
 
-            from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+            from src.accordo_workflow_mcp.models.workflow_state import (
+                DynamicWorkflowState,
+            )
 
             old_time = datetime.now(UTC) - timedelta(hours=48)  # 48 hours ago
 
@@ -294,7 +300,9 @@ class TestCleanupWithArchiving:
 
             from datetime import UTC, datetime, timedelta
 
-            from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+            from src.accordo_workflow_mcp.models.workflow_state import (
+                DynamicWorkflowState,
+            )
 
             old_time = datetime.now(UTC) - timedelta(hours=48)
 

@@ -270,7 +270,7 @@ class TestDecorators:
         )
 
         try:
-            config_service = initialize_configuration_service()
+            initialize_configuration_service()
 
             @inject_config_service
             def test_function(config: ConfigurationService, additional_arg: str) -> str:
@@ -295,7 +295,9 @@ class TestDecorators:
         def test_function(config) -> str:
             return "should not reach here"
 
-        with pytest.raises(Exception):  # Should raise ConfigurationError
+        from src.accordo_workflow_mcp.services.config_service import ConfigurationError
+        
+        with pytest.raises(ConfigurationError):  # Should raise ConfigurationError
             test_function()
 
 

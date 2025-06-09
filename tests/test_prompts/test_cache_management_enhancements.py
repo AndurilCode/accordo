@@ -22,11 +22,11 @@ class TestCacheManagementEnhancements:
     @pytest.fixture
     def mock_cache_stats(self):
         """Create mock cache statistics."""
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         # Create actual datetime objects, not mocks
-        oldest_date = datetime(2024, 1, 1, 12, 0, 0)
-        newest_date = datetime(2024, 12, 31, 23, 59, 59)
+        oldest_date = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        newest_date = datetime(2024, 12, 31, 23, 59, 59, tzinfo=UTC)
 
         stats = Mock()
         stats.collection_name = "test_workflows"
@@ -501,10 +501,10 @@ class TestEnhancedCacheManagementIntegration:
         mock_cache_manager.regenerate_embeddings_for_enhanced_search.return_value = 10
 
         # Mock cache stats
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        oldest_date = datetime(2024, 1, 1, 10, 0, 0)
-        newest_date = datetime(2024, 12, 31, 20, 0, 0)
+        oldest_date = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+        newest_date = datetime(2024, 12, 31, 20, 0, 0, tzinfo=UTC)
 
         mock_stats = Mock()
         mock_stats.collection_name = "test_collection"

@@ -37,24 +37,27 @@ class TestWorkflowRestorationFunctionality:
             auto_restore_sessions_on_startup,
         )
 
-        # FIX: Mock the service layer since the utils function now delegates to it
+        # FIX: Mock the legacy restore function that's actually called
         with (
             patch("builtins.print") as mock_print,
-            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
+            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
         ):
-            # Mock the service and its auto_restore method
-            mock_session_sync_service = Mock()
-            mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 0
-            mock_get_service.return_value = mock_session_sync_service
+            # Mock the legacy restore function to return 2 sessions
+            mock_restore.return_value = 2
 
             # Call the function
             result = auto_restore_sessions_on_startup()
 
-            # Verify it returns 0 (delegated result)
-            assert result == 0
+            # Verify it returns the legacy restore result
+            assert result == 2
 
-            # Verify the service method was called
-            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
+            # Verify the legacy restore function was called
+            mock_restore.assert_called_once_with("default")
+            
+            # Verify debug message was printed
+            debug_calls = [call for call in mock_print.call_args_list 
+                          if call[0] and "DEBUG: Legacy auto_restore_sessions_on_startup called" in str(call[0][0])]
+            assert len(debug_calls) == 1
 
             # The utils function no longer produces debug output - it just delegates
             # So we verify delegation worked correctly instead of checking for specific debug messages
@@ -66,27 +69,21 @@ class TestWorkflowRestorationFunctionality:
             auto_restore_sessions_on_startup,
         )
 
-        # FIX: Mock the service layer since the utils function now delegates to it
+        # FIX: Mock the legacy restore function that's actually called
         with (
-            patch("builtins.print") as mock_print,
-            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
+            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
         ):
-            # Mock the service and its auto_restore method
-            mock_session_sync_service = Mock()
-            mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 2
-            mock_get_service.return_value = mock_session_sync_service
+            # Mock the legacy restore function to return 1 session
+            mock_restore.return_value = 1
 
             # Call the function
             result = auto_restore_sessions_on_startup()
 
-            # Verify it returns the delegated result
-            assert result == 2
+            # Verify legacy restore delegation
+            mock_restore.assert_called_once_with("default")
 
-            # Verify the service method was called
-            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
-
-            # The utils function no longer directly uses cache manager - it delegates to service
-            # So we verify delegation worked correctly instead of checking cache manager calls
+            # Verify result
+            assert result == 1
 
     def test_restore_workflow_definition_debug_functionality(self):
         """Test that _restore_workflow_definition produces the enhanced debug output."""
@@ -173,27 +170,21 @@ class TestWorkflowRestorationFunctionality:
             auto_restore_sessions_on_startup,
         )
 
-        # FIX: Mock the service layer since the utils function now delegates to it
+        # FIX: Mock the legacy restore function to throw an exception
         with (
-            patch("builtins.print") as mock_print,
-            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
+            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
         ):
-            # Mock the service to throw an exception
-            mock_session_sync_service = Mock()
-            mock_session_sync_service.auto_restore_sessions_on_startup.side_effect = Exception("Service error")
-            mock_get_service.return_value = mock_session_sync_service
+            # Mock the legacy restore function to throw an exception
+            mock_restore.side_effect = Exception("Legacy restore error")
 
-            # Call the function - should propagate the exception (utils function is just a delegator)
-            try:
-                result = auto_restore_sessions_on_startup()
-                # If we get here, the exception was handled
-                assert False, "Expected exception to be raised"
-            except Exception as e:
-                # Verify it's the service exception
-                assert str(e) == "Service error"
+            # Call the function - the utils function should handle exceptions and return 0
+            result = auto_restore_sessions_on_startup()
+            
+            # Verify the function handled the exception and returned 0
+            assert result == 0, "Function should return 0 when legacy restore throws exception"
 
-            # Verify the service method was called
-            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
+            # Verify the legacy restore function was called
+            mock_restore.assert_called_once_with("default")
 
             # Note: The utils function is just a delegator, so exception handling is done at service level
             # or by the caller (server.py), not by the utils function itself

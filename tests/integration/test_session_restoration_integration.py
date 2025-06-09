@@ -344,7 +344,7 @@ class TestSessionRestorationIntegration:
 
         # Simulate cache corruption by directly inserting invalid data
         try:
-            from datetime import datetime, UTC
+            from datetime import UTC, datetime
             # FIX: Create a corrupted entry with all required CacheMetadata fields
             # but invalid/corrupted state data to test restoration resilience
             cache_manager._collection.upsert(
