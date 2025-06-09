@@ -86,7 +86,7 @@ Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package manag
   "mcpServers": {
     "accordo": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/AndurilCode/accordo@main", "accordo-workflow-mcp"]
+      "args": ["accordo-workflow-mcp"]
     }
   }
 }

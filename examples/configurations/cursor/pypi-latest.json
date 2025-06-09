@@ -3,13 +3,15 @@
     "accordo": {
       "command": "uvx",
       "args": [
-        "accordo-workflow-mcp", 
-        "--repository-path", ".",
+        "accordo-workflow-mcp",
+        "--repository-path", 
+        "/home/gabe4game/Repositories/workflow-commander",
         "--enable-local-state-file",
-        "--local-state-file-format", "JSON",
+        "--local-state-file-format",
+        "JSON",
         "--enable-cache-mode",
-        "--cache-embedding-model", "all-MiniLM-L6-v2",
         "--cache-db-path", ".accordo/cache",
+        "--cache-embedding-model", "all-mpnet-base-v2",
         "--cache-max-results", "50"
       ]
     }

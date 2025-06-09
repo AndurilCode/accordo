@@ -3,9 +3,7 @@
     "accordo": {
       "command": "uvx",
       "args": [
-        "--from", 
-        "git+https://github.com/AndurilCode/accordo@main", 
-        "accordo-mcp"
+        "accordo-workflow-mcp"
       ]
     }
   }

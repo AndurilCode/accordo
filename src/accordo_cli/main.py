@@ -101,8 +101,8 @@ def configure(
             server_config = MCPServer(
                 command="uvx",
                 args=[
-                    "--from",
-                    "git+https://github.com/AndurilCode/accordo@main",
+                    
+                    "accordo-workflow-mcp",
                     "dev-workflow-mcp",
                 ],
             )

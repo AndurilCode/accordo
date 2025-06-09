@@ -31,8 +31,8 @@ class TemplateConfig(BaseModel):
             name="Basic Setup",
             description="Minimal configuration for getting started",
             args=[
-                "--from",
-                "git+https://github.com/AndurilCode/accordo@main",
+                
+                "accordo-workflow-mcp",
                 "dev-workflow-mcp",
             ],
         )
@@ -44,8 +44,8 @@ class TemplateConfig(BaseModel):
             name="Advanced Setup",
             description="Configuration with comprehensive command line options including cache features",
             args=[
-                "--from",
-                "git+https://github.com/AndurilCode/accordo@main",
+                
+                "accordo-workflow-mcp",
                 "dev-workflow-mcp",
                 "--repository-path",
                 ".",
@@ -71,8 +71,8 @@ class TemplateConfig(BaseModel):
             name="Cache-Enabled Setup",
             description="Focused configuration highlighting cache features for semantic workflow analysis",
             args=[
-                "--from",
-                "git+https://github.com/AndurilCode/accordo@main",
+                
+                "accordo-workflow-mcp",
                 "dev-workflow-mcp",
                 "--repository-path",
                 ".",
@@ -156,8 +156,8 @@ class ConfigurationBuilder:
         """Initialize builder with optional base template."""
         self.command = "uvx"
         self.base_args = [
-            "--from",
-            "git+https://github.com/AndurilCode/accordo@main",
+            
+            "accordo-workflow-mcp",
             "dev-workflow-mcp",
         ]
         self.options: list[ConfigurationOption] = []
@@ -167,7 +167,7 @@ class ConfigurationBuilder:
             # Extract additional options from template (skip the base uvx command)
             template_args = template_config.args[
                 3:
-            ]  # Skip "--from", "git+...", "dev-workflow-mcp"
+            ]  # Skip  "git+...", "dev-workflow-mcp"
             self._parse_template_args(template_args)
 
     def _parse_template_args(self, args: list[str]) -> None:
