@@ -13,7 +13,7 @@ def validate_accordo_package() -> Dict[str, Any]:
     """
     results = {
         "status": "success",
-        "package_name": "accordo-mcp",
+        "package_name": "accordo-workflow-mcp",
         "validated_modules": [],
         "errors": [],
         "timestamp": None
@@ -21,11 +21,11 @@ def validate_accordo_package() -> Dict[str, Any]:
     
     # Core modules to validate
     core_modules = [
-        "accordo_mcp.server",
-        "accordo_mcp.models.workflow_state", 
-        "accordo_mcp.utils.session_manager",
-        "accordo_mcp.prompts.phase_prompts",
-        "accordo_mcp.services.config_service"
+        "accordo_workflow_mcp.server",
+        "accordo_workflow_mcp.models.workflow_state", 
+        "accordo_workflow_mcp.utils.session_manager",
+        "accordo_workflow_mcp.prompts.phase_prompts",
+        "accordo_workflow_mcp.services.config_service"
     ]
     
     try:
@@ -47,7 +47,7 @@ def validate_accordo_package() -> Dict[str, Any]:
         
         # Test if we can access key functions  
         try:
-            from accordo_mcp.utils import session_manager
+            from accordo_workflow_mcp.utils import session_manager
             if hasattr(session_manager, "get_session"):
                 results["key_functions"] = ["get_session: available"]
         except Exception as e:

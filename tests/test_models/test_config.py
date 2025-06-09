@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from src.accordo_mcp.config import ServerConfig
-from src.accordo_mcp.models.config import WorkflowConfig
+from src.accordo_workflow_mcp.config import ServerConfig
+from src.accordo_workflow_mcp.models.config import WorkflowConfig
 
 
 class TestWorkflowConfig:

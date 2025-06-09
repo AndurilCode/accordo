@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 from fastmcp import FastMCP
 
-from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
 
 
 class TestCacheManagementEnhancements:
@@ -49,7 +49,7 @@ class TestCacheManagementEnhancements:
 
         # The get_cache_manager is imported inside the function, so we need to patch it there
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Call the enhanced operation
@@ -86,7 +86,7 @@ class TestCacheManagementEnhancements:
         cache_tool = tools["workflow_cache_management"]
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Call the enhanced operation
@@ -124,7 +124,7 @@ class TestCacheManagementEnhancements:
         mock_cache_manager.get_cache_stats.return_value = mock_cache_stats
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Call the stats operation
@@ -160,7 +160,7 @@ class TestCacheManagementEnhancements:
         cache_tool = tools["workflow_cache_management"]
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager", return_value=None
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager", return_value=None
         ):
             # Test regenerate_embeddings with no cache
             result = cache_tool.fn(
@@ -193,7 +193,7 @@ class TestCacheManagementEnhancements:
         mock_cache_manager.is_available.return_value = False
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test regenerate_embeddings with unavailable cache
@@ -252,7 +252,7 @@ class TestCacheManagementEnhancements:
         )
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test regenerate_embeddings exception handling
@@ -286,7 +286,7 @@ class TestCacheManagementEnhancements:
         mock_cache_manager.get_cache_stats.side_effect = Exception("Stats error")
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test stats operation exception handling
@@ -309,7 +309,7 @@ class TestCacheManagementEnhancements:
         mock_cache_manager.get_cache_stats.return_value = None
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test stats operation with None return
@@ -331,7 +331,7 @@ class TestCacheManagementEnhancements:
         cache_tool = tools["workflow_cache_management"]
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test all enhanced operations exist and work
@@ -394,7 +394,7 @@ class TestEnhancedCacheManagementIntegration:
 
         # Test that the tool works with our enhanced operations
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager", return_value=None
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager", return_value=None
         ):
             result = cache_tool.fn(operation="regenerate_embeddings", client_id="test")
             result_text = (
@@ -427,7 +427,7 @@ class TestEnhancedCacheManagementIntegration:
             )
 
             with patch(
-                "src.accordo_mcp.utils.session_manager.get_cache_manager",
+                "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
                 return_value=mock_cache_manager,
             ):
                 # These should not raise ImportError or AttributeError
@@ -496,7 +496,7 @@ class TestEnhancedCacheManagementIntegration:
         mock_cache_manager.get_cache_stats.return_value = mock_stats
 
         with patch(
-            "src.accordo_mcp.utils.session_manager.get_cache_manager",
+            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
             return_value=mock_cache_manager,
         ):
             # Test all our enhanced operations work end-to-end

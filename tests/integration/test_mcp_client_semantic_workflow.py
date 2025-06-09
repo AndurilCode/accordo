@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from src.accordo_mcp.config import ServerConfig
-from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
-from src.accordo_mcp.utils import session_manager
-from src.accordo_mcp.utils.cache_manager import WorkflowCacheManager
+from src.accordo_workflow_mcp.config import ServerConfig
+from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+from src.accordo_workflow_mcp.utils import session_manager
+from src.accordo_workflow_mcp.utils.cache_manager import WorkflowCacheManager
 
 
 class TestMCPClientSemanticWorkflow:

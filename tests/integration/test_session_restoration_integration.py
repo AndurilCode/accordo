@@ -15,16 +15,16 @@ from unittest.mock import patch
 
 import pytest
 
-from src.accordo_mcp.models.yaml_workflow import (
+from src.accordo_workflow_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowInput,
     WorkflowNode,
     WorkflowTree,
 )
-from src.accordo_mcp.services.config_service import ServerConfiguration
-from src.accordo_mcp.services.session_repository import SessionRepository
-from src.accordo_mcp.services.session_sync_service import SessionSyncService
-from src.accordo_mcp.utils.cache_manager import WorkflowCacheManager
+from src.accordo_workflow_mcp.services.config_service import ServerConfiguration
+from src.accordo_workflow_mcp.services.session_repository import SessionRepository
+from src.accordo_workflow_mcp.services.session_sync_service import SessionSyncService
+from src.accordo_workflow_mcp.utils.cache_manager import WorkflowCacheManager
 
 
 class TestSessionRestorationIntegration:
