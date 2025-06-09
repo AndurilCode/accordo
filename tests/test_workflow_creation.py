@@ -3,7 +3,7 @@
 import pytest
 from fastmcp import FastMCP
 
-from src.dev_workflow_mcp.prompts.discovery_prompts import register_discovery_prompts
+from src.accordo_mcp.prompts.discovery_prompts import register_discovery_prompts
 
 
 class TestWorkflowCreationGuidance:

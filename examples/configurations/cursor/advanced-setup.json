@@ -1,18 +1,18 @@
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
       "args": [
         "--from", 
-        "git+https://github.com/AndurilCode/workflow-commander@main", 
-        "dev-workflow-mcp",
+        "git+https://github.com/AndurilCode/accordo@main", 
+        "accordo-mcp",
         "--repository-path", ".",
         "--enable-local-state-file",
         "--local-state-file-format", "JSON",
         "--session-retention-hours", "72",
         "--enable-cache-mode",
         "--cache-embedding-model", "all-MiniLM-L6-v2",
-        "--cache-db-path", ".workflow-commander/cache",
+        "--cache-db-path", ".accordo/cache",
         "--cache-max-results", "50"
       ]
     }

@@ -1,1 +1,1 @@
-"""Test package for dev-workflow-mcp."""
+"""Test package for accordo-mcp."""

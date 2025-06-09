@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Configuration Service provides a centralized, type-safe, and extensible configuration management system for the dev-workflow-mcp project. This service replaces scattered configuration handling with a clean, dependency-injection-based architecture.
+The Configuration Service provides a centralized, type-safe, and extensible configuration management system for the accordo-mcp project. This service replaces scattered configuration handling with a clean, dependency-injection-based architecture.
 
 ## Architecture Components
 
@@ -318,7 +318,7 @@ def test_server_configuration():
     
     assert config.repository_path == Path("/tmp/test")
     assert config.enable_local_state_file is True
-    assert config.sessions_dir == Path("/tmp/test/.workflow-commander/sessions")
+    assert config.sessions_dir == Path("/tmp/test/.accordo/sessions")
 ```
 
 ### Integration Testing

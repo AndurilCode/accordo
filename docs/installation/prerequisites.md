@@ -47,7 +47,7 @@ Workflow Commander automatically creates and uses a specific directory structure
 
 ```
 your-project/
-├── .workflow-commander/
+├── .accordo/
 │   ├── workflows/          # Store your YAML workflow files here
 │   │   ├── custom-workflow.yaml
 │   │   ├── my-project-workflow.yaml
@@ -60,9 +60,9 @@ your-project/
 ```
 
 **Key directories:**
-- **`.workflow-commander/workflows/`** - Place your custom YAML workflow files here
-- **`.workflow-commander/sessions/`** - Automatic workflow state storage (if enabled)
-- **`.workflow-commander/project_config.md`** - **Project-specific guidance for workflows**
+- **`.accordo/workflows/`** - Place your custom YAML workflow files here
+- **`.accordo/sessions/`** - Automatic workflow state storage (if enabled)
+- **`.accordo/project_config.md`** - **Project-specific guidance for workflows**
 
 ### Project Configuration (`project_config.md`)
 
@@ -108,7 +108,7 @@ The `project_config.md` file provides **essential project context** that workflo
 
 **Workflow Commander requires:**
 - **Read/write access** to the project directory
-- **Automatic creation** of `.workflow-commander/` folder structure
+- **Automatic creation** of `.accordo/` folder structure
 - **No access required** outside the project directory
 
 ## Next Steps

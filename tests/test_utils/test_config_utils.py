@@ -1,8 +1,8 @@
 """Tests for configuration utility functions."""
 
-from src.dev_workflow_mcp.config import ServerConfig
-from src.dev_workflow_mcp.models.config import WorkflowConfig
-from src.dev_workflow_mcp.utils.config_utils import get_workflow_config
+from src.accordo_mcp.config import ServerConfig
+from src.accordo_mcp.models.config import WorkflowConfig
+from src.accordo_mcp.utils.config_utils import get_workflow_config
 
 
 class TestConfigUtils:

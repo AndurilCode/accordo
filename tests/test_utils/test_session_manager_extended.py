@@ -6,13 +6,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.dev_workflow_mcp.models.yaml_workflow import (
+from src.accordo_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowInput,
     WorkflowNode,
     WorkflowTree,
 )
-from src.dev_workflow_mcp.utils import session_manager
+from src.accordo_mcp.utils import session_manager
 
 
 @pytest.fixture
@@ -47,10 +47,14 @@ class TestSessionManagerConfiguration:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -70,7 +74,7 @@ class TestSessionManagerConfiguration:
         mock_config.cache_embedding_model = "test-model"
         mock_config.cache_max_results = 50
 
-        with patch("src.dev_workflow_mcp.utils.cache_manager.WorkflowCacheManager"):
+        with patch("src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"):
             session_manager.set_server_config(mock_config)
 
         assert session_manager._server_config is mock_config
@@ -88,7 +92,7 @@ class TestSessionManagerConfiguration:
         session_manager._cache_manager = None
 
         with patch(
-            "src.dev_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             result = session_manager._initialize_cache_manager(mock_config)
 
@@ -122,7 +126,7 @@ class TestSessionManagerConfiguration:
     def test_should_initialize_cache_from_environment_cache_dir_exists(self):
         """Test cache initialization detection when cache directory exists."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            cache_dir = Path(temp_dir) / ".workflow-commander" / "cache"
+            cache_dir = Path(temp_dir) / ".accordo" / "cache"
             cache_dir.mkdir(parents=True)
 
             with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
@@ -142,7 +146,7 @@ class TestSessionManagerConfiguration:
     def test_should_initialize_cache_from_environment_workflow_dir(self):
         """Test cache initialization detection from workflow commander directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            workflow_dir = Path(temp_dir) / ".workflow-commander"
+            workflow_dir = Path(temp_dir) / ".accordo"
             workflow_dir.mkdir()
 
             with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
@@ -172,10 +176,14 @@ class TestSessionManagerClientRegistry:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -243,10 +251,14 @@ class TestSessionManagerDynamicInputs:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -308,10 +320,14 @@ class TestSessionManagerNodeOperations:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -362,10 +378,14 @@ class TestSessionManagerUtilityFunctions:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -600,10 +620,14 @@ class TestSessionManagerConflictDetection:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()
@@ -636,10 +660,14 @@ class TestSessionManagerSummaryAndCleanup:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.dev_workflow_mcp.services import reset_session_services, initialize_session_services
+        from src.accordo_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+
         reset_session_services()
         initialize_session_services()
-        
+
         session_manager.sessions.clear()
         session_manager.client_session_registry.clear()
         session_manager.workflow_definitions_cache.clear()

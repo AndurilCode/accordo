@@ -5,11 +5,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.dev_workflow_mcp.models.workflow_state import (
+from src.accordo_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
 )
-from src.dev_workflow_mcp.utils.markdown_generator import (
+from src.accordo_mcp.utils.markdown_generator import (
     export_session_report,
     format_workflow_state_for_display,
     generate_summary_markdown,
