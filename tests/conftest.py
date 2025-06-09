@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from src.accordo_mcp.config import ServerConfig
-from src.accordo_mcp.models.workflow_state import (
+from src.accordo_workflow_mcp.config import ServerConfig
+from src.accordo_workflow_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
 )
-from src.accordo_mcp.utils.cache_manager import WorkflowCacheManager
+from src.accordo_workflow_mcp.utils.cache_manager import WorkflowCacheManager
 
 
 @pytest.fixture
@@ -224,10 +224,10 @@ async def mcp_server_with_cache(
     """Create MCP server instance with cache mode enabled for testing."""
     from fastmcp import FastMCP
 
-    from src.accordo_mcp.prompts.discovery_prompts import (
+    from src.accordo_workflow_mcp.prompts.discovery_prompts import (
         register_discovery_prompts,
     )
-    from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+    from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
 
     # Create MCP server instance
     mcp = FastMCP("Test Workflow Server")

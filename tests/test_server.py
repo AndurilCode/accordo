@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.accordo_mcp.server import create_arg_parser, main
+from src.accordo_workflow_mcp.server import create_arg_parser, main
 
 
 class TestArgumentParsing:
@@ -38,10 +38,10 @@ class TestArgumentParsing:
 class TestMainFunction:
     """Test main function."""
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
     def test_main_with_default_args(
         self,
         mock_register_discovery,
@@ -85,10 +85,10 @@ class TestMainFunction:
         # Verify successful return
         assert result == 0
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
     def test_main_with_repository_path(
         self,
         mock_register_discovery,
@@ -127,12 +127,12 @@ class TestMainFunction:
 
         assert result == 0
 
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
     @patch("builtins.print")
     def test_main_with_invalid_repository_path(self, mock_print, mock_init_config):
         """Test main function with invalid repository path."""
         # Mock configuration service to raise validation error
-        from src.accordo_mcp.services.config_service import (
+        from src.accordo_workflow_mcp.services.config_service import (
             ConfigurationValidationError,
         )
 
@@ -163,11 +163,11 @@ class TestServerIntegration:
         """Test that server can be created and tools registered correctly."""
         from fastmcp import FastMCP
 
-        from src.accordo_mcp.config import ServerConfig
-        from src.accordo_mcp.prompts.discovery_prompts import (
+        from src.accordo_workflow_mcp.config import ServerConfig
+        from src.accordo_workflow_mcp.prompts.discovery_prompts import (
             register_discovery_prompts,
         )
-        from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+        from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
 
         # Create a test config with current directory
         config = ServerConfig(".")
@@ -199,8 +199,8 @@ class TestServerIntegration:
         """Test that workflow_discovery works with server config."""
         from fastmcp import FastMCP
 
-        from src.accordo_mcp.config import ServerConfig
-        from src.accordo_mcp.prompts.discovery_prompts import (
+        from src.accordo_workflow_mcp.config import ServerConfig
+        from src.accordo_workflow_mcp.prompts.discovery_prompts import (
             register_discovery_prompts,
         )
 
@@ -236,8 +236,8 @@ class TestToolStructures:
         """Test workflow_guidance tool structure."""
         from fastmcp import FastMCP
 
-        from src.accordo_mcp.config import ServerConfig
-        from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+        from src.accordo_workflow_mcp.config import ServerConfig
+        from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
 
         config = ServerConfig(".")
         mcp = FastMCP("Test")
@@ -259,8 +259,8 @@ class TestToolStructures:
         """Test workflow_discovery tool structure after modification."""
         from fastmcp import FastMCP
 
-        from src.accordo_mcp.config import ServerConfig
-        from src.accordo_mcp.prompts.discovery_prompts import (
+        from src.accordo_workflow_mcp.config import ServerConfig
+        from src.accordo_workflow_mcp.prompts.discovery_prompts import (
             register_discovery_prompts,
         )
 
@@ -284,11 +284,11 @@ class TestToolStructures:
 class TestAutomaticCacheRestoration:
     """Test automatic cache restoration functionality during server startup."""
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
     @patch("builtins.print")
     def test_main_with_cache_enabled_successful_restoration(
         self,
@@ -330,11 +330,11 @@ class TestAutomaticCacheRestoration:
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
         assert result == 0
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
     @patch("builtins.print")
     def test_main_with_cache_enabled_no_sessions_to_restore(
         self,
@@ -374,11 +374,11 @@ class TestAutomaticCacheRestoration:
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
         assert result == 0
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
     @patch("builtins.print")
     def test_main_with_cache_enabled_restoration_failure(
         self,
@@ -420,10 +420,10 @@ class TestAutomaticCacheRestoration:
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
         assert result == 0
 
-    @patch("src.accordo_mcp.server.FastMCP")
-    @patch("src.accordo_mcp.server.initialize_configuration_service")
-    @patch("src.accordo_mcp.server.register_phase_prompts")
-    @patch("src.accordo_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
+    @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
+    @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
     def test_main_with_cache_disabled_no_restoration(
         self,
         mock_register_discovery,
@@ -446,7 +446,7 @@ class TestAutomaticCacheRestoration:
         test_args = ["server.py"]
         with patch.object(sys, "argv", test_args):
             with patch(
-                "src.accordo_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+                "src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
             ) as mock_auto_restore:
                 result = main()
 
@@ -460,7 +460,7 @@ class TestAutomaticCacheRestoration:
     def test_auto_restore_sessions_on_startup_function_exists(self):
         """Test that the auto_restore_sessions_on_startup function exists and is importable."""
         try:
-            from src.accordo_mcp.utils.session_manager import (
+            from src.accordo_workflow_mcp.utils.session_manager import (
                 auto_restore_sessions_on_startup,
             )
 

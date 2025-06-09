@@ -4,9 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
-from src.accordo_mcp.models.yaml_workflow import WorkflowDefinition, WorkflowNode
-from src.accordo_mcp.utils.node_executor import NodeExecutionResult, NodeExecutor
+from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+from src.accordo_workflow_mcp.models.yaml_workflow import WorkflowDefinition, WorkflowNode
+from src.accordo_workflow_mcp.utils.node_executor import NodeExecutionResult, NodeExecutor
 
 
 class TestNodeExecutionResult:
