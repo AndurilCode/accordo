@@ -24,7 +24,7 @@ This directory contains example MCP configurations for Cursor IDE. These configu
 - Custom session retention period (`--session-retention-hours 72`)
 - **Cache mode enabled** (`--enable-cache-mode`)
 - **Semantic embedding model** (`--cache-embedding-model all-MiniLM-L6-v2`)
-- **Custom cache location** (`--cache-db-path .workflow-commander/cache`)
+- **Custom cache location** (`--cache-db-path .accordo/cache`)
 - **Search result limit** (`--cache-max-results 50`)
 
 ### 3. Cache-Enabled Setup (`cache-enabled-setup.json`)
@@ -42,7 +42,7 @@ This directory contains example MCP configurations for Cursor IDE. These configu
 #### Repository Configuration
 
 ##### `--repository-path`
-- **Purpose**: Specify the repository root where `.workflow-commander` folder should be located
+- **Purpose**: Specify the repository root where `.accordo` folder should be located
 - **Default**: Current directory
 - **Example**: `--repository-path /path/to/my/project`
 - **Use Case**: Essential for project-specific workflow organization
@@ -50,7 +50,7 @@ This directory contains example MCP configurations for Cursor IDE. These configu
 #### State File Configuration
 
 ##### `--enable-local-state-file`
-- **Purpose**: Automatically saves workflow state to local files in `.workflow-commander/sessions/`
+- **Purpose**: Automatically saves workflow state to local files in `.accordo/sessions/`
 - **Benefit**: Persistent state across sessions, better debugging
 - **Use Case**: Development environments requiring state inspection
 
@@ -94,7 +94,7 @@ This directory contains example MCP configurations for Cursor IDE. These configu
 
 ##### `--cache-db-path`
 - **Purpose**: Specify the ChromaDB database directory location
-- **Default**: `.workflow-commander/cache` (relative to repository path)
+- **Default**: `.accordo/cache` (relative to repository path)
 - **Example**: `--cache-db-path ./custom-cache` or `/absolute/path/to/cache`
 - **Use Case**: Custom cache locations for shared team workflows or storage optimization
 
@@ -151,7 +151,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
       "command": "uvx",
       "args": [
         "--from", 
-        "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "git+https://github.com/AndurilCode/accordo@main", 
         "dev-workflow-mcp",
         "--repository-path", ".",
         "--enable-local-state-file"
@@ -169,7 +169,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
       "command": "uvx",
       "args": [
         "--from", 
-        "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "git+https://github.com/AndurilCode/accordo@main", 
         "dev-workflow-mcp",
         "--repository-path", ".",
         "--enable-local-state-file",
@@ -190,7 +190,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
       "command": "uvx",
       "args": [
         "--from", 
-        "git+https://github.com/AndurilCode/workflow-commander@main", 
+        "git+https://github.com/AndurilCode/accordo@main", 
         "dev-workflow-mcp",
         "--repository-path", ".",
         "--enable-local-state-file",
@@ -218,7 +218,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 uvx --version
 
 # Test the server manually
-uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp --help
+uvx --from git+https://github.com/AndurilCode/accordo@main dev-workflow-mcp --help
 ```
 
 #### 2. Configuration Not Loading
@@ -236,11 +236,11 @@ uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workfl
 pip install sentence-transformers chromadb
 
 # Test cache initialization manually
-uvx --from git+https://github.com/AndurilCode/workflow-commander@main dev-workflow-mcp \
+uvx --from git+https://github.com/AndurilCode/accordo@main dev-workflow-mcp \
   --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2 --help
 
 # Check cache directory permissions
-ls -la .workflow-commander/cache/
+ls -la .accordo/cache/
 ```
 
 #### 4. Performance Issues

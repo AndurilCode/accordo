@@ -1,0 +1,41 @@
+{
+  "session_id": "45fdb908-2efb-4b44-8234-ed09c6bbff13",
+  "client_id": "default",
+  "created_at": "2025-06-09 09:17:27.513066+00:00",
+  "workflow_name": "Fixed YAML Test Workflow",
+  "workflow_file": null,
+  "workflow_yaml_content": "name: Fixed YAML Test Workflow\ndescription: Test workflow with YAML content field fix\ninputs:\n  task_description:\n    type: string\n    description: Task to perform\nworkflow:\n  goal: Test fixed YAML restoration\n  root: start\n  tree:\n    start:\n      goal: Start the test\n      acceptance_criteria:\n        setup_done: Setup completed\n        ready_to_proceed: Ready to proceed\n      next_allowed_nodes:\n      - middle\n    middle:\n      goal: Middle phase\n      acceptance_criteria:\n        work_complete: Work completed\n        validation_done: Validation completed\n      next_allowed_nodes:\n      - end\n    end:\n      goal: Complete the test\n      acceptance_criteria:\n        test_finished: Test finished successfully\n      next_allowed_nodes: []\n",
+  "session_filename": null,
+  "last_updated": "2025-06-09 09:17:36.294906+00:00",
+  "current_node": "middle",
+  "status": "RUNNING",
+  "execution_context": {},
+  "inputs": {
+    "task_description": "Test new YAML content workflow with fixed restoration"
+  },
+  "node_outputs": {
+    "start": {
+      "goal_achieved": true,
+      "completion_timestamp": "2025-06-09T09:17:36.294831+00:00",
+      "node_name": "start",
+      "completed_criteria": {
+        "setup_done": "Setup completed with new workflow_yaml_content field populated",
+        "ready_to_proceed": "Ready to proceed with restoration testing"
+      }
+    }
+  },
+  "current_item": "Test new YAML content workflow with fixed restoration",
+  "plan": "",
+  "items": [],
+  "log": [
+    "[11:17:36] \u2705 Completed node: start with 2 criteria satisfied",
+    "[11:17:36]    \ud83d\udccb Criterion satisfied: setup_done",
+    "[11:17:36]    \ud83d\udccb Criterion satisfied: ready_to_proceed",
+    "[11:17:36] \ud83d\udd04 Transitioned from start to middle",
+    "[11:17:36] \ud83d\udcdd CURRENT GOAL: Middle phase"
+  ],
+  "archive_log": [],
+  "node_history": [
+    "start"
+  ]
+}

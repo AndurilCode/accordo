@@ -1,6 +1,6 @@
 """Tests for validation utilities."""
 
-from src.dev_workflow_mcp.utils.validators import (
+from src.accordo_mcp.utils.validators import (
     validate_project_config,
     validate_project_files,
 )
@@ -82,7 +82,7 @@ class TestValidateProjectFiles:
 
     def test_validate_project_config_missing(self, temp_dir):
         """Test validation when project config file is missing."""
-        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir = temp_dir / ".accordo"
         workflow_dir.mkdir(exist_ok=True)
         config_path = workflow_dir / "missing_config.md"
 

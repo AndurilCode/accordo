@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.dev_workflow_mcp.services.dependency_injection import (
+from src.accordo_mcp.services.dependency_injection import (
     DependencyInjectionError,
     ServiceRegistry,
     clear_registry,
@@ -263,7 +263,7 @@ class TestDecorators:
     def test_inject_config_service_decorator(self):
         """Test @inject_config_service decorator."""
         # Initialize configuration service
-        from src.dev_workflow_mcp.services.config_service import (
+        from src.accordo_mcp.services.config_service import (
             ConfigurationService,
             initialize_configuration_service,
             reset_configuration_service,
@@ -285,7 +285,7 @@ class TestDecorators:
 
     def test_inject_config_service_decorator_not_initialized(self):
         """Test @inject_config_service decorator when service is not initialized."""
-        from src.dev_workflow_mcp.services.config_service import (
+        from src.accordo_mcp.services.config_service import (
             reset_configuration_service,
         )
 
@@ -309,7 +309,7 @@ class TestIntegrationWithConfigurationService:
     def teardown_method(self):
         """Clean up after tests."""
         clear_registry()
-        from src.dev_workflow_mcp.services.config_service import (
+        from src.accordo_mcp.services.config_service import (
             reset_configuration_service,
         )
 
@@ -317,7 +317,7 @@ class TestIntegrationWithConfigurationService:
 
     def test_register_configuration_service_as_singleton(self):
         """Test registering configuration service as singleton."""
-        from src.dev_workflow_mcp.services.config_service import (
+        from src.accordo_mcp.services.config_service import (
             ConfigurationService,
             ConfigurationServiceProtocol,
         )
@@ -337,7 +337,7 @@ class TestIntegrationWithConfigurationService:
 
     def test_dependency_injection_with_configuration_models(self):
         """Test dependency injection with configuration models."""
-        from src.dev_workflow_mcp.services.config_service import ServerConfiguration
+        from src.accordo_mcp.services.config_service import ServerConfiguration
 
         # Register server configuration
         server_config = ServerConfiguration(cache_max_results=100)

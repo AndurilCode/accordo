@@ -2,7 +2,7 @@
 
 ## Overview
 
-The workflow-commander cache system with semantic search enables agents to enhance analysis phases by leveraging historical context from similar past work. This guide shows practical examples of how agents can use semantic search to create richer, more informed analysis.
+The accordo cache system with semantic search enables agents to enhance analysis phases by leveraging historical context from similar past work. This guide shows practical examples of how agents can use semantic search to create richer, more informed analysis.
 
 ## How It Works
 
@@ -264,7 +264,7 @@ To enable semantic analysis capabilities:
 python -m dev_workflow_mcp.server \
   --enable-cache-mode \
   --cache-embedding-model all-MiniLM-L6-v2 \
-  --cache-db-path .workflow-commander/cache \
+  --cache-db-path .accordo/cache \
   --cache-max-results 50
 ```
 

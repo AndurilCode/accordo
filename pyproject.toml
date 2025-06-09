@@ -1,7 +1,7 @@
 [project]
-name = "dev-workflow-mcp"
+name = "accordo-mcp"
 version = "0.1.0"
-description = "Development workflow MCP server with dynamic YAML workflow support"
+description = "Accordo MCP server with dynamic YAML workflow support"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [project.scripts]
-dev-workflow-mcp = "dev_workflow_mcp.server:main"
-workflow-commander = "workflow_commander_cli.main:app"
+accordo-mcp = "accordo_mcp.server:main"
+accordo = "accordo_cli.main:app"
 
 [project.optional-dependencies]
 dev = [

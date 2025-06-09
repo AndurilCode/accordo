@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# workflow-commander Global Installation Script
-# This script installs workflow-commander with support for pipx (global) and uv (venv)
+# Accordo Global Installation Script
+# This script installs accordo with support for pipx (global) and uv (venv)
 
 set -e
 
@@ -98,7 +98,7 @@ choose_installation_method() {
     
     # Option 1: Always offer global installation first (pipx)
     echo "${choice_num}. 🌍 Global installation (pipx) - Recommended"
-    echo "   Installs workflow-commander globally, accessible from anywhere"
+    echo "   Installs accordo globally, accessible from anywhere"
     if [[ "$HAS_PIPX" == true ]]; then
         echo "   ✅ pipx is available"
     else
@@ -206,35 +206,35 @@ ensure_pipx() {
     fi
 }
 
-# Install workflow-commander
+# Install accordo
 install_workflow_commander() {
     # Ensure we're in the project directory
-    if [[ ! -f "pyproject.toml" ]] || ! grep -q "workflow-commander" pyproject.toml; then
-        print_error "Not in workflow-commander project directory"
-        print_status "Please run this script from the workflow-commander project root"
+    if [[ ! -f "pyproject.toml" ]] || ! grep -q "accordo" pyproject.toml; then
+        print_error "Not in accordo project directory"
+        print_status "Please run this script from the accordo project root"
         exit 1
     fi
     
     case "$INSTALL_METHOD" in
         "global")
-            print_status "Installing workflow-commander globally using pipx..."
+            print_status "Installing accordo globally using pipx..."
             ensure_pipx
             pipx install --force .
-            print_success "workflow-commander installed globally with pipx"
+            print_success "accordo installed globally with pipx"
             ;;
         "venv_uv")
-            print_status "Installing workflow-commander in virtual environment using uv..."
+            print_status "Installing accordo in virtual environment using uv..."
             if ! command -v uv &> /dev/null; then
                 print_error "uv not available"
                 exit 1
             fi
             uv pip install --force-reinstall .
-            print_success "workflow-commander installed in virtual environment with uv"
+            print_success "accordo installed in virtual environment with uv"
             ;;
         "venv_pip")
-            print_status "Installing workflow-commander in virtual environment using pip..."
+            print_status "Installing accordo in virtual environment using pip..."
             pip install --force-reinstall .
-            print_success "workflow-commander installed in virtual environment with pip"
+            print_success "accordo installed in virtual environment with pip"
             ;;
         *)
             print_error "Unknown installation method: $INSTALL_METHOD"
@@ -255,12 +255,12 @@ verify_installation() {
         fi
     fi
     
-    if command -v workflow-commander &> /dev/null; then
-        VERSION=$(workflow-commander --version 2>/dev/null || echo "Unknown")
-        print_success "workflow-commander is accessible: $VERSION"
+    if command -v accordo &> /dev/null; then
+        VERSION=$(accordo --version 2>/dev/null || echo "Unknown")
+        print_success "accordo is accessible: $VERSION"
         return 0
     else
-        print_warning "workflow-commander not found in PATH"
+        print_warning "accordo not found in PATH"
         
         if [[ "$INSTALL_METHOD" == "global" ]]; then
             print_status "Trying to refresh PATH..."
@@ -273,11 +273,11 @@ verify_installation() {
             done
             
             # Check again
-            if command -v workflow-commander &> /dev/null; then
-                VERSION=$(workflow-commander --version 2>/dev/null || echo "Unknown")
-                print_success "workflow-commander is now accessible: $VERSION"
+            if command -v accordo &> /dev/null; then
+                VERSION=$(accordo --version 2>/dev/null || echo "Unknown")
+                print_success "accordo is now accessible: $VERSION"
             else
-                print_warning "workflow-commander still not in PATH"
+                print_warning "accordo still not in PATH"
                 print_status "You may need to restart your terminal or run:"
                 echo "  source ~/.bashrc  # or ~/.zshrc"
                 print_status "Or manually add pipx bin directory to PATH:"
@@ -295,47 +295,47 @@ show_usage_examples() {
     print_success "Installation complete! Here are some usage examples:"
     echo
     echo "📋 List supported platforms:"
-    echo "   workflow-commander list-platforms"
+    echo "   accordo list-platforms"
     echo
     echo "🔧 Interactive configuration:"
-    echo "   workflow-commander configure"
+    echo "   accordo configure"
     echo
     echo "⚡ Quick non-interactive setup:"
-    echo "   workflow-commander configure -p cursor -s workflow-commander -y"
-    echo "   workflow-commander configure -p claude-code -s workflow-commander -y"
+    echo "   accordo configure -p cursor -s accordo -y"
+    echo "   accordo configure -p claude-code -s accordo -y"
     echo
     echo "🚀 Deploy workflow guidelines to AI assistants:"
-    echo "   workflow-commander bootstrap-rules              # Deploy to all assistants"
-    echo "   workflow-commander bootstrap-rules cursor       # Deploy to Cursor only"
-    echo "   workflow-commander bootstrap-rules --force all  # Overwrite existing content"
+    echo "   accordo bootstrap-rules              # Deploy to all assistants"
+    echo "   accordo bootstrap-rules cursor       # Deploy to Cursor only"
+    echo "   accordo bootstrap-rules --force all  # Overwrite existing content"
     echo
     echo "📊 List configured servers:"
-    echo "   workflow-commander list-servers -p cursor"
+    echo "   accordo list-servers -p cursor"
     echo
     echo "✅ Validate configuration:"
-    echo "   workflow-commander validate -p cursor"
+    echo "   accordo validate -p cursor"
     echo
     echo "🗑️ Remove a server:"
-    echo "   workflow-commander remove-server workflow-commander -p cursor"
+    echo "   accordo remove-server accordo -p cursor"
     echo
     echo "❓ Get help:"
-    echo "   workflow-commander --help"
+    echo "   accordo --help"
     echo
     
     if [[ "$INSTALL_METHOD" == "global" ]]; then
         echo "🔧 Manage with pipx:"
         echo "   pipx list                    # List installed packages"
-        echo "   pipx upgrade workflow-commander    # Upgrade to latest version"
-        echo "   pipx uninstall workflow-commander  # Uninstall completely"
+        echo "   pipx upgrade accordo    # Upgrade to latest version"
+        echo "   pipx uninstall accordo  # Uninstall completely"
     else
         echo "🔧 Manage in virtual environment:"
-        echo "   pip list | grep workflow-commander    # Check installation"
+        echo "   pip list | grep accordo    # Check installation"
         if [[ "$INSTALL_METHOD" == "venv_uv" ]]; then
-            echo "   uv pip install --upgrade workflow-commander    # Upgrade"
-            echo "   uv pip uninstall workflow-commander           # Uninstall"
+            echo "   uv pip install --upgrade accordo    # Upgrade"
+            echo "   uv pip uninstall accordo           # Uninstall"
         else
-            echo "   pip install --upgrade workflow-commander      # Upgrade"
-            echo "   pip uninstall workflow-commander              # Uninstall"
+            echo "   pip install --upgrade accordo      # Upgrade"
+            echo "   pip uninstall accordo              # Uninstall"
         fi
     fi
     echo
@@ -343,7 +343,7 @@ show_usage_examples() {
 
 # Main installation flow
 main() {
-    echo "🚀 workflow-commander Installation Script"
+    echo "🚀 accordo Installation Script"
     echo "=========================================="
     echo
     
@@ -354,12 +354,12 @@ main() {
     verify_installation
     show_usage_examples
     
-    print_success "Ready to configure workflow-commander MCP server for your AI coding platforms!"
+    print_success "Ready to configure accordo MCP server for your AI coding platforms!"
     
     if [[ "$INSTALL_METHOD" == "global" ]]; then
-        print_status "Note: If workflow-commander is not immediately available, restart your terminal."
+        print_status "Note: If accordo is not immediately available, restart your terminal."
     else
-        print_status "Note: workflow-commander is installed in your virtual environment."
+        print_status "Note: accordo is installed in your virtual environment."
     fi
 }
 
