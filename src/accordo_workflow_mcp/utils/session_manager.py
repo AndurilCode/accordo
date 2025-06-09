@@ -521,9 +521,9 @@ def restore_sessions_from_cache(client_id: str | None = None) -> int:
 def auto_restore_sessions_on_startup() -> int:
     """Legacy auto-restore function for backward compatibility.
 
-    NOTE: This is a legacy function that is no longer actively used.
-    The actual auto-restore logic has been moved to SessionSyncService.
-    This function remains for backward compatibility only.
+    NOTE: This is a legacy function that is no longer actively used by server.py.
+    The server.py calls SessionSyncService directly. This function remains for 
+    backward compatibility and testing purposes only.
 
     Returns:
         Number of sessions restored from cache (0 if unavailable)
@@ -891,45 +891,7 @@ def get_session_type(session_id: str) -> str | None:
     return get_session_repository().get_session_type(session_id)
 
 
-# Session Sync Functions
-def sync_session(session_id: str) -> bool:
-    """Sync session to both file and cache."""
-    _ensure_services_initialized()
-    from ..services import get_session_sync_service
-
-    return get_session_sync_service().sync_session(session_id)
-
-
-def force_cache_sync_session(session_id: str) -> dict[str, Any]:
-    """Force sync session to cache with detailed results."""
-    _ensure_services_initialized()
-    from ..services import get_session_sync_service
-
-    return get_session_sync_service().force_cache_sync_session(session_id)
-
-
-def restore_sessions_from_cache(client_id: str | None = None) -> int:
-    """Restore sessions from cache storage."""
-    _ensure_services_initialized()
-    from ..services import get_session_sync_service
-
-    return get_session_sync_service().restore_sessions_from_cache(client_id)
-
-
-def auto_restore_sessions_on_startup() -> int:
-    """Auto-restore sessions on startup."""
-    _ensure_services_initialized()
-    from ..services import get_session_sync_service
-
-    return get_session_sync_service().auto_restore_sessions_on_startup()
-
-
-def list_cached_sessions(client_id: str | None = None) -> list[dict[str, Any]]:
-    """List cached sessions."""
-    _ensure_services_initialized()
-    from ..services import get_session_sync_service
-
-    return get_session_sync_service().list_cached_sessions(client_id)
+# Session Sync Functions (delegated to service layer)
 
 
 # Session Lifecycle Functions
@@ -1194,24 +1156,7 @@ def export_session(
         return export_session_to_markdown(session_id, workflow_def)
 
 
-# Legacy compatibility functions (deprecated but maintained for transition)
-def set_server_config(server_config: Any) -> None:
-    """Set server configuration (deprecated - use configuration service)."""
-    global _server_config
-    _server_config = server_config
-    print(
-        "Warning: set_server_config is deprecated. Use configuration service instead."
-    )
-
-
-def get_cache_manager() -> Any:
-    """Get cache manager (for compatibility)."""
-    try:
-        # Try to get existing cache manager or create new one
-        # This is a simplified version for compatibility
-        return None  # Let services handle cache management
-    except Exception:
-        return None
+# Legacy compatibility functions removed - use the earlier definitions in the file
 
 
 # Test compatibility - provide access to underlying sessions for tests
@@ -1456,38 +1401,7 @@ _should_initialize_cache_from_environment = None
 _is_test_environment = None
 
 
-def _initialize_cache_manager(server_config: Any = None) -> bool:
-    """Initialize cache manager (compatibility function)."""
-    global _cache_manager
-
-    try:
-        # Check for failure conditions first
-        if server_config and hasattr(server_config, "cache_enabled"):
-            if not server_config.cache_enabled:
-                return False
-
-        # Check for ensure_cache_dir failure
-        if server_config and hasattr(server_config, "ensure_cache_dir"):
-            if not server_config.ensure_cache_dir():
-                return False
-
-        # Check for exceptions in ensure_cache_dir
-        if server_config and hasattr(server_config, "ensure_cache_dir"):
-            try:
-                server_config.ensure_cache_dir()
-            except Exception:
-                return False
-
-        # Try to import and create WorkflowCacheManager
-        try:
-            from ..utils.cache_manager import WorkflowCacheManager
-
-            _cache_manager = WorkflowCacheManager(db_path=".accordo/cache")
-            return True
-        except (ImportError, AttributeError, Exception):
-            return False
-    except Exception:
-        return False
+# Duplicate _initialize_cache_manager function removed - use the earlier definition at line 107
 
 
 def _should_initialize_cache_from_environment() -> bool:
@@ -1512,10 +1426,7 @@ def _should_initialize_cache_from_environment() -> bool:
         return True
 
     # Check environment variables
-    if os.getenv("WORKFLOW_CACHE_ENABLED"):
-        return True
-
-    return False
+    return bool(os.getenv("WORKFLOW_CACHE_ENABLED"))
 
 
 def _is_test_environment() -> bool:
@@ -1528,7 +1439,4 @@ def _is_test_environment() -> bool:
         return True
 
     # Check for test environment variables
-    if os.getenv("PYTEST_CURRENT_TEST"):
-        return True
-
-    return False
+    return bool(os.getenv("PYTEST_CURRENT_TEST"))

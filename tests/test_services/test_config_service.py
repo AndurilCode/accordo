@@ -335,7 +335,7 @@ class TestPlatformConfiguration:
         # Test methods that require platform info
         try:
             config.get_config_location()
-            assert False, "Expected ValueError"
+            raise AssertionError("Expected ValueError")
         except ValueError as e:
             assert "platform info not configured" in str(e).lower()
 

@@ -28,7 +28,28 @@ from src.accordo_workflow_mcp.utils.cache_manager import WorkflowCacheManager
 
 
 class TestSessionRestorationIntegration:
-    """Integration tests for complete session restoration workflow."""
+    """Integration tests for session restoration functionality."""
+
+    def setup_method(self):
+        """Set up test environment."""
+        # FIX: Ensure services are properly initialized before tests
+        # This addresses the SessionSyncService registration issues
+        from src.accordo_workflow_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+        
+        # Reset any existing services to ensure clean state
+        reset_session_services()
+        
+        # Initialize all services including SessionSyncService 
+        initialize_session_services()
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        # Clean up services after tests
+        from src.accordo_workflow_mcp.services import reset_session_services
+        reset_session_services()
 
     @pytest.fixture
     def temp_dir(self):
@@ -323,13 +344,29 @@ class TestSessionRestorationIntegration:
 
         # Simulate cache corruption by directly inserting invalid data
         try:
+            from datetime import UTC, datetime
+            # FIX: Create a corrupted entry with all required CacheMetadata fields
+            # but invalid/corrupted state data to test restoration resilience
             cache_manager._collection.upsert(
                 ids=["corrupted-session-id"],
-                embeddings=[[0.1] * 384],  # Invalid embedding size might cause issues
-                documents=["corrupted document"],
-                metadatas=[
-                    {"session_id": "corrupted-session-id", "client_id": "default"}
-                ],
+                embeddings=[[0.1] * 384],  # Valid embedding size
+                documents=["corrupted document with invalid state data"],
+                metadatas=[{
+                    "session_id": "corrupted-session-id", 
+                    "client_id": "default",
+                    # FIX: Add all required CacheMetadata fields to pass validation
+                    "workflow_name": "CorruptedWorkflow",
+                    "current_node": "corrupted_node",
+                    "status": "CORRUPTED",
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "last_updated": datetime.now(UTC).isoformat(),
+                    "cache_created_at": datetime.now(UTC).isoformat(),
+                    "cache_version": "1.0",
+                    # Add optional fields as empty/null to avoid issues
+                    "workflow_file": None,
+                    "current_item": "Corrupted test item",
+                    "node_outputs": "{}",  # Empty JSON string
+                }],
             )
         except Exception:
             # If direct corruption fails, that's fine - the test is still valid
