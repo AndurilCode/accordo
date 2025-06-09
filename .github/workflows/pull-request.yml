@@ -31,7 +31,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: 📝 Run linting checks
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: 🧪 Run tests
-        run: pytest tests/ --tb=short
+        run: uv run pytest tests/ --tb=short
