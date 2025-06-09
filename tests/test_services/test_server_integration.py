@@ -161,29 +161,31 @@ class TestServerConfigurationIntegration:
                 "75",
             ]
 
-            with patch("sys.argv", test_args):
+            with (
+                patch("sys.argv", test_args),
                 # FIX: Mock the correct service method instead of the legacy utils function
-                with patch(
+                patch(
                     "src.accordo_workflow_mcp.services.get_session_sync_service"
-                ) as mock_get_session_sync_service:
-                    # Mock the SessionSyncService and its auto_restore method
-                    mock_session_sync_service = Mock()
-                    mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 2  # Simulate 2 restored sessions
-                    mock_get_session_sync_service.return_value = mock_session_sync_service
+                ) as mock_get_session_sync_service,
+            ):
+                # Mock the SessionSyncService and its auto_restore method
+                mock_session_sync_service = Mock()
+                mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 2  # Simulate 2 restored sessions
+                mock_get_session_sync_service.return_value = mock_session_sync_service
 
-                    result = main()
+                result = main()
 
-                    # Verify successful startup
-                    assert result == 0
+                # Verify successful startup
+                assert result == 0
 
-                    # Verify cache restoration was attempted
-                    mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
+                # Verify cache restoration was attempted
+                mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
-                    # Verify configuration service has cache mode enabled
-                    config_service = get_configuration_service()
-                    server_config = config_service.get_server_config()
-                    assert server_config.enable_cache_mode is True
-                    assert server_config.cache_max_results == 75
+                # Verify configuration service has cache mode enabled
+                config_service = get_configuration_service()
+                server_config = config_service.get_server_config()
+                assert server_config.enable_cache_mode is True
+                assert server_config.cache_max_results == 75
 
     @patch("src.accordo_workflow_mcp.server.FastMCP")
     def test_server_startup_configuration_error(self, mock_fastmcp):
@@ -217,25 +219,27 @@ class TestServerConfigurationIntegration:
                 temp_dir,
             ]
 
-            with patch("sys.argv", test_args):
-                with patch("src.accordo_workflow_mcp.server.FastMCP"):
-                    with patch(
-                        "src.accordo_workflow_mcp.server.register_phase_prompts"
-                    ):
-                        with patch(
-                            "src.accordo_workflow_mcp.server.register_discovery_prompts"
-                        ):
-                            result = main()
+            with (
+                patch("sys.argv", test_args),
+                patch("src.accordo_workflow_mcp.server.FastMCP"),
+                patch(
+                    "src.accordo_workflow_mcp.server.register_phase_prompts"
+                ),
+                patch(
+                    "src.accordo_workflow_mcp.server.register_discovery_prompts"
+                ),
+            ):
+                result = main()
 
-                            assert result == 0
+                assert result == 0
 
-                            # Verify configuration service is available via dependency injection
-                            config_service = get_service(ConfigurationService)
-                            assert isinstance(config_service, ConfigurationService)
+                # Verify configuration service is available via dependency injection
+                config_service = get_service(ConfigurationService)
+                assert isinstance(config_service, ConfigurationService)
 
-                            # Verify it's the same instance as the global service
-                            global_service = get_configuration_service()
-                            assert config_service is global_service
+                # Verify it's the same instance as the global service
+                global_service = get_configuration_service()
+                assert config_service is global_service
 
     def test_backward_compatibility_legacy_config(self):
         """Test that legacy ServerConfig is still created for backward compatibility."""
@@ -249,30 +253,32 @@ class TestServerConfigurationIntegration:
                 "--enable-local-state-file",
             ]
 
-            with patch("sys.argv", test_args):
-                with patch("src.accordo_workflow_mcp.server.FastMCP"):
-                    with patch(
-                        "src.accordo_workflow_mcp.server.register_phase_prompts"
-                    ) as mock_register_phase:
-                        with patch(
-                            "src.accordo_workflow_mcp.server.register_discovery_prompts"
-                        ) as mock_register_discovery:
-                            result = main()
+            with (
+                patch("sys.argv", test_args),
+                patch("src.accordo_workflow_mcp.server.FastMCP"),
+                patch(
+                    "src.accordo_workflow_mcp.server.register_phase_prompts"
+                ) as mock_register_phase,
+                patch(
+                    "src.accordo_workflow_mcp.server.register_discovery_prompts"
+                ) as mock_register_discovery,
+            ):
+                result = main()
 
-                            assert result == 0
+                assert result == 0
 
-                            # Verify legacy config was passed to prompt registration
-                            mock_register_phase.assert_called_once()
-                            mock_register_discovery.assert_called_once()
+                # Verify legacy config was passed to prompt registration
+                mock_register_phase.assert_called_once()
+                mock_register_discovery.assert_called_once()
 
-                            # Get the config that was passed to the registration functions
-                            phase_config = mock_register_phase.call_args[0][1]
-                            discovery_config = mock_register_discovery.call_args[0][1]
+                # Get the config that was passed to the registration functions
+                phase_config = mock_register_phase.call_args[0][1]
+                discovery_config = mock_register_discovery.call_args[0][1]
 
-                            # Verify it's a legacy ServerConfig instance
-                            assert isinstance(phase_config, ServerConfig)
-                            assert isinstance(discovery_config, ServerConfig)
+                # Verify it's a legacy ServerConfig instance
+                assert isinstance(phase_config, ServerConfig)
+                assert isinstance(discovery_config, ServerConfig)
 
-                            # Verify configuration values match
-                            assert str(phase_config.repository_path) == temp_dir
-                            assert phase_config.enable_local_state_file is True
+                # Verify configuration values match
+                assert str(phase_config.repository_path) == temp_dir
+                assert phase_config.enable_local_state_file is True

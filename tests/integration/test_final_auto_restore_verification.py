@@ -2,6 +2,7 @@
 Final integration test to verify auto-restore works correctly with real server startup scenario.
 """
 
+import contextlib
 import os
 import sys
 import tempfile
@@ -90,7 +91,7 @@ def test_final_auto_restore_verification():
             # Step 2: Create and cache some test sessions
             print("\n📋 STEP 2: Create and cache test sessions...")
 
-            from datetime import datetime
+            from datetime import UTC, datetime
 
             from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
             from accordo_workflow_mcp.services import (
@@ -112,7 +113,7 @@ def test_final_auto_restore_verification():
                     status="RUNNING",
                     current_node="start",
                     inputs={"task": f"Test task {i + 1}"},
-                    created_at=datetime.now(),
+                    created_at=datetime.now(UTC),
                     log=[f"Session {i + 1} created for testing"],
                 )
                 test_sessions.append(session)
@@ -217,10 +218,8 @@ def test_final_auto_restore_verification():
 
         finally:
             # Cleanup
-            try:
+            with contextlib.suppress(Exception):
                 clear_registry()
-            except:
-                pass
 
     print("\n🎯 === FINAL AUTO-RESTORE VERIFICATION COMPLETE ===")
 

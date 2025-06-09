@@ -352,7 +352,8 @@ class SessionSyncService:
         clean_session_id = re.sub(r'[<>:"/\\|?*]', "_", session_id)[:50]
 
         # Get current timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        from datetime import UTC
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
         # Determine extension
         ext = "json" if format_ext.upper() == "JSON" else "md"
@@ -367,12 +368,11 @@ class SessionSyncService:
 
     def _session_to_markdown(self, session: DynamicWorkflowState) -> str:
         """Convert session to markdown format."""
+        import contextlib
+        
         export_session_to_markdown = None
-        try:
+        with contextlib.suppress(ImportError):
             from ..prompts.formatting import export_session_to_markdown  # type: ignore
-        except ImportError:
-            # Fallback if export function not available
-            pass
 
         # Try to get workflow definition for proper formatting
         workflow_def = None

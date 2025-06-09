@@ -363,7 +363,7 @@ class WorkflowCacheManager:
             return similarity 0.0, making semantic search ineffective.
         """
         # Handle edge cases
-        if distance is None or not isinstance(distance, (int, float)):
+        if distance is None or not isinstance(distance, int | float):
             return 0.0
 
         if metric is None:

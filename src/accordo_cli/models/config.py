@@ -307,7 +307,7 @@ class MCPServerConfig(BaseModel):
 class CursorConfig(BaseModel):
     """Cursor-specific MCP configuration."""
 
-    mcpServers: dict[str, MCPServer] = Field(default_factory=dict)
+    mcpServers: dict[str, MCPServer] = Field(default_factory=dict)  # noqa: N815
 
     @classmethod
     def from_base_config(cls, base_config: MCPServerConfig) -> "CursorConfig":
@@ -334,7 +334,7 @@ class CursorConfig(BaseModel):
 class ClaudeConfig(BaseModel):
     """Claude Desktop-specific MCP configuration."""
 
-    mcpServers: dict[str, MCPServer] = Field(default_factory=dict)
+    mcpServers: dict[str, MCPServer] = Field(default_factory=dict)  # noqa: N815
 
     @classmethod
     def from_base_config(cls, base_config: MCPServerConfig) -> "ClaudeConfig":

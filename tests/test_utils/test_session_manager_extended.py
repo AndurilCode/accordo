@@ -156,9 +156,11 @@ class TestSessionManagerConfiguration:
 
     def test_should_initialize_cache_from_environment_false(self):
         """Test cache initialization detection returns false when no indicators."""
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch.dict("os.environ", {}, clear=True):
-                result = session_manager._should_initialize_cache_from_environment()
+        with (
+            patch("pathlib.Path.exists", return_value=False),
+            patch.dict("os.environ", {}, clear=True),
+        ):
+            result = session_manager._should_initialize_cache_from_environment()
 
         assert result is False
 
