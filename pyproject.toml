@@ -71,6 +71,8 @@ where = ["src"]
 [dependency-groups]
 dev = [
     "build>=1.2.2.post1",
+    "mypy>=1.16.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.11.11",
+    "vulture>=2.14",
 ]
