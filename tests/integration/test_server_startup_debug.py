@@ -27,15 +27,15 @@ def test_server_startup_auto_restore_flow():
 
         # Mock the config service to enable cache mode
         with patch(
-            "accordo_mcp.utils.session_manager._get_effective_server_config"
+            "accordo_workflow_mcp.utils.session_manager._get_effective_server_config"
         ) as mock_config:
             mock_config.return_value = MagicMock(enable_cache_mode=True)
 
             with patch(
-                "accordo_mcp.utils.session_manager._ensure_services_initialized"
+                "accordo_workflow_mcp.utils.session_manager._ensure_services_initialized"
             ):
                 with patch(
-                    "accordo_mcp.services.get_session_sync_service"
+                    "accordo_workflow_mcp.services.get_session_sync_service"
                 ) as mock_get_service:
                     # Mock the session sync service
                     mock_sync_service = MagicMock()

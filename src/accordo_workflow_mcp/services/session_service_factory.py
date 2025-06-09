@@ -30,6 +30,14 @@ class SessionServiceFactory:
 
         print("🚨 DEBUG: SessionServiceFactory.initialize_session_services() called")
 
+        # Initialize cache service first to ensure it's available
+        try:
+            from .cache_service import initialize_cache_service
+            initialize_cache_service()
+            print("🚨 DEBUG: Cache service initialized successfully")
+        except Exception as e:
+            print(f"🚨 DEBUG: Cache service initialization failed: {e}")
+
         # Create core services
         print("🚨 DEBUG: Creating SessionRepository...")
         session_repository = SessionRepository()
