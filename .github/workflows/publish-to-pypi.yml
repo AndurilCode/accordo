@@ -1,0 +1,62 @@
+name: 🚀 Build and Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 📦 Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Ensure we have the full git history and tags for version detection
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 📋 Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: 🔍 Install dependencies
+        run: uv sync --all-extras
+
+      - name: 📦 Build source distribution and wheel
+        run: uv build
+
+      - name: 🔍 Verify package contents
+        run: uv run twine check dist/*
+
+      - name: 📂 Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-to-pypi:
+    name: 🌍 Publish to PyPI
+    if: github.event.release.prerelease == false  # Only publish non-prerelease versions
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+      - name: 📥 Download all the distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: 🚀 Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
