@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from src.dev_workflow_mcp.config import ServerConfig
-from src.dev_workflow_mcp.models.workflow_state import (
+from src.accordo_mcp.config import ServerConfig
+from src.accordo_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
 )
-from src.dev_workflow_mcp.utils.cache_manager import WorkflowCacheManager
+from src.accordo_mcp.utils.cache_manager import WorkflowCacheManager
 
 
 @pytest.fixture
@@ -23,8 +23,8 @@ def temp_dir() -> Generator[Path, None, None]:
 
 @pytest.fixture
 def temp_project_config_file(temp_dir: Path) -> Path:
-    """Create a temporary project config file in .workflow-commander directory."""
-    workflow_dir = temp_dir / ".workflow-commander"
+    """Create a temporary project config file in .accordo directory."""
+    workflow_dir = temp_dir / ".accordo"
     workflow_dir.mkdir(exist_ok=True)
     config_file = workflow_dir / "project_config.md"
     return config_file
@@ -143,7 +143,7 @@ def mock_cache_manager(temp_cache_dir: Path) -> WorkflowCacheManager:
         db_path=str(temp_cache_dir),
         collection_name="test_workflow_states",
         embedding_model="all-MiniLM-L6-v2",
-        max_results=10
+        max_results=10,
     )
     return cache_manager
 
@@ -161,7 +161,7 @@ def test_server_config(temp_dir: Path, temp_cache_dir: Path) -> ServerConfig:
         cache_db_path=str(temp_cache_dir),
         cache_collection_name="test_workflow_states",
         cache_embedding_model="all-MiniLM-L6-v2",
-        cache_max_results=10
+        cache_max_results=10,
     )
 
 
@@ -207,35 +207,37 @@ workflow:
 @pytest.fixture
 def test_workflows_dir(temp_dir: Path, test_workflow_yaml_content: str) -> Path:
     """Create a temporary workflows directory with test YAML files."""
-    workflows_dir = temp_dir / ".workflow-commander" / "workflows"
+    workflows_dir = temp_dir / ".accordo" / "workflows"
     workflows_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create test workflow file
     test_workflow_file = workflows_dir / "test-integration-workflow.yaml"
     test_workflow_file.write_text(test_workflow_yaml_content)
-    
+
     return workflows_dir
 
 
 @pytest.fixture
-async def mcp_server_with_cache(test_server_config: ServerConfig, test_workflows_dir: Path):
+async def mcp_server_with_cache(
+    test_server_config: ServerConfig, test_workflows_dir: Path
+):
     """Create MCP server instance with cache mode enabled for testing."""
     from fastmcp import FastMCP
 
-    from src.dev_workflow_mcp.prompts.discovery_prompts import (
+    from src.accordo_mcp.prompts.discovery_prompts import (
         register_discovery_prompts,
     )
-    from src.dev_workflow_mcp.prompts.phase_prompts import register_phase_prompts
-    
+    from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+
     # Create MCP server instance
     mcp = FastMCP("Test Workflow Server")
-    
+
     # Register the tools with our test configuration
     register_phase_prompts(mcp, test_server_config)
     register_discovery_prompts(mcp, test_server_config)
-    
+
     yield mcp
-    
+
     # Cleanup
     # Note: In real integration tests, we would need to properly handle
     # server lifecycle, but for this fixture we just yield the configured server

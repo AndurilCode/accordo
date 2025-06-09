@@ -1,0 +1,51 @@
+{
+  "session_id": "69643059-dbcd-48a8-812c-1a2785b750fd",
+  "client_id": "default",
+  "created_at": "2025-06-09 09:34:18.216377+00:00",
+  "workflow_name": "Debugging Workflow",
+  "workflow_file": null,
+  "workflow_yaml_content": null,
+  "session_filename": null,
+  "last_updated": "2025-06-09 09:34:40.370815+00:00",
+  "current_node": "analyze_root_cause",
+  "status": "RUNNING",
+  "execution_context": {},
+  "inputs": {
+    "task_description": "Test: session restoration after server restart",
+    "bug_severity": "medium",
+    "reproduction_steps": ""
+  },
+  "node_outputs": {
+    "investigate": {
+      "goal_achieved": true,
+      "completion_timestamp": "2025-06-09T09:34:40.370728+00:00",
+      "node_name": "investigate",
+      "completed_criteria": {
+        "issue_reproduction": "Successfully reproduced session restoration issue by starting workflow and doing steps",
+        "symptom_analysis": "Need to test if workflow state persists after server restart",
+        "diagnostic_data": "Collected session ID and workflow state before restart",
+        "impact_assessment": "Testing critical session persistence functionality",
+        "environment_check": "Running in workflow-commander test environment"
+      }
+    }
+  },
+  "current_item": "Test: session restoration after server restart",
+  "plan": "",
+  "items": [],
+  "log": [
+    "[11:34:40] \u2705 Completed node: investigate with 5 criteria satisfied",
+    "[11:34:40]    \ud83d\udccb Criterion satisfied: issue_reproduction",
+    "[11:34:40]    \ud83d\udccb Criterion satisfied: symptom_analysis",
+    "[11:34:40]    \ud83d\udccb Criterion satisfied: diagnostic_data",
+    "[11:34:40]    \ud83d\udccb Criterion satisfied: impact_assessment",
+    "[11:34:40]    \ud83d\udccb Criterion satisfied: environment_check",
+    "[11:34:40] \ud83d\udd04 Transitioned from investigate to analyze_root_cause",
+    "[11:34:40] \ud83d\udcdd CURRENT GOAL: **MANDATORY ANALYZE_ROOT_CAUSE PHASE - FOLLOW EXACTLY:**\n\n**TASK:** ${{ inputs.task_description }}\n**SEVERITY:** ${{ inputs.bug_severity }}\n\n**\ud83d\udd28 REQUIRED EXECUTION STEPS - NO EXCEPTIONS:**\n\n**1. EXAMINE RELEVANT CODE SECTIONS** \u26a0\ufe0f MANDATORY\n   - MUST analyze code areas related to bug symptoms\n   - MUST review recent changes that might have introduced the bug\n   - MUST examine logic flows and data handling in affected areas\n   - MUST identify potential code paths leading to the issue\n\n**2. TRACE EXECUTION PATHS** \u26a0\ufe0f MANDATORY\n   - MUST trace code execution from entry point to bug manifestation\n   - MUST identify decision points and branching logic\n   - MUST understand data flow and transformations\n   - MUST map execution path that leads to the problematic behavior\n\n**3. IDENTIFY ROOT CAUSE** \u26a0\ufe0f MANDATORY\n   - MUST pinpoint the exact source of the bug\n   - MUST differentiate between root cause and symptoms\n   - MUST understand why the bug occurs under specific conditions\n   - MUST verify root cause explains all observed symptoms\n\n**4. ANALYZE CONTRIBUTING FACTORS** \u26a0\ufe0f MANDATORY\n   - MUST identify any environmental or configuration factors\n   - MUST understand dependencies that contribute to the issue\n   - MUST identify any timing or race condition factors\n   - MUST document all conditions necessary for bug to occur\n\n**ANALYSIS DEPTH:** Root cause analysis must be thorough and definitive.\n",
+    "Analysis Step 1: Examining session restoration code in SessionSyncService",
+    "Analysis Step 2: Found potential cache persistence issue in _restore_workflow_definition method"
+  ],
+  "archive_log": [],
+  "node_history": [
+    "investigate"
+  ]
+}

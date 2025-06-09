@@ -4,13 +4,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.dev_workflow_mcp.models.workflow_state import DynamicWorkflowState
-from src.dev_workflow_mcp.models.yaml_workflow import (
+from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
+from src.accordo_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowNode,
     WorkflowTree,
 )
-from src.dev_workflow_mcp.utils.workflow_engine import (
+from src.accordo_mcp.utils.workflow_engine import (
     WorkflowEngine,
     WorkflowEngineError,
 )
@@ -32,7 +32,7 @@ class TestWorkflowEngine:
     @pytest.fixture
     def engine(self):
         """Create a WorkflowEngine instance for testing."""
-        with patch("src.dev_workflow_mcp.utils.workflow_engine.WorkflowLoader"):
+        with patch("src.accordo_mcp.utils.workflow_engine.WorkflowLoader"):
             engine = WorkflowEngine("test_workflows_dir")
             return engine
 
@@ -124,7 +124,7 @@ class TestWorkflowEngine:
         }
 
         with patch(
-            "src.dev_workflow_mcp.utils.workflow_engine.DynamicWorkflowState"
+            "src.accordo_mcp.utils.workflow_engine.DynamicWorkflowState"
         ) as mock_state_class:
             mock_state_instance = Mock()
             mock_state_class.return_value = mock_state_instance

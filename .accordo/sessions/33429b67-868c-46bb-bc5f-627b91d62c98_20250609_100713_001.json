@@ -1,0 +1,45 @@
+{
+  "session_id": "33429b67-868c-46bb-bc5f-627b91d62c98",
+  "client_id": "default",
+  "created_at": "2025-06-09 08:06:54.677502+00:00",
+  "workflow_name": "Default Coding Workflow",
+  "workflow_file": null,
+  "session_filename": null,
+  "last_updated": "2025-06-09 08:07:13.268331+00:00",
+  "current_node": "analyze",
+  "status": "RUNNING",
+  "execution_context": {},
+  "inputs": {
+    "task_description": "Test workflow cache restoration after MCP server restart",
+    "project_config_path": ".accordo/project_config.md"
+  },
+  "node_outputs": {
+    "semantic_analysis": {
+      "goal_achieved": true,
+      "completion_timestamp": "2025-06-09T08:07:13.268248+00:00",
+      "node_name": "semantic_analysis",
+      "completed_criteria": {
+        "historical_context": "Performed semantic search for workflow cache restoration topics but found no past work",
+        "lessons_integration": "No historical lessons available for this specific scenario",
+        "risk_assessment": "Main risk identified is WSL Ubuntu potentially having different ChromaDB persistence behavior compared to macOS",
+        "synthesis_report": "This is a novel test scenario focused on validating workflow cache persistence across MCP server restarts"
+      }
+    }
+  },
+  "current_item": "Test workflow cache restoration after MCP server restart",
+  "plan": "",
+  "items": [],
+  "log": [
+    "[10:07:13] \u2705 Completed node: semantic_analysis with 4 criteria satisfied",
+    "[10:07:13]    \ud83d\udccb Criterion satisfied: historical_context",
+    "[10:07:13]    \ud83d\udccb Criterion satisfied: lessons_integration",
+    "[10:07:13]    \ud83d\udccb Criterion satisfied: risk_assessment",
+    "[10:07:13]    \ud83d\udccb Criterion satisfied: synthesis_report",
+    "[10:07:13] \ud83d\udd04 Transitioned from semantic_analysis to analyze",
+    "[10:07:13] \ud83d\udcdd CURRENT GOAL: **ANALYZE PHASE:** ${{ inputs.task_description }}\n\nThoroughly understand the task requirements, explore the codebase, and gather all necessary information before proceeding to planning. This is a discovery and understanding phase only - no code should be written or plans created.\n\n**Focus:** Comprehensive information gathering and requirements analysis.\n"
+  ],
+  "archive_log": [],
+  "node_history": [
+    "semantic_analysis"
+  ]
+}

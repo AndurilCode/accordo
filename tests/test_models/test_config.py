@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from src.dev_workflow_mcp.config import ServerConfig
-from src.dev_workflow_mcp.models.config import WorkflowConfig
+from src.accordo_mcp.config import ServerConfig
+from src.accordo_mcp.models.config import WorkflowConfig
 
 
 class TestWorkflowConfig:
@@ -169,7 +169,7 @@ class TestServerConfig:
         config = ServerConfig()
         sessions_dir = config.sessions_dir
         assert sessions_dir.name == "sessions"
-        assert sessions_dir.parent.name == ".workflow-commander"
+        assert sessions_dir.parent.name == ".accordo"
 
     def test_ensure_sessions_dir(self):
         """Test ServerConfig.ensure_sessions_dir method."""

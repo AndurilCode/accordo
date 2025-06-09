@@ -1,4 +1,8 @@
-# Workflow Commander MCP Server
+<div align="center">
+  <img src="logo.png" alt="Accordo Logo" width="1000"/>
+</div>
+
+# Accordo MCP Server
 
 A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features structured development workflows with progression control and decision points.
 
@@ -15,7 +19,7 @@ This server guides AI agents through structured, schema-driven development workf
 
 ### Built-in Workflow Discovery Process
 
-1. **Automatic Discovery** - System scans `.workflow-commander/workflows/` for available YAML workflows
+1. **Automatic Discovery** - System scans `.accordo/workflows/` for available YAML workflows
 2. **Intelligent Matching** - Analyzes task description against workflow capabilities and goals
 3. **Workflow Selection** - Agent chooses the most appropriate workflow from discovered options
 4. **Immediate Execution** - Selected workflow starts with full state management and progression control
@@ -33,13 +37,13 @@ This enables agents to create workflows for **any domain** - web development, da
 
 ## Quick Start
 
-### Installing **workflow-commander CLI**
+### Installing **accordo CLI**
 
-The workflow-commander CLI provides easy configuration and management of MCP servers. Install it directly with:
+The accordo CLI provides easy configuration and management of MCP servers. Install it directly with:
 
 ```bash
 # Download and run the installation script
-curl -fsSL https://raw.githubusercontent.com/AndurilCode/workflow-commander/refs/heads/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AndurilCode/accordo/refs/heads/main/install.sh | bash
 ```
 
 The installer will:
@@ -52,24 +56,24 @@ The installer will:
 
 ```bash
 # Configure MCP servers interactively
-workflow-commander configure
+accordo configure
 
 # Quick setup for specific platforms
-workflow-commander configure -p cursor -y
-workflow-commander configure -p claude-code -y
+accordo configure -p cursor -y
+accordo configure -p claude-code -y
 
 # Deploy workflow guidelines to AI assistants
-workflow-commander bootstrap-rules              # All assistants
-workflow-commander bootstrap-rules cursor       # Cursor only
-workflow-commander bootstrap-rules --force all  # Overwrite existing
+accordo bootstrap-rules              # All assistants
+accordo bootstrap-rules cursor       # Cursor only
+accordo bootstrap-rules --force all  # Overwrite existing
 
 # List supported platforms and manage servers
-workflow-commander list-platforms
-workflow-commander list-servers -p cursor
-workflow-commander validate -p cursor
+accordo list-platforms
+accordo list-servers -p cursor
+accordo validate -p cursor
 
 # Get help
-workflow-commander --help
+accordo --help
 ```
 
 ### Manual MCP Configuration
@@ -80,9 +84,9 @@ Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package manag
 ```json
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/AndurilCode/workflow-commander@main", "dev-workflow-mcp"]
+      "args": ["--from", "git+https://github.com/AndurilCode/accordo@main", "accordo-mcp"]
     }
   }
 }
@@ -90,7 +94,7 @@ Alternatively, install [uv](https://docs.astral.sh/uv/) for Python package manag
 
 Or use the following link to install the MCP server (Cursor Installed):
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=workflow-commander&config=eyJjb21tYW5kIjoidXZ4IC0tZnJvbSBnaXQraHR0cHM6Ly9naXRodWIuY29tL0FuZHVyaWxDb2RlL3dvcmtmbG93LWNvbW1hbmRlckBtYWluIGRldi13b3JrZmxvdy1tY3AifQ%3D%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=accordo&config=eyJjb21tYW5kIjoidXZ4IC0tZnJvbSBnaXQraHR0cHM6Ly9naXRodWIuY29tL0FuZHVyaWxDb2RlL2FjY29yZG9AbWFpbiBhY2NvcmRvLW1jcCJ9)
 
 ## Getting Help
 

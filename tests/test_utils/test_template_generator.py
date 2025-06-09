@@ -8,12 +8,12 @@ from unittest.mock import Mock, patch
 import pytest
 import yaml
 
-from src.dev_workflow_mcp.models.yaml_workflow import (
+from src.accordo_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowNode,
     WorkflowTree,
 )
-from src.dev_workflow_mcp.utils.template_generator import (
+from src.accordo_mcp.utils.template_generator import (
     WorkflowTemplateGenerator,
     analyze_existing_workflows,
     create_workflow_template,
@@ -83,7 +83,7 @@ class TestWorkflowTemplateGenerator:
         assert generator.templates_dir == Path(templates_dir)
         assert os.path.exists(templates_dir)
 
-    @patch("src.dev_workflow_mcp.utils.template_generator.WorkflowLoader")
+    @patch("src.accordo_mcp.utils.template_generator.WorkflowLoader")
     def test_generate_template_from_existing_success(
         self, mock_loader_class, generator, temp_dir
     ):
