@@ -1,4 +1,4 @@
-"""Services package for dev-workflow-mcp."""
+"""Services package for accordo-workflow-mcp."""
 
 # Service exports
 from .cache_service import (

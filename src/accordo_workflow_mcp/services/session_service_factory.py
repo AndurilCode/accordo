@@ -1,5 +1,6 @@
 """Session service factory for creating and configuring session services."""
 
+import contextlib
 from typing import Any
 
 from .dependency_injection import ServiceRegistry, get_service
@@ -29,6 +30,14 @@ class SessionServiceFactory:
             return
 
         print("🚨 DEBUG: SessionServiceFactory.initialize_session_services() called")
+
+        # Initialize cache service first to ensure it's available
+        try:
+            from .cache_service import initialize_cache_service
+            initialize_cache_service()
+            print("🚨 DEBUG: Cache service initialized successfully")
+        except Exception as e:
+            print(f"🚨 DEBUG: Cache service initialization failed: {e}")
 
         # Create core services
         print("🚨 DEBUG: Creating SessionRepository...")
@@ -107,45 +116,29 @@ class SessionServiceFactory:
         return get_service(WorkflowDefinitionCache)
 
     def _get_cache_manager(self) -> Any:
-        """Get cache manager if available."""
+        """Get cache manager for SessionSyncService."""
         print("🚨 DEBUG: SessionServiceFactory._get_cache_manager() called")
-
-        # First, try to get cache manager from the new cache service
-        try:
+        
+        # Try to get cache manager from the new cache service first
+        print("🚨 DEBUG: Trying to get cache manager from new cache service...")
+        with contextlib.suppress(Exception):
             from .cache_service import get_cache_service
-
-            print("🚨 DEBUG: Trying to get cache manager from new cache service...")
             cache_service = get_cache_service()
-            if cache_service.is_available():
+            if cache_service and hasattr(cache_service, 'get_cache_manager'):
                 cache_manager = cache_service.get_cache_manager()
-                print(
-                    f"🚨 DEBUG: Got cache manager from new cache service: {type(cache_manager)}"
-                )
-                return cache_manager
-            else:
-                print("🚨 DEBUG: New cache service not available")
-        except Exception as e:
-            print(
-                f"🚨 DEBUG: Exception getting cache manager from new cache service: {e}"
-            )
-
+                if cache_manager:
+                    print(f"🚨 DEBUG: Got cache manager from cache service: {type(cache_manager)}")
+                    return cache_manager
+        
+        print("🚨 DEBUG: New cache service not available")
+        
         # Fallback to legacy session manager cache
-        try:
-            print("🚨 DEBUG: Falling back to legacy session manager cache...")
-            from ..utils.session_manager import get_cache_manager
-
-            cache_manager = get_cache_manager()
-            print(
-                f"🚨 DEBUG: Got cache manager from legacy session manager: {type(cache_manager)}"
-            )
-            return cache_manager
-        except Exception as e:
-            print(
-                f"🚨 DEBUG: Exception getting cache manager from legacy session manager: {e}"
-            )
-
-        print("🚨 DEBUG: No cache manager available")
-        return None
+        print("🚨 DEBUG: Falling back to legacy session manager cache...")
+        from ..utils import session_manager
+        cache_manager = session_manager.get_cache_manager()
+        print(f"🚨 DEBUG: Got cache manager from legacy session manager: {type(cache_manager)}")
+        
+        return cache_manager
 
     def is_initialized(self) -> bool:
         """Check if services are initialized."""
@@ -155,10 +148,8 @@ class SessionServiceFactory:
         """Reset all services (for testing)."""
         self._initialized = False
         # Clear all registrations
-        try:
+        with contextlib.suppress(Exception):
             self._service_registry.clear_registry()
-        except Exception:
-            pass  # Ignore errors during cleanup
 
 
 # Global factory instance

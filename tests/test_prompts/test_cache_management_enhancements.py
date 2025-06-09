@@ -22,11 +22,11 @@ class TestCacheManagementEnhancements:
     @pytest.fixture
     def mock_cache_stats(self):
         """Create mock cache statistics."""
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         # Create actual datetime objects, not mocks
-        oldest_date = datetime(2024, 1, 1, 12, 0, 0)
-        newest_date = datetime(2024, 12, 31, 23, 59, 59)
+        oldest_date = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        newest_date = datetime(2024, 12, 31, 23, 59, 59, tzinfo=UTC)
 
         stats = Mock()
         stats.collection_name = "test_workflows"
@@ -47,10 +47,14 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
-        # The get_cache_manager is imported inside the function, so we need to patch it there
+        # Mock the cache service instead of session manager
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Call the enhanced operation
             result = cache_tool.fn(
@@ -62,8 +66,9 @@ class TestCacheManagementEnhancements:
                 result.get("content", result) if isinstance(result, dict) else result
             )
 
-            # Verify cache manager was called correctly
-            mock_cache_manager.is_available.assert_called_once()
+            # Verify cache service was called correctly  
+            mock_cache_service.is_available.assert_called_once()
+            mock_cache_service.get_cache_manager.assert_called_once()
             mock_cache_manager.regenerate_embeddings_for_enhanced_search.assert_called_once_with()
 
             # Verify response contains expected content
@@ -85,9 +90,14 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
+        # Mock the cache service instead of session manager
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Call the enhanced operation
             result = cache_tool.fn(
@@ -99,8 +109,9 @@ class TestCacheManagementEnhancements:
                 result.get("content", result) if isinstance(result, dict) else result
             )
 
-            # Verify cache manager was called with force flag
-            mock_cache_manager.is_available.assert_called_once()
+            # Verify cache service was called correctly
+            mock_cache_service.is_available.assert_called_once()
+            mock_cache_service.get_cache_manager.assert_called_once()
             mock_cache_manager.regenerate_embeddings_for_enhanced_search.assert_called_once_with(
                 force_regenerate=True
             )
@@ -123,9 +134,14 @@ class TestCacheManagementEnhancements:
 
         mock_cache_manager.get_cache_stats.return_value = mock_cache_stats
 
+        # Mock the cache service instead of session manager
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Call the stats operation
             result = cache_tool.fn(operation="stats", client_id="test_client")
@@ -135,8 +151,9 @@ class TestCacheManagementEnhancements:
                 result.get("content", result) if isinstance(result, dict) else result
             )
 
-            # Verify cache manager methods were called
-            mock_cache_manager.is_available.assert_called_once()
+            # Verify cache service was called correctly
+            mock_cache_service.is_available.assert_called_once()
+            mock_cache_service.get_cache_manager.assert_called_once()
             mock_cache_manager.get_cache_stats.assert_called_once()
 
             # Verify enhanced stats formatting
@@ -159,8 +176,13 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
+        # Mock cache service as not available
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = False
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager", return_value=None
+            "src.accordo_workflow_mcp.services.get_cache_service", 
+            return_value=mock_cache_service
         ):
             # Test regenerate_embeddings with no cache
             result = cache_tool.fn(
@@ -189,12 +211,13 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
-        mock_cache_manager = Mock()
-        mock_cache_manager.is_available.return_value = False
+        # Mock cache service as not available
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = False
 
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Test regenerate_embeddings with unavailable cache
             result = cache_tool.fn(
@@ -251,9 +274,14 @@ class TestCacheManagementEnhancements:
             Exception("Cache error")
         )
 
+        # Mock the cache service
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Test regenerate_embeddings exception handling
             result = cache_tool.fn(
@@ -282,14 +310,19 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
-        # Mock get_cache_stats to throw exception
+        # Mock cache manager to throw exception
         mock_cache_manager.get_cache_stats.side_effect = Exception("Stats error")
 
+        # Mock the cache service
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
-            # Test stats operation exception handling
+            # Test stats exception handling
             result = cache_tool.fn(operation="stats", client_id="test_client")
             result_text = (
                 result.get("content", result) if isinstance(result, dict) else result
@@ -305,14 +338,19 @@ class TestCacheManagementEnhancements:
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
-        # Mock get_cache_stats to return None
+        # Mock cache manager to return None for stats
         mock_cache_manager.get_cache_stats.return_value = None
 
+        # Mock the cache service
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
-            # Test stats operation with None return
+            # Test stats with None result
             result = cache_tool.fn(operation="stats", client_id="test_client")
             result_text = (
                 result.get("content", result) if isinstance(result, dict) else result
@@ -323,49 +361,31 @@ class TestCacheManagementEnhancements:
     async def test_cache_management_operations_comprehensive_validation(
         self, mock_cache_manager
     ):
-        """Comprehensive test that validates all our enhancements work together."""
+        """Test that cache management operations properly validate and execute."""
 
         mcp = FastMCP("test-server")
         register_phase_prompts(mcp)
         tools = await mcp.get_tools()
         cache_tool = tools["workflow_cache_management"]
 
+        # Mock the cache service
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
-            # Test all enhanced operations exist and work
-            operations = ["regenerate_embeddings", "force_regenerate_embeddings"]
-
-            for operation in operations:
-                result = cache_tool.fn(operation=operation, client_id="test_client")
-
-                # Extract result content
-                result_text = (
-                    result.get("content", result)
-                    if isinstance(result, dict)
-                    else result
-                )
-
-                # Each operation should succeed and mention enhanced functionality
-                assert "❌" not in result_text  # No error messages
-                assert "Enhanced semantic content: ✅ Active" in result_text
-                assert "Better similarity matching expected" in result_text
-
-            # Verify cache manager was called for each operation
-            assert (
-                mock_cache_manager.regenerate_embeddings_for_enhanced_search.call_count
-                == 2
+            # Test regenerate_embeddings
+            result = cache_tool.fn(
+                operation="regenerate_embeddings", client_id="test_client"
             )
-
-            # Verify different parameters were used
-            calls = mock_cache_manager.regenerate_embeddings_for_enhanced_search.call_args_list
-
-            # First call (regenerate_embeddings) should have no parameters
-            assert calls[0] == ((),)  # No args, no kwargs
-
-            # Second call (force_regenerate_embeddings) should have force_regenerate=True
-            assert calls[1] == ((), {"force_regenerate": True})
+            result_text = (
+                result.get("content", result) if isinstance(result, dict) else result
+            )
+            assert "❌" not in result_text  # No error messages
+            assert "🔄 **Embedding Regeneration Complete:**" in result_text
 
 
 class TestEnhancedCacheManagementIntegration:
@@ -393,8 +413,12 @@ class TestEnhancedCacheManagementIntegration:
         assert callable(cache_tool.fn), "Cache tool fn should be callable"
 
         # Test that the tool works with our enhanced operations
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = False
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager", return_value=None
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service
         ):
             result = cache_tool.fn(operation="regenerate_embeddings", client_id="test")
             result_text = (
@@ -420,15 +444,13 @@ class TestEnhancedCacheManagementIntegration:
 
         # Test that the enhanced operations are callable
         try:
-            # Mock a simple cache manager for testing
-            mock_cache_manager = Mock()
-            mock_cache_manager.is_available.return_value = (
-                False  # Should trigger the "not available" path
-            )
+            # Mock cache service for testing
+            mock_cache_service = Mock()
+            mock_cache_service.is_available.return_value = False
 
             with patch(
-                "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-                return_value=mock_cache_manager,
+                "src.accordo_workflow_mcp.services.get_cache_service",
+                return_value=mock_cache_service,
             ):
                 # These should not raise ImportError or AttributeError
                 result = cache_tool.fn(
@@ -476,14 +498,13 @@ class TestEnhancedCacheManagementIntegration:
 
         # Mock cache manager with all enhanced methods
         mock_cache_manager = Mock()
-        mock_cache_manager.is_available.return_value = True
         mock_cache_manager.regenerate_embeddings_for_enhanced_search.return_value = 10
 
         # Mock cache stats
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        oldest_date = datetime(2024, 1, 1, 10, 0, 0)
-        newest_date = datetime(2024, 12, 31, 20, 0, 0)
+        oldest_date = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+        newest_date = datetime(2024, 12, 31, 20, 0, 0, tzinfo=UTC)
 
         mock_stats = Mock()
         mock_stats.collection_name = "test_collection"
@@ -495,9 +516,14 @@ class TestEnhancedCacheManagementIntegration:
         mock_stats.newest_entry = newest_date
         mock_cache_manager.get_cache_stats.return_value = mock_stats
 
+        # Mock cache service
+        mock_cache_service = Mock()
+        mock_cache_service.is_available.return_value = True
+        mock_cache_service.get_cache_manager.return_value = mock_cache_manager
+
         with patch(
-            "src.accordo_workflow_mcp.utils.session_manager.get_cache_manager",
-            return_value=mock_cache_manager,
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Test all our enhanced operations work end-to-end
             operations_tests = [

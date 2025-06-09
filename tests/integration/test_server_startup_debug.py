@@ -19,36 +19,40 @@ def test_server_startup_auto_restore_flow():
     print("\n1. Testing direct session_manager auto_restore import and call...")
 
     try:
-        from accordo_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from accordo_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
 
         print(
             "✅ Successfully imported auto_restore_sessions_on_startup from session_manager"
         )
 
         # Mock the config service to enable cache mode
-        with patch(
-            "accordo_mcp.utils.session_manager._get_effective_server_config"
-        ) as mock_config:
+        with (
+            patch(
+                "accordo_workflow_mcp.utils.session_manager._get_effective_server_config"
+            ) as mock_config,
+            patch(
+                "accordo_workflow_mcp.utils.session_manager._ensure_services_initialized"
+            ),
+            patch(
+                "accordo_workflow_mcp.services.get_session_sync_service"
+            ) as mock_get_service,
+        ):
             mock_config.return_value = MagicMock(enable_cache_mode=True)
 
-            with patch(
-                "accordo_mcp.utils.session_manager._ensure_services_initialized"
-            ):
-                with patch(
-                    "accordo_mcp.services.get_session_sync_service"
-                ) as mock_get_service:
-                    # Mock the session sync service
-                    mock_sync_service = MagicMock()
-                    mock_sync_service.auto_restore_sessions_on_startup.return_value = 3
-                    mock_get_service.return_value = mock_sync_service
+            # Mock the session sync service
+            mock_sync_service = MagicMock()
+            mock_sync_service.auto_restore_sessions_on_startup.return_value = 3
+            mock_get_service.return_value = mock_sync_service
 
-                    print("🚨 Calling auto_restore_sessions_on_startup() directly...")
-                    result = auto_restore_sessions_on_startup()
-                    print(f"✅ Result: {result}")
+            print("🚨 Calling auto_restore_sessions_on_startup() directly...")
+            result = auto_restore_sessions_on_startup()
+            print(f"✅ Result: {result}")
 
-                    # Verify delegation worked
-                    mock_sync_service.auto_restore_sessions_on_startup.assert_called_once()
-                    print("✅ Confirmed delegation to session sync service worked")
+            # Verify delegation worked
+            mock_sync_service.auto_restore_sessions_on_startup.assert_called_once()
+            print("✅ Confirmed delegation to session sync service worked")
 
     except Exception as e:
         print(f"❌ Error in direct test: {e}")
@@ -60,7 +64,9 @@ def test_server_startup_auto_restore_flow():
     print("\n2. Testing session sync service auto_restore directly...")
 
     try:
-        from accordo_workflow_mcp.services.session_sync_service import SessionSyncService
+        from accordo_workflow_mcp.services.session_sync_service import (
+            SessionSyncService,
+        )
 
         # Create mock dependencies
         mock_session_repo = MagicMock()
@@ -101,7 +107,9 @@ def test_server_startup_auto_restore_flow():
 
     try:
         # This simulates exactly what the server does
-        from accordo_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from accordo_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
 
         print("✅ Server import path works")
         print(f"Function location: {auto_restore_sessions_on_startup.__module__}")
@@ -132,7 +140,9 @@ def test_server_startup_auto_restore_flow():
 
     try:
         from accordo_workflow_mcp.services import get_session_sync_service
-        from accordo_workflow_mcp.utils.session_manager import _ensure_services_initialized
+        from accordo_workflow_mcp.utils.session_manager import (
+            _ensure_services_initialized,
+        )
 
         print("🚨 Testing _ensure_services_initialized()...")
         _ensure_services_initialized()
@@ -160,7 +170,9 @@ def test_server_startup_auto_restore_flow():
     print("\n5. 🚨 CRITICAL TEST: Calling actual auto_restore without mocking...")
 
     try:
-        from accordo_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from accordo_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
 
         print(
             "🚨 About to call auto_restore_sessions_on_startup() with real implementation..."
@@ -201,8 +213,12 @@ def test_server_startup_auto_restore_flow():
             WorkflowConfiguration,
             initialize_configuration_service,
         )
-        from accordo_workflow_mcp.services.dependency_injection import register_singleton
-        from accordo_workflow_mcp.utils.session_manager import auto_restore_sessions_on_startup
+        from accordo_workflow_mcp.services.dependency_injection import (
+            register_singleton,
+        )
+        from accordo_workflow_mcp.utils.session_manager import (
+            auto_restore_sessions_on_startup,
+        )
 
         # Create server configuration (simulating what server.py does)
         print("🚨 Creating server configuration with cache enabled...")

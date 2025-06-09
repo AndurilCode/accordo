@@ -4,7 +4,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.accordo_workflow_mcp.models.yaml_workflow import WorkflowDefinition, WorkflowNode
+from src.accordo_workflow_mcp.models.yaml_workflow import (
+    WorkflowDefinition,
+    WorkflowNode,
+)
 from src.accordo_workflow_mcp.utils.schema_analyzer import format_node_status
 
 
@@ -17,6 +20,12 @@ class TestSchemaAnalyzerEmphasis:
         workflow_def = Mock(spec=WorkflowDefinition)
         workflow_def.name = "Test Workflow"
         workflow_def.description = "Test workflow description"
+        
+        # Configure the workflow.workflow.get_node() chain that schema analyzer uses
+        inner_workflow = Mock()
+        inner_workflow.get_node.return_value = Mock(goal="Mock node goal")
+        workflow_def.workflow = inner_workflow
+        
         return workflow_def
 
     @pytest.fixture

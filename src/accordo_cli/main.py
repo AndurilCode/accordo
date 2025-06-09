@@ -95,15 +95,11 @@ def configure(
         # Step 2: Server Configuration (hardcoded to accordo)
         if non_interactive:
             # Non-interactive mode - use defaults
-            server_name_configured = (
-                server_name if server_name else "accordo"
-            )
+            server_name_configured = server_name if server_name else "accordo"
             server_config = MCPServer(
                 command="uvx",
                 args=[
-                    
                     "accordo-workflow-mcp",
-                    "dev-workflow-mcp",
                 ],
             )
         else:

@@ -42,9 +42,7 @@ def sample_server():
     return MCPServer(
         command="uvx",
         args=[
-            
             "accordo-workflow-mcp",
-            "accordo-mcp",
         ],
         env={"TEST_ENV": "value"},
     )
@@ -443,7 +441,6 @@ class TestConfigurationTemplates:
         assert template.args == [
             
             "accordo-workflow-mcp",
-            "accordo-mcp",
         ]
 
     def test_advanced_template_config(self):
@@ -505,7 +502,6 @@ class TestConfigurationBuilder:
         assert builder.base_args == [
             
             "accordo-workflow-mcp",
-            "accordo-mcp",
         ]
         assert len(builder.options) == 0
 
@@ -590,8 +586,7 @@ class TestConfigurationBuilder:
         builder.add_repository_path(".")
 
         args = builder.get_args_preview()
-        assert "--from" in args
-        assert "accordo-mcp" in args
+        assert "accordo-workflow-mcp" in args
         assert "--repository-path" in args
         assert "." in args
 

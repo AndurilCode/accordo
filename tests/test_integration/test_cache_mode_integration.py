@@ -87,6 +87,9 @@ class TestCacheModeInitialization:
 
     def test_cache_manager_initialization_success(self, cache_enabled_config):
         """Test successful cache manager initialization."""
+        # FIX: Reset cache manager state to ensure the test actually runs initialization
+        session_manager._cache_manager = None
+        
         # Mock the WorkflowCacheManager to avoid external dependencies
         with patch(
             "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
@@ -473,6 +476,9 @@ class TestCacheErrorHandling:
 
     def test_cache_config_validation(self):
         """Test cache configuration validation."""
+        # FIX: Reset cache manager to ensure tests run the actual initialization
+        session_manager._cache_manager = None
+        
         # Test with invalid cache directory
         invalid_config = Mock()
         invalid_config.ensure_cache_dir.return_value = False
@@ -480,6 +486,9 @@ class TestCacheErrorHandling:
         result = session_manager._initialize_cache_manager(invalid_config)
         assert result is False
 
+        # FIX: Reset again for second test
+        session_manager._cache_manager = None
+        
         # Test with missing cache configuration
         minimal_config = Mock()
         minimal_config.ensure_cache_dir.return_value = True

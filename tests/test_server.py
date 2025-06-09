@@ -167,7 +167,9 @@ class TestServerIntegration:
         from src.accordo_workflow_mcp.prompts.discovery_prompts import (
             register_discovery_prompts,
         )
-        from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
+        from src.accordo_workflow_mcp.prompts.phase_prompts import (
+            register_phase_prompts,
+        )
 
         # Create a test config with current directory
         config = ServerConfig(".")
@@ -237,7 +239,9 @@ class TestToolStructures:
         from fastmcp import FastMCP
 
         from src.accordo_workflow_mcp.config import ServerConfig
-        from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
+        from src.accordo_workflow_mcp.prompts.phase_prompts import (
+            register_phase_prompts,
+        )
 
         config = ServerConfig(".")
         mcp = FastMCP("Test")
@@ -282,18 +286,39 @@ class TestToolStructures:
 
 
 class TestAutomaticCacheRestoration:
-    """Test automatic cache restoration functionality during server startup."""
+    """Test automatic cache restoration functionality."""
+
+    def setup_method(self):
+        """Set up test environment."""
+        # FIX: Ensure services are properly initialized before tests
+        # This addresses the SessionSyncService registration issues
+        from src.accordo_workflow_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
+        
+        # Reset any existing services to ensure clean state
+        reset_session_services()
+        
+        # Initialize all services including SessionSyncService 
+        initialize_session_services()
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        # Clean up services after tests
+        from src.accordo_workflow_mcp.services import reset_session_services
+        reset_session_services()
 
     @patch("src.accordo_workflow_mcp.server.FastMCP")
     @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
     @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
     @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.services.get_session_sync_service")
     @patch("builtins.print")
     def test_main_with_cache_enabled_successful_restoration(
         self,
         mock_print,
-        mock_auto_restore,
+        mock_get_session_sync_service,
         mock_register_discovery,
         mock_register_phase,
         mock_init_config,
@@ -310,8 +335,10 @@ class TestAutomaticCacheRestoration:
         mock_config_service.to_legacy_server_config.return_value = mock_legacy_config
         mock_init_config.return_value = mock_config_service
 
-        # Mock successful restoration
-        mock_auto_restore.return_value = 3
+        # FIX: Mock the SessionSyncService and its auto_restore method
+        mock_session_sync_service = Mock()
+        mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 3
+        mock_get_session_sync_service.return_value = mock_session_sync_service
 
         # Mock sys.argv with cache enabled
         test_args = ["server.py", "--enable-cache-mode"]
@@ -319,7 +346,7 @@ class TestAutomaticCacheRestoration:
             result = main()
 
         # Verify cache restoration was called
-        mock_auto_restore.assert_called_once()
+        mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
         # Verify success message was printed
         mock_print.assert_called_with(
@@ -334,12 +361,12 @@ class TestAutomaticCacheRestoration:
     @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
     @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
     @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.services.get_session_sync_service")
     @patch("builtins.print")
     def test_main_with_cache_enabled_no_sessions_to_restore(
         self,
         mock_print,
-        mock_auto_restore,
+        mock_get_session_sync_service,
         mock_register_discovery,
         mock_register_phase,
         mock_init_config,
@@ -356,8 +383,10 @@ class TestAutomaticCacheRestoration:
         mock_config_service.to_legacy_server_config.return_value = mock_legacy_config
         mock_init_config.return_value = mock_config_service
 
-        # Mock no sessions to restore
-        mock_auto_restore.return_value = 0
+        # FIX: Mock the SessionSyncService and its auto_restore method
+        mock_session_sync_service = Mock()
+        mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 0
+        mock_get_session_sync_service.return_value = mock_session_sync_service
 
         # Mock sys.argv with cache enabled
         test_args = ["server.py", "--enable-cache-mode"]
@@ -365,10 +394,17 @@ class TestAutomaticCacheRestoration:
             result = main()
 
         # Verify cache restoration was called
-        mock_auto_restore.assert_called_once()
+        mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
-        # Verify no success message was printed (since restored_count is 0)
-        mock_print.assert_not_called()
+        # FIX: Verify no SUCCESS message was printed for 0 restored sessions,
+        # but allow debug messages that are part of the server startup process
+        success_message_calls = [
+            call for call in mock_print.call_args_list
+            if call[0] and "Automatically restored" in str(call[0][0])
+        ]
+        assert len(success_message_calls) == 0, "No success message should be printed for 0 restored sessions"
+
+        # The test can still have debug output - that's fine and expected now
 
         # Verify server started normally
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
@@ -378,12 +414,12 @@ class TestAutomaticCacheRestoration:
     @patch("src.accordo_workflow_mcp.server.initialize_configuration_service")
     @patch("src.accordo_workflow_mcp.server.register_phase_prompts")
     @patch("src.accordo_workflow_mcp.server.register_discovery_prompts")
-    @patch("src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup")
+    @patch("src.accordo_workflow_mcp.services.get_session_sync_service")
     @patch("builtins.print")
     def test_main_with_cache_enabled_restoration_failure(
         self,
         mock_print,
-        mock_auto_restore,
+        mock_get_session_sync_service,
         mock_register_discovery,
         mock_register_phase,
         mock_init_config,
@@ -400,8 +436,10 @@ class TestAutomaticCacheRestoration:
         mock_config_service.to_legacy_server_config.return_value = mock_legacy_config
         mock_init_config.return_value = mock_config_service
 
-        # Mock restoration failure
-        mock_auto_restore.side_effect = Exception("Cache connection failed")
+        # FIX: Mock the SessionSyncService and its auto_restore method to throw exception
+        mock_session_sync_service = Mock()
+        mock_session_sync_service.auto_restore_sessions_on_startup.side_effect = Exception("Cache connection failed")
+        mock_get_session_sync_service.return_value = mock_session_sync_service
 
         # Mock sys.argv with cache enabled
         test_args = ["server.py", "--enable-cache-mode"]
@@ -409,7 +447,7 @@ class TestAutomaticCacheRestoration:
             result = main()
 
         # Verify cache restoration was attempted
-        mock_auto_restore.assert_called_once()
+        mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
         # Verify error message was printed
         mock_print.assert_called_with(
@@ -444,14 +482,16 @@ class TestAutomaticCacheRestoration:
 
         # Mock sys.argv without cache enabled
         test_args = ["server.py"]
-        with patch.object(sys, "argv", test_args):
-            with patch(
+        with (
+            patch.object(sys, "argv", test_args),
+            patch(
                 "src.accordo_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
-            ) as mock_auto_restore:
-                result = main()
+            ) as mock_auto_restore,
+        ):
+            result = main()
 
-                # Verify cache restoration was NOT called
-                mock_auto_restore.assert_not_called()
+            # Verify cache restoration was NOT called
+            mock_auto_restore.assert_not_called()
 
         # Verify server started normally
         mock_mcp_instance.run.assert_called_once_with(transport="stdio")
