@@ -6,6 +6,8 @@
 
 ![PyPI - Version](https://img.shields.io/pypi/v/accordo-workflow-mcp)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/AndurilCode/accordo/publish-to-pypi.yml)
+![GitHub Release Date](https://img.shields.io/github/release-date/AndurilCode/accordo)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=AndurilCode_accordo&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=AndurilCode_accordo)
 
 
 A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features structured development workflows with progression control and decision points.
