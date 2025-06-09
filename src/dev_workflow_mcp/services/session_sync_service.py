@@ -275,8 +275,45 @@ class SessionSyncService:
             return []
 
         try:
-            sessions = self._cache_manager.get_all_sessions_for_client(client_id)
-            return sessions if sessions is not None else []
+            if client_id:
+                session_metadata_list = self._cache_manager.get_all_sessions_for_client(client_id)
+                sessions_info = []
+
+                for metadata in session_metadata_list:
+                    sessions_info.append(
+                        {
+                            "session_id": metadata.session_id,
+                            "workflow_name": metadata.workflow_name,
+                            "status": metadata.status,
+                            "current_node": metadata.current_node,
+                            "created_at": metadata.created_at.isoformat(),
+                            "last_updated": metadata.last_updated.isoformat(),
+                            "task_description": metadata.current_item
+                            if metadata.current_item
+                            else "No description",
+                        }
+                    )
+
+                return sessions_info
+            else:
+                # Get cache stats to show available sessions
+                cache_stats = self._cache_manager.get_cache_stats()
+                if cache_stats:
+                    return [
+                        {
+                            "total_cached_sessions": cache_stats.total_entries,
+                            "active_sessions": cache_stats.active_sessions,
+                            "completed_sessions": cache_stats.completed_sessions,
+                            "oldest_entry": cache_stats.oldest_entry.isoformat()
+                            if cache_stats.oldest_entry
+                            else None,
+                            "newest_entry": cache_stats.newest_entry.isoformat()
+                            if cache_stats.newest_entry
+                            else None,
+                        }
+                    ]
+
+                return []
         except Exception as e:
             print(f"Warning: Failed to list cached sessions: {e}")
             return []
