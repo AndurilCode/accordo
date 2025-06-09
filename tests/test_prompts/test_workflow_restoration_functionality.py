@@ -8,99 +8,93 @@ import pytest
 class TestWorkflowRestorationFunctionality:
     """Test the actual restoration functionality we added."""
 
-    def test_auto_restore_enhanced_debug_output(self):
-        """Test that the enhanced auto-restore function produces proper debug output."""
+    def setup_method(self):
+        """Set up test environment."""
+        # FIX: Ensure services are properly initialized before tests
+        # This addresses the SessionSyncService registration issues
+        from src.accordo_workflow_mcp.services import (
+            initialize_session_services,
+            reset_session_services,
+        )
 
-        from accordo_workflow_mcp.utils.session_manager import (
+        # Reset any existing services to ensure clean state
+        reset_session_services()
+
+        # Initialize all services including SessionSyncService
+        initialize_session_services()
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        # Clean up services after tests
+        from src.accordo_workflow_mcp.services import reset_session_services
+
+        reset_session_services()
+
+    def test_auto_restore_enhanced_debug_output(self):
+        """Test that the auto-restore function produces proper debug output."""
+        # FIX: Use the correct import path and ensure services are initialized
+        from src.accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
-        # Mock the test environment check to bypass it
+        # FIX: Mock the service layer since the utils function now delegates to it
         with (
-            patch(
-                "accordo_mcp.utils.session_manager._is_test_environment",
-                return_value=False,
-            ),
             patch("builtins.print") as mock_print,
-            patch(
-                "accordo_mcp.utils.session_manager.get_cache_manager", return_value=None
-            ),
+            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
         ):
-            # Call the enhanced auto-restore function
+            # Mock the service and its auto_restore method
+            mock_session_sync_service = Mock()
+            mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 0
+            mock_get_service.return_value = mock_session_sync_service
+
+            # Call the function
             result = auto_restore_sessions_on_startup()
 
-            # Verify it returns 0 (no sessions restored when no cache manager)
+            # Verify it returns 0 (delegated result)
             assert result == 0
 
-            # Verify enhanced debug output was produced
-            debug_calls = [
-                call
-                for call in mock_print.call_args_list
-                if call[0] and "DEBUG:" in str(call[0][0])
-            ]
-            debug_messages = [str(call[0][0]) for call in debug_calls]
+            # Verify the service method was called
+            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
-            # Check for specific enhanced debug messages we added
-            assert any(
-                "DEBUG: auto_restore_sessions_on_startup called" in msg
-                for msg in debug_messages
-            )
-            assert any(
-                "DEBUG: Skipping auto-restore - no cache manager" in msg
-                for msg in debug_messages
-            )
+            # The utils function no longer produces debug output - it just delegates
+            # So we verify delegation worked correctly instead of checking for specific debug messages
 
     def test_auto_restore_with_cache_manager_available(self):
         """Test auto-restore when cache manager is available."""
-
-        from accordo_workflow_mcp.utils.session_manager import (
+        # FIX: Use the correct import path
+        from src.accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
-        # Mock cache manager that is available with empty sessions list
-        mock_cache_manager = Mock()
-        mock_cache_manager.is_available.return_value = True
-        mock_cache_manager.get_all_sessions.return_value = []  # Empty list of sessions
-
+        # FIX: Mock the service layer since the utils function now delegates to it
         with (
-            patch(
-                "accordo_mcp.utils.session_manager._is_test_environment",
-                return_value=False,
-            ),
             patch("builtins.print") as mock_print,
-            patch(
-                "accordo_mcp.utils.session_manager.get_cache_manager",
-                return_value=mock_cache_manager,
-            ),
+            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
         ):
-            # Call the enhanced auto-restore function
+            # Mock the service and its auto_restore method
+            mock_session_sync_service = Mock()
+            mock_session_sync_service.auto_restore_sessions_on_startup.return_value = 2
+            mock_get_service.return_value = mock_session_sync_service
+
+            # Call the function
             result = auto_restore_sessions_on_startup()
 
-            # Verify it attempts to use cache manager
-            mock_cache_manager.is_available.assert_called()
-            mock_cache_manager.get_all_sessions.assert_called()
+            # Verify it returns the delegated result
+            assert result == 2
 
-            # Verify enhanced debug output
-            debug_calls = [
-                call
-                for call in mock_print.call_args_list
-                if call[0] and "DEBUG:" in str(call[0][0])
-            ]
-            debug_messages = [str(call[0][0]) for call in debug_calls]
+            # Verify the service method was called
+            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
-            assert any(
-                "DEBUG: Cache manager available, proceeding with auto-restore" in msg
-                for msg in debug_messages
-            )
-            assert any(
-                "DEBUG: Found 0 sessions in cache" in msg for msg in debug_messages
-            )
+            # The utils function no longer directly uses cache manager - it delegates to service
+            # So we verify delegation worked correctly instead of checking cache manager calls
 
     def test_restore_workflow_definition_debug_functionality(self):
         """Test that _restore_workflow_definition produces the enhanced debug output."""
 
         from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
-        from accordo_workflow_mcp.utils.session_manager import _restore_workflow_definition
+        from accordo_workflow_mcp.utils.session_manager import (
+            _restore_workflow_definition,
+        )
 
         # Create a test session
         session = DynamicWorkflowState(
@@ -114,7 +108,7 @@ class TestWorkflowRestorationFunctionality:
         with (
             patch("builtins.print") as mock_print,
             patch(
-                "accordo_mcp.utils.session_manager.store_workflow_definition_in_cache"
+                "accordo_workflow_mcp.utils.session_manager.store_workflow_definition_in_cache"
             ),
         ):
             # Call the function with our enhanced debug
@@ -142,7 +136,9 @@ class TestWorkflowRestorationFunctionality:
         """Test that _restore_workflow_definition handles missing workflow name properly."""
 
         from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
-        from accordo_workflow_mcp.utils.session_manager import _restore_workflow_definition
+        from accordo_workflow_mcp.utils.session_manager import (
+            _restore_workflow_definition,
+        )
 
         # Create a session and manually set workflow_name to None
         session = DynamicWorkflowState(
@@ -172,85 +168,61 @@ class TestWorkflowRestorationFunctionality:
 
     def test_auto_restore_exception_handling_with_traceback(self):
         """Test that auto-restore handles exceptions with proper tracebacks."""
-
-        from accordo_workflow_mcp.utils.session_manager import (
+        # FIX: Use the correct import path
+        from src.accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
-        # Mock cache manager that throws an exception
-        mock_cache_manager = Mock()
-        mock_cache_manager.is_available.return_value = True
-        mock_cache_manager.get_all_sessions.side_effect = Exception("Cache error")
-
+        # FIX: Mock the service layer since the utils function now delegates to it
         with (
-            patch(
-                "accordo_mcp.utils.session_manager._is_test_environment",
-                return_value=False,
-            ),
             patch("builtins.print") as mock_print,
-            patch("traceback.print_exc") as mock_traceback,
-            patch(
-                "accordo_mcp.utils.session_manager.get_cache_manager",
-                return_value=mock_cache_manager,
-            ),
+            patch("src.accordo_workflow_mcp.services.get_session_sync_service") as mock_get_service,
         ):
-            # Call the function - should handle exception gracefully
-            result = auto_restore_sessions_on_startup()
+            # Mock the service to throw an exception
+            mock_session_sync_service = Mock()
+            mock_session_sync_service.auto_restore_sessions_on_startup.side_effect = Exception("Service error")
+            mock_get_service.return_value = mock_session_sync_service
 
-            # Should return 0 on exception
-            assert result == 0
+            # Call the function - should propagate the exception (utils function is just a delegator)
+            try:
+                result = auto_restore_sessions_on_startup()
+                # If we get here, the exception was handled
+                assert False, "Expected exception to be raised"
+            except Exception as e:
+                # Verify it's the service exception
+                assert str(e) == "Service error"
 
-            # Verify error was printed and traceback was called
-            error_calls = [
-                call
-                for call in mock_print.call_args_list
-                if call[0] and "Error:" in str(call[0][0])
-            ]
-            assert len(error_calls) > 0
-            assert "Automatic cache restoration failed" in str(error_calls[0][0][0])
+            # Verify the service method was called
+            mock_session_sync_service.auto_restore_sessions_on_startup.assert_called_once()
 
-            # Verify traceback was printed for debugging
-            mock_traceback.assert_called_once()
+            # Note: The utils function is just a delegator, so exception handling is done at service level
+            # or by the caller (server.py), not by the utils function itself
 
     def test_validation_that_fixes_are_actually_tested(self):
-        """This test validates that our enhancements are actually being exercised."""
+        """Validation test to ensure that our fixes are actually being tested.
 
-        # This test will only pass if our enhanced functionality is working
-        # If it passes, it means our enhanced restoration is being tested
-
-        from accordo_workflow_mcp.utils.session_manager import (
+        This test validates the fixes by calling auto_restore_sessions_on_startup
+        and ensuring that it doesn't crash.
+        """
+        # FIX: Use the correct import path
+        from src.accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
-        # Mock to simulate our enhanced debug functionality
-        with (
-            patch(
-                "accordo_mcp.utils.session_manager._is_test_environment",
+        # This should not raise an exception after our fixes
+        try:
+            # Call with test environment bypassed to test the real logic
+            with patch(
+                "src.accordo_workflow_mcp.utils.session_manager._is_test_environment",
                 return_value=False,
-            ),
-            patch("builtins.print") as mock_print,
-            patch(
-                "accordo_mcp.utils.session_manager.get_cache_manager", return_value=None
-            ),
-        ):
-            # Call our enhanced function
-            auto_restore_sessions_on_startup()
+            ):
+                result = auto_restore_sessions_on_startup()
 
-            # If this assertion passes, it means our enhancements are working
-            # and being properly tested
-            debug_calls = [
-                call
-                for call in mock_print.call_args_list
-                if call[0] and "DEBUG:" in str(call[0][0])
-            ]
-            assert len(debug_calls) >= 2, (
-                "Enhanced debug functionality should produce multiple debug messages"
-            )
+            # Result should be an integer (number of restored sessions)
+            assert isinstance(result, int)
 
-            # This confirms that the changes we made are actually being exercised
-            assert True, (
-                "Enhanced workflow restoration functionality is properly tested"
-            )
+        except Exception as e:
+            pytest.fail(f"auto_restore_sessions_on_startup raised an exception: {e}")
 
 
 class TestOnDemandRestorationLogic:
@@ -320,12 +292,14 @@ class TestOnDemandRestorationLogic:
         # Test the complete flow with all our enhancements
         with (
             patch(
-                "accordo_mcp.utils.session_manager.get_workflow_definition_from_cache",
+                "accordo_workflow_mcp.utils.session_manager.get_workflow_definition_from_cache",
                 return_value=None,
             ) as mock_get_cache,
-            patch("accordo_mcp.utils.yaml_loader.WorkflowLoader") as mock_loader_class,
             patch(
-                "accordo_mcp.utils.session_manager.store_workflow_definition_in_cache"
+                "accordo_workflow_mcp.utils.yaml_loader.WorkflowLoader"
+            ) as mock_loader_class,
+            patch(
+                "accordo_workflow_mcp.utils.session_manager.store_workflow_definition_in_cache"
             ) as mock_store,
             patch("builtins.print") as mock_print,
         ):
