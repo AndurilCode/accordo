@@ -189,6 +189,22 @@ dev_*.txt
 dev_*.log
 debug_*
 
-# Workflow Commander
+# Accordo
 .accordo/sessions/
 .accordo/cache/
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# ChromaDB specific files
+chroma.sqlite3*
+*.bin
+**/data_level*.bin
+**/header.bin
+**/length.bin
+**/link_lists.bin
+
+# Additional cache patterns
+**/.accordo/cache/**
+**/.workflow-commander/cache/**
