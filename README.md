@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="logo.png" alt="Accordo Logo" width="1000"/>
+</div>
+
 # Accordo MCP Server
 
 A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features structured development workflows with progression control and decision points.
