@@ -1,5 +1,5 @@
 [project]
-name = "accordo-mcp"
+name = "accordo-workflow-mcp"
 version = "0.1.0"
 description = "Accordo MCP server with dynamic YAML workflow support"
 readme = "README.md"
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-accordo-mcp = "accordo_mcp.server:main"
+accordo-workflow-mcp = "accordo_mcp.server:main"
 accordo = "accordo_cli.main:app"
 
 [project.optional-dependencies]
