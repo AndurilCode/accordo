@@ -33,7 +33,7 @@ class WorkflowCacheManager:
         self,
         db_path: str,
         collection_name: str = "workflow_states",
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "all-mpnet-base-v2",
         max_results: int = 50,
     ):
         """Initialize the cache manager.
@@ -84,11 +84,32 @@ class WorkflowCacheManager:
                     )
                 )
                 
-                # Get or create collection
-                self._collection = self._client.get_or_create_collection(
-                    name=self.collection_name,
-                    metadata={"description": "Workflow states with semantic embeddings"}
-                )
+                # Get or create collection with optimized distance metric for text embeddings
+                try:
+                    # Try to get existing collection first (preserves existing metric)
+                    self._collection = self._client.get_collection(name=self.collection_name)
+                except Exception:
+                    # Create new collection with cosine distance (better for text embeddings)
+                    try:
+                        self._collection = self._client.create_collection(
+                            name=self.collection_name,
+                            metadata={
+                                "hnsw:space": "cosine",  # Use cosine distance for semantic similarity
+                                "description": "Workflow states with semantic embeddings"
+                            }
+                        )
+                    except Exception as create_error:
+                        # Fallback: create with default settings if cosine fails
+                        print(f"Warning: Failed to create collection with cosine distance: {create_error}")
+                        print("Falling back to default distance metric...")
+                        self._collection = self._client.create_collection(
+                            name=self.collection_name,
+                            metadata={"description": "Workflow states with semantic embeddings"}
+                        )
+                
+                # Check for dimensional compatibility if collection has existing data
+                if self._collection.count() > 0:
+                    self._verify_embedding_compatibility()
                 
                 # Initialize embedding model (lazy loading for performance)
                 # Model will be loaded on first use
@@ -100,6 +121,65 @@ class WorkflowCacheManager:
                 # Log error but don't raise to avoid breaking workflow execution
                 print(f"Warning: Failed to initialize cache manager: {e}")
                 return False
+
+    def _verify_embedding_compatibility(self) -> None:
+        """Verify that existing embeddings are compatible with current model.
+        
+        If incompatible embeddings are detected (different dimensions), 
+        clears the collection to prevent search failures.
+        
+        NOTE: This check is now deferred to first model use to avoid
+        eager loading during cache initialization for better startup performance.
+        """
+        try:
+            # Check if collection has existing embeddings
+            results = self._collection.get(limit=1, include=["embeddings"])
+            if not results["embeddings"] or len(results["embeddings"]) == 0:
+                # No existing embeddings, no compatibility check needed
+                return
+                
+            # Mark that we need to verify compatibility when model is first loaded
+            self._needs_compatibility_check = True
+            print("Deferred embedding compatibility check - will verify on first model use")
+                    
+        except Exception as e:
+            print(f"Warning: Failed to check for existing embeddings: {e}")
+
+    def _perform_deferred_compatibility_check(self) -> None:
+        """Perform the deferred embedding compatibility check when model is first loaded."""
+        if not hasattr(self, '_needs_compatibility_check') or not self._needs_compatibility_check:
+            return
+            
+        try:
+            # Now that we have the model loaded, check dimensions
+            if self._embedding_model is None:
+                return
+                
+            # Generate a test embedding to get expected dimensions
+            test_embedding = self._embedding_model.encode(["test"])
+            expected_dim = len(test_embedding[0])
+            
+            # Get a sample from existing collection
+            results = self._collection.get(limit=1, include=["embeddings"])
+            if results["embeddings"] and len(results["embeddings"]) > 0:
+                existing_dim = len(results["embeddings"][0])
+                
+                if existing_dim != expected_dim:
+                    print("Warning: Embedding dimension mismatch detected!")
+                    print(f"  Existing embeddings: {existing_dim} dimensions")
+                    print(f"  Current model expects: {expected_dim} dimensions")
+                    print("  Clearing cache to rebuild with compatible embeddings...")
+                    
+                    # Clear incompatible embeddings
+                    self._collection.delete(where={})
+                    print("  Cache cleared successfully.")
+            
+            # Mark check as completed
+            self._needs_compatibility_check = False
+                    
+        except Exception as e:
+            print(f"Warning: Failed to verify embedding compatibility: {e}")
+            self._needs_compatibility_check = False
 
     def _is_test_environment(self) -> bool:
         """Detect if we're running in a test environment.
@@ -166,8 +246,8 @@ class WorkflowCacheManager:
         In test environments, returns a mock object to avoid heavy loading.
         Otherwise uses a fallback chain for model selection:
         1. Configured model (self.embedding_model_name)
-        2. all-MiniLM-L6-v2 (fast, good quality)
-        3. all-mpnet-base-v2 (slower, high quality)
+        2. all-mpnet-base-v2 (balanced quality/speed)
+        3. all-MiniLM-L6-v2 (fast fallback)
         
         Returns:
             SentenceTransformer model or None if loading fails
@@ -185,11 +265,11 @@ class WorkflowCacheManager:
             # Lazy import SentenceTransformer only when actually needed
             from sentence_transformers import SentenceTransformer
             
-            # Define fallback model chain (fast → high quality)
+            # Define fallback model chain (balanced → high quality → fast)
             model_chain = [
                 self.embedding_model_name,  # User-configured model
-                "all-MiniLM-L6-v2",         # Fast default (91MB)
-                "all-mpnet-base-v2",        # High quality fallback (335MB)
+                "all-mpnet-base-v2",        # Balanced default (335MB)
+                "all-MiniLM-L6-v2",         # Fast fallback (91MB)
             ]
             
             # Remove duplicates while preserving order
@@ -198,9 +278,13 @@ class WorkflowCacheManager:
             for model_name in model_chain:
                 try:
                     print(f"Loading embedding model: {model_name}")
-                    self._embedding_model = SentenceTransformer(model_name)
+                    self._embedding_model = SentenceTransformer(model_name, device="cpu")
                     if model_name != self.embedding_model_name:
                         print(f"Note: Using fallback model {model_name} instead of {self.embedding_model_name}")
+                    
+                    # Perform deferred compatibility check now that model is loaded
+                    self._perform_deferred_compatibility_check()
+                    
                     return self._embedding_model
                 except Exception as e:
                     print(f"Warning: Failed to load model {model_name}: {e}")
@@ -213,6 +297,84 @@ class WorkflowCacheManager:
         except ImportError as e:
             print(f"Warning: sentence-transformers not available: {e}")
             return None
+
+    def _get_distance_metric(self) -> str:
+        """Get the distance metric used by the collection.
+        
+        This method checks the collection metadata to determine which distance metric
+        is being used. This is crucial for proper similarity score calculation since
+        different metrics have different distance ranges and semantics.
+        
+        Returns:
+            str: Distance metric ('l2', 'cosine', 'ip') or 'l2' as default
+            
+        Note:
+            ChromaDB defaults to L2 (Euclidean) distance if not specified.
+            For text embeddings, cosine distance typically provides better semantic similarity.
+        """
+        try:
+            # Get collection metadata to check distance metric
+            collection_metadata = self._collection.metadata
+            if collection_metadata and "hnsw:space" in collection_metadata:
+                return collection_metadata["hnsw:space"]
+            # Default to L2 if not specified (ChromaDB default)
+            return "l2"
+        except Exception:
+            # Fallback to L2 if we can't determine the metric
+            return "l2"
+    
+    def _convert_distance_to_similarity(self, distance: float, metric: str = None) -> float:
+        """Convert ChromaDB distance to similarity score based on metric type.
+        
+        This method fixes the critical similarity scoring bug by applying the correct
+        distance-to-similarity conversion formula based on the distance metric used.
+        
+        Distance Metric Ranges and Conversions:
+        - Cosine: [0, 2] → similarity = 1 - (distance / 2)
+        - Inner Product: [-1, 1] → similarity = (distance + 1) / 2  
+        - L2/Euclidean: [0, ∞] → similarity = 1 - (distance / 2) for normalized embeddings
+        
+        Args:
+            distance: Distance value from ChromaDB
+            metric: Distance metric ('l2', 'cosine', 'ip') or None to auto-detect
+            
+        Returns:
+            float: Similarity score between 0.0 and 1.0 (higher = more similar)
+            
+        Note:
+            The original bug was using similarity = max(0, 1 - distance) which assumes
+            all distances are in [0, 1] range. This caused distances > 1.0 to always
+            return similarity 0.0, making semantic search ineffective.
+        """
+        # Handle edge cases
+        if distance is None or not isinstance(distance, (int, float)):
+            return 0.0
+        
+        if metric is None:
+            metric = self._get_distance_metric()
+            
+        # Ensure metric is lowercase for comparison
+        metric = metric.lower()
+            
+        if metric == "cosine":
+            # Cosine distance ranges from 0 to 2
+            # Convert to similarity: closer to 0 = more similar
+            # Handle edge case where distance might be slightly outside expected range
+            return max(0.0, min(1.0, 1.0 - (distance / 2.0)))
+        elif metric in ["ip", "innerproduct"]:
+            # Inner product: higher values = more similar
+            # For normalized embeddings, IP ranges approximately [-1, 1]
+            # Convert to similarity score [0, 1]
+            return max(0.0, min(1.0, (distance + 1.0) / 2.0))
+        else:  # metric == "l2", "euclidean" or unknown
+            # L2 distance: 0 = identical, larger = more different
+            # For normalized embeddings, L2 typically ranges [0, 2]
+            # Legacy support: use original formula if distance is in [0,1] range (old behavior)
+            if distance <= 1.0:
+                return max(0.0, 1.0 - distance)
+            else:
+                # New improved scaling for distances > 1.0
+                return max(0.0, min(1.0, 1.0 - (distance / 2.0)))
 
     def _generate_embedding_text(self, state: DynamicWorkflowState) -> str:
         """Generate text for embedding from workflow state.
@@ -624,7 +786,8 @@ class WorkflowCacheManager:
                     for i, session_id in enumerate(search_results["ids"][0]):
                         # Calculate similarity score (ChromaDB returns distances)
                         distance = search_results["distances"][0][i]
-                        similarity_score = max(0.0, 1.0 - distance)  # Convert distance to similarity
+                        # Use proper distance-to-similarity conversion based on metric type
+                        similarity_score = self._convert_distance_to_similarity(distance)
                         
                         # Skip results below minimum similarity
                         if similarity_score < min_similarity:
@@ -792,6 +955,29 @@ class WorkflowCacheManager:
         except Exception as e:
             print(f"Warning: Failed to cleanup old entries: {e}")
             return 0
+
+    def get_all_session_ids(self) -> list[str]:
+        """Get all session IDs from cache.
+        
+        Returns:
+            List of session IDs
+        """
+        if not self._ensure_initialized():
+            return []
+            
+        try:
+            with self._lock:
+                # Get all entries
+                results = self._collection.get(include=["metadatas"])
+                
+                if not results.get("ids"):
+                    return []
+                    
+                return results["ids"]
+                
+        except Exception as e:
+            print(f"Warning: Failed to get all session IDs: {e}")
+            return []
 
     def regenerate_embeddings_for_enhanced_search(self, force_regenerate: bool = False) -> int:
         """Regenerate embeddings for existing cache entries using enhanced text generation.

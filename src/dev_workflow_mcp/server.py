@@ -1,12 +1,22 @@
 """Main MCP server implementation."""
 
 import argparse
+import os
+from pathlib import Path
 
 from fastmcp import FastMCP
 
-from .config import ServerConfig
 from .prompts.discovery_prompts import register_discovery_prompts
 from .prompts.phase_prompts import register_phase_prompts
+from .services.config_service import (
+    ConfigurationService,
+    EnvironmentConfiguration,
+    PlatformConfiguration,
+    ServerConfiguration,
+    WorkflowConfiguration,
+    initialize_configuration_service,
+)
+from .services.dependency_injection import register_singleton
 
 
 def create_arg_parser() -> argparse.ArgumentParser:
@@ -29,7 +39,7 @@ Examples:
   %(prog)s --repository-path ../my-project --enable-local-state-file --local-state-file-format JSON
   
   # Enable cache mode for persistent workflow states
-              %(prog)s --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2
+              %(prog)s --enable-cache-mode --cache-embedding-model all-mpnet-base-v2
   
   # Enable both file storage and cache mode
   %(prog)s --enable-local-state-file --enable-cache-mode --cache-db-path ./cache
@@ -104,7 +114,7 @@ Examples:
     parser.add_argument(
         "--cache-embedding-model",
         type=str,
-        default="all-MiniLM-L6-v2",
+        default="all-mpnet-base-v2",
         help="Sentence transformer model for semantic embeddings. (default: %(default)s)",
         metavar="MODEL",
     )
@@ -126,10 +136,13 @@ def main():
     parser = create_arg_parser()
     args = parser.parse_args()
 
-    # Create configuration
+    # Create new configuration service
     try:
-        config = ServerConfig(
-            repository_path=args.repository_path,
+        # Create server configuration from CLI arguments
+        server_config = ServerConfiguration(
+            repository_path=Path(args.repository_path)
+            if args.repository_path
+            else Path.cwd(),
             enable_local_state_file=args.enable_local_state_file,
             local_state_file_format=args.local_state_file_format.upper(),
             session_retention_hours=args.session_retention_hours,
@@ -140,7 +153,44 @@ def main():
             cache_embedding_model=args.cache_embedding_model,
             cache_max_results=args.cache_max_results,
         )
-    except ValueError as e:
+
+        # Create workflow configuration based on server settings
+        workflow_config = WorkflowConfiguration(
+            local_state_file=server_config.enable_local_state_file,
+            local_state_file_format=server_config.local_state_file_format,
+        )
+
+        # Create platform configuration with detected settings
+        platform_config = PlatformConfiguration(
+            editor_type="cursor",  # This could be auto-detected from environment
+            environment_variables=dict(os.environ),  # Pass through current environment
+        )
+
+        # Create environment configuration (auto-detects from environment)
+        environment_config = EnvironmentConfiguration()
+
+        # Initialize the configuration service
+        config_service = initialize_configuration_service(
+            server_config=server_config,
+            workflow_config=workflow_config,
+            platform_config=platform_config,
+            environment_config=environment_config,
+        )
+
+        # Register configuration service in dependency injection container
+        register_singleton(ConfigurationService, lambda: config_service)
+
+        # Initialize cache service for dependency injection
+        from .services import initialize_cache_service, initialize_session_services
+        initialize_cache_service()
+        
+        # Initialize session services for dependency injection
+        initialize_session_services()
+
+        # Create legacy config for backward compatibility
+        legacy_config = config_service.to_legacy_server_config()
+
+    except Exception as e:
         print(f"Error: {e}")
         return 1
 
@@ -148,15 +198,23 @@ def main():
     mcp = FastMCP("Development Workflow")
 
     # Register essential YAML workflow prompts with configuration
-    register_phase_prompts(mcp, config)
-    register_discovery_prompts(mcp, config)
+    # Use legacy config for backward compatibility during migration
+    register_phase_prompts(mcp, legacy_config)
+    register_discovery_prompts(mcp, legacy_config)
 
-    # Perform automatic cache restoration if cache mode is enabled
-    if config.enable_cache_mode:
+    # Perform automatic cache restoration AFTER all services are initialized
+    print(f"🚨 DEBUG: server_config.enable_cache_mode = {server_config.enable_cache_mode}")
+    if server_config.enable_cache_mode:
+        print("🚨 DEBUG: Cache mode is enabled, attempting auto-restore with SessionSyncService...")
         try:
-            from .utils.session_manager import auto_restore_sessions_on_startup
+            from .services import get_session_sync_service
 
-            restored_count = auto_restore_sessions_on_startup()
+            print("🚨 DEBUG: Getting SessionSyncService...")
+            session_sync_service = get_session_sync_service()
+            
+            print("🚨 DEBUG: Calling session_sync_service.auto_restore_sessions_on_startup()...")
+            restored_count = session_sync_service.auto_restore_sessions_on_startup()
+            print(f"🚨 DEBUG: SessionSyncService auto_restore_sessions_on_startup() returned {restored_count}")
             if restored_count > 0:
                 print(
                     f"Info: Automatically restored {restored_count} workflow session(s) from cache"
@@ -164,7 +222,12 @@ def main():
 
         except Exception as e:
             # Non-blocking: don't let cache restoration prevent server startup
+            print(f"🚨 DEBUG: Exception in SessionSyncService auto-restore: {e}")
+            import traceback
+            traceback.print_exc()
             print(f"Info: Automatic cache restoration skipped: {e}")
+    else:
+        print("🚨 DEBUG: Cache mode is NOT enabled, skipping auto-restore")
 
     # Run the server
     mcp.run(transport="stdio")
