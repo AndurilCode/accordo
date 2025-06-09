@@ -4,6 +4,10 @@
 
 # Accordo MCP Server
 
+![PyPI - Version](https://img.shields.io/pypi/v/accordo-workflow-mcp)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/AndurilCode/accordo/publish-to-pypi.yml)
+
+
 A powerful MCP (Model Context Protocol) server that provides **dynamic YAML-driven workflow guidance** for AI coding agents. Features structured development workflows with progression control and decision points.
 
 ## What This Does
