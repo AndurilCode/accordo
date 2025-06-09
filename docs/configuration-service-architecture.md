@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Configuration Service provides a centralized, type-safe, and extensible configuration management system for the dev-workflow-mcp project. This service replaces scattered configuration handling with a clean, dependency-injection-based architecture.
+The Configuration Service provides a centralized, type-safe, and extensible configuration management system for the accordo-mcp project. This service replaces scattered configuration handling with a clean, dependency-injection-based architecture.
 
 ## Architecture Components
 
@@ -12,7 +12,7 @@ The Configuration Service provides a centralized, type-safe, and extensible conf
 Manages server-level settings including repository paths, session management, and cache configuration.
 
 ```python
-from src.dev_workflow_mcp.services import ServerConfiguration
+from src.accordo-mcp.services import ServerConfiguration
 
 server_config = ServerConfiguration(
     repository_path=Path("/path/to/project"),
@@ -31,7 +31,7 @@ server_config = ServerConfiguration(
 Handles workflow execution settings and behavior configuration.
 
 ```python
-from src.dev_workflow_mcp.services import WorkflowConfiguration
+from src.accordo-mcp.services import WorkflowConfiguration
 
 workflow_config = WorkflowConfiguration(
     local_state_file_format="MD",
@@ -46,7 +46,7 @@ workflow_config = WorkflowConfiguration(
 Manages platform-specific settings for different AI development environments.
 
 ```python
-from src.dev_workflow_mcp.services import PlatformConfiguration, PlatformType
+from src.accordo-mcp.services import PlatformConfiguration, PlatformType
 
 platform_config = PlatformConfiguration(
     editor_type=PlatformType.CURSOR,
@@ -64,7 +64,7 @@ platform_config = PlatformConfiguration(
 Handles environment-specific settings including S3 integration and external services.
 
 ```python
-from src.dev_workflow_mcp.services import EnvironmentConfiguration
+from src.accordo-mcp.services import EnvironmentConfiguration
 
 env_config = EnvironmentConfiguration(
     s3_bucket_name="my-workflow-bucket",
@@ -78,7 +78,7 @@ env_config = EnvironmentConfiguration(
 The `ConfigurationService` provides a unified interface for accessing all configuration components:
 
 ```python
-from src.dev_workflow_mcp.services import (
+from src.accordo-mcp.services import (
     ConfigurationService,
     initialize_configuration_service,
     get_configuration_service
@@ -107,7 +107,7 @@ is_valid, errors = config_service.validate_configuration()
 The service includes a comprehensive dependency injection system:
 
 ```python
-from src.dev_workflow_mcp.services import (
+from src.accordo-mcp.services import (
     register_singleton,
     get_service,
     inject_config_service
@@ -131,8 +131,8 @@ config_service = get_service(ConfigurationService)
 ### Before (Legacy)
 ```python
 # Scattered configuration access
-from src.dev_workflow_mcp.config import ServerConfig
-from src.dev_workflow_mcp.utils.session_manager import set_server_config
+from src.accordo-mcp.config import ServerConfig
+from src.accordo-mcp.utils.session_manager import set_server_config
 
 config = ServerConfig(repository_path=".")
 set_server_config(config)
@@ -146,7 +146,7 @@ if _server_config:
 ### After (New Service)
 ```python
 # Centralized configuration service
-from src.dev_workflow_mcp.services import (
+from src.accordo-mcp.services import (
     ServerConfiguration,
     initialize_configuration_service,
     get_configuration_service
@@ -284,7 +284,7 @@ legacy_config = config_service.to_legacy_server_config()
 
 ### Configuration Validation Errors
 ```python
-from src.dev_workflow_mcp.services import ConfigurationValidationError
+from src.accordo-mcp.services import ConfigurationValidationError
 
 try:
     config_service = initialize_configuration_service(
@@ -297,7 +297,7 @@ except ConfigurationValidationError as e:
 
 ### Service Not Initialized
 ```python
-from src.dev_workflow_mcp.services import ConfigurationError
+from src.accordo-mcp.services import ConfigurationError
 
 try:
     config_service = get_configuration_service()
@@ -318,7 +318,7 @@ def test_server_configuration():
     
     assert config.repository_path == Path("/tmp/test")
     assert config.enable_local_state_file is True
-    assert config.sessions_dir == Path("/tmp/test/.workflow-commander/sessions")
+    assert config.sessions_dir == Path("/tmp/test/.accordo/sessions")
 ```
 
 ### Integration Testing

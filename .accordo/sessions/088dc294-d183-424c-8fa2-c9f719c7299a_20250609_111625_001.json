@@ -1,0 +1,41 @@
+{
+  "session_id": "088dc294-d183-424c-8fa2-c9f719c7299a",
+  "client_id": "default",
+  "created_at": "2025-06-09 09:16:11.870395+00:00",
+  "workflow_name": "YAML Content Test Workflow",
+  "workflow_file": null,
+  "workflow_yaml_content": "name: YAML Content Test Workflow\ndescription: Test workflow created from YAML content to validate restoration\ninputs:\n  task_description:\n    type: string\n    description: Task to perform\nworkflow:\n  goal: Validate YAML content persistence across restarts\n  root: setup\n  tree:\n    setup:\n      goal: Set up the test environment\n      acceptance_criteria:\n        environment_ready: Test environment is configured\n        requirements_analyzed: Requirements have been analyzed\n      next_allowed_nodes:\n      - execute\n    execute:\n      goal: Execute the test scenario\n      acceptance_criteria:\n        test_executed: Test scenario has been executed\n        results_captured: Test results have been captured\n      next_allowed_nodes:\n      - verify\n    verify:\n      goal: Verify the test results\n      acceptance_criteria:\n        results_validated: Test results have been validated\n        success_confirmed: Success has been confirmed\n      next_allowed_nodes: []\n",
+  "session_filename": null,
+  "last_updated": "2025-06-09 09:16:25.413558+00:00",
+  "current_node": "execute",
+  "status": "RUNNING",
+  "execution_context": {},
+  "inputs": {
+    "task_description": "Test YAML content workflow restoration across server restarts"
+  },
+  "node_outputs": {
+    "setup": {
+      "goal_achieved": true,
+      "completion_timestamp": "2025-06-09T09:16:25.413488+00:00",
+      "node_name": "setup",
+      "completed_criteria": {
+        "environment_ready": "Successfully configured test environment with YAML content storage functionality",
+        "requirements_analyzed": "Analyzed all requirements for YAML workflow restoration including session persistence and workflow definition restoration"
+      }
+    }
+  },
+  "current_item": "Test YAML content workflow restoration across server restarts",
+  "plan": "",
+  "items": [],
+  "log": [
+    "[11:16:25] \u2705 Completed node: setup with 2 criteria satisfied",
+    "[11:16:25]    \ud83d\udccb Criterion satisfied: environment_ready",
+    "[11:16:25]    \ud83d\udccb Criterion satisfied: requirements_analyzed",
+    "[11:16:25] \ud83d\udd04 Transitioned from setup to execute",
+    "[11:16:25] \ud83d\udcdd CURRENT GOAL: Execute the test scenario"
+  ],
+  "archive_log": [],
+  "node_history": [
+    "setup"
+  ]
+}

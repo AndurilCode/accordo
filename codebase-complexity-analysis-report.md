@@ -567,7 +567,7 @@ from ..utils.yaml_loader import WorkflowLoader
 ### **A. Current Architecture Overview**:
 ```
 dev-workflow-mcp/
-├── src/dev_workflow_mcp/          # Core MCP server
+├── src/accordo-mcp/          # Core MCP server
 │   ├── models/                    # Data models (785 lines in workflow_state.py)
 │   ├── prompts/                   # MCP tool implementations
 │   ├── utils/                     # Utilities (1,510 lines in session_manager.py)

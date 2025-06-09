@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "workflow-commander": {
+    "accordo": {
       "command": "uvx",
       "args": [
         "--from", 
-        "git+https://github.com/AndurilCode/workflow-commander@main", 
-        "dev-workflow-mcp"
+        "git+https://github.com/AndurilCode/accordo@main", 
+        "accordo-mcp"
       ]
     }
   }

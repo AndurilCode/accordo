@@ -10,7 +10,7 @@ inputs:
     type: string
     description: Path to project configuration file
     required: false
-    default: ".workflow-commander/project_config.md"
+    default: ".accordo/project_config.md"
 
 execution:
   max_depth: 10

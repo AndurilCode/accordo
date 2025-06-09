@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.dev_workflow_mcp.services.config_service import (
+from src.accordo_mcp.services.config_service import (
     ConfigurationError,
     ConfigurationService,
     ConfigurationValidationError,
@@ -75,7 +75,7 @@ class TestServerConfiguration:
             repo_path = Path(temp_dir)
             config = ServerConfiguration(repository_path=repo_path)
 
-            expected_workflow_dir = repo_path / ".workflow-commander"
+            expected_workflow_dir = repo_path / ".accordo"
             expected_workflows_dir = expected_workflow_dir / "workflows"
             expected_sessions_dir = expected_workflow_dir / "sessions"
             expected_project_config = expected_workflow_dir / "project_config.md"
@@ -140,10 +140,7 @@ class TestPlatformConfiguration:
         # Test auto-configuration of handler
         assert config.handler_config is not None
         assert config.handler_config.handler_class == "CursorHandler"
-        assert (
-            config.handler_config.module_path
-            == "workflow_commander_cli.handlers.cursor"
-        )
+        assert config.handler_config.module_path == "accordo_cli.handlers.cursor"
 
         # Test default settings
         assert config.config_file_management["auto_backup"] is True
@@ -172,10 +169,7 @@ class TestPlatformConfiguration:
         # Test VS Code handler auto-configuration
         assert config.handler_config is not None
         assert config.handler_config.handler_class == "VSCodeHandler"
-        assert (
-            config.handler_config.module_path
-            == "workflow_commander_cli.handlers.vscode"
-        )
+        assert config.handler_config.module_path == "accordo_cli.handlers.vscode"
 
     def test_platform_info_auto_detection(self):
         """Test platform info auto-detection for all platform types."""
@@ -241,19 +235,19 @@ class TestPlatformConfiguration:
         handler_expectations = {
             PlatformType.CURSOR: (
                 "CursorHandler",
-                "workflow_commander_cli.handlers.cursor",
+                "accordo_cli.handlers.cursor",
             ),
             PlatformType.CLAUDE_DESKTOP: (
                 "ClaudeDesktopHandler",
-                "workflow_commander_cli.handlers.claude",
+                "accordo_cli.handlers.claude",
             ),
             PlatformType.CLAUDE_CODE: (
                 "ClaudeCodeHandler",
-                "workflow_commander_cli.handlers.claude",
+                "accordo_cli.handlers.claude",
             ),
             PlatformType.VSCODE: (
                 "VSCodeHandler",
-                "workflow_commander_cli.handlers.vscode",
+                "accordo_cli.handlers.vscode",
             ),
         }
 
@@ -518,7 +512,7 @@ class TestConfigurationService:
             legacy_config = service.to_legacy_server_config()
 
             # Import here to avoid circular imports
-            from src.dev_workflow_mcp.config import ServerConfig
+            from src.accordo_mcp.config import ServerConfig
 
             assert isinstance(legacy_config, ServerConfig)
             assert str(legacy_config.repository_path) == str(temp_dir)

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.dev_workflow_mcp.prompts.phase_prompts import validate_task_description
+from src.accordo_mcp.prompts.phase_prompts import validate_task_description
 
 
 class TestValidTaskDescriptions:

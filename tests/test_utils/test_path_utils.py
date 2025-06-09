@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.dev_workflow_mcp.utils.path_utils import (
+from src.accordo_mcp.utils.path_utils import (
     get_project_config_path,
     get_workflow_dir,
     get_workflow_state_path,
@@ -27,18 +27,18 @@ class TestPathUtils:
         shutil.rmtree(temp_dir)
 
     def test_get_workflow_dir_creates_directory(self, temp_dir):
-        """Test get_workflow_dir creates .workflow-commander directory."""
+        """Test get_workflow_dir creates .accordo directory."""
         workflow_dir = get_workflow_dir(temp_dir)
 
         assert workflow_dir.exists()
         assert workflow_dir.is_dir()
-        assert workflow_dir.name == ".workflow-commander"
+        assert workflow_dir.name == ".accordo"
         assert workflow_dir.parent == temp_dir
 
     def test_get_workflow_dir_existing_directory(self, temp_dir):
-        """Test get_workflow_dir with existing .workflow-commander directory."""
+        """Test get_workflow_dir with existing .accordo directory."""
         # Create the directory first
-        existing_dir = temp_dir / ".workflow-commander"
+        existing_dir = temp_dir / ".accordo"
         existing_dir.mkdir()
 
         workflow_dir = get_workflow_dir(temp_dir)
@@ -52,7 +52,7 @@ class TestPathUtils:
             result = get_workflow_dir()
 
             mock_mkdir.assert_called_once_with(exist_ok=True)
-            assert result.name == ".workflow-commander"
+            assert result.name == ".accordo"
 
     def test_get_workflow_dir_creation_fails(self, temp_dir):
         """Test get_workflow_dir when directory creation fails."""
@@ -67,7 +67,7 @@ class TestPathUtils:
             # Check that warning messages were printed (exact message may vary by system)
             assert mock_print.call_count == 2
             assert (
-                "Warning: Could not create .workflow-commander directory:"
+                "Warning: Could not create .accordo directory:"
                 in mock_print.call_args_list[0][0][0]
             )
             assert (
@@ -82,15 +82,13 @@ class TestPathUtils:
         """Test get_project_config_path returns correct path."""
         config_path = get_project_config_path(temp_dir)
 
-        expected_path = temp_dir / ".workflow-commander" / "project_config.md"
+        expected_path = temp_dir / ".accordo" / "project_config.md"
         assert config_path == expected_path
         assert config_path.parent.exists()  # Directory should be created
 
     def test_get_project_config_path_default(self):
         """Test get_project_config_path with default base path."""
-        with patch(
-            "src.dev_workflow_mcp.utils.path_utils.get_workflow_dir"
-        ) as mock_get_dir:
+        with patch("src.accordo_mcp.utils.path_utils.get_workflow_dir") as mock_get_dir:
             # Create a mock that supports the / operator
             mock_workflow_dir = Mock()
             mock_workflow_dir.__truediv__ = Mock(
@@ -107,7 +105,7 @@ class TestPathUtils:
         """Test get_workflow_state_path with markdown format."""
         state_path = get_workflow_state_path("md", temp_dir)
 
-        expected_path = temp_dir / ".workflow-commander" / "workflow_state.md"
+        expected_path = temp_dir / ".accordo" / "workflow_state.md"
         assert state_path == expected_path
         assert state_path.parent.exists()
 
@@ -115,14 +113,14 @@ class TestPathUtils:
         """Test get_workflow_state_path with JSON format."""
         state_path = get_workflow_state_path("json", temp_dir)
 
-        expected_path = temp_dir / ".workflow-commander" / "workflow_state.json"
+        expected_path = temp_dir / ".accordo" / "workflow_state.json"
         assert state_path == expected_path
 
     def test_get_workflow_state_path_default_format(self, temp_dir):
         """Test get_workflow_state_path with default format."""
         state_path = get_workflow_state_path(base_path=temp_dir)
 
-        expected_path = temp_dir / ".workflow-commander" / "workflow_state.md"
+        expected_path = temp_dir / ".accordo" / "workflow_state.md"
         assert state_path == expected_path
 
     def test_get_workflow_state_path_case_insensitive(self, temp_dir):
@@ -137,7 +135,7 @@ class TestPathUtils:
         """Test get_workflow_state_path with invalid format defaults to md."""
         state_path = get_workflow_state_path("xml", temp_dir)
 
-        expected_path = temp_dir / ".workflow-commander" / "workflow_state.md"
+        expected_path = temp_dir / ".accordo" / "workflow_state.md"
         assert state_path == expected_path
 
     def test_migrate_config_file_no_existing_file(self, temp_dir):
@@ -160,7 +158,7 @@ class TestPathUtils:
         assert result is True
         assert not old_path.exists()
 
-        new_path = temp_dir / ".workflow-commander" / "project_config.md"
+        new_path = temp_dir / ".accordo" / "project_config.md"
         assert new_path.exists()
         assert new_path.read_text() == "# Old Config\nContent here"
 
@@ -173,7 +171,7 @@ class TestPathUtils:
         old_path.write_text("# Old Config")
 
         # Create existing target file
-        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir = temp_dir / ".accordo"
         workflow_dir.mkdir()
         existing_target = workflow_dir / "project_config.md"
         existing_target.write_text("# Existing Config")
@@ -204,7 +202,7 @@ class TestPathUtils:
         old_path.write_text("# Old Config")
 
         # Make workflow directory read-only to cause failure
-        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir = temp_dir / ".accordo"
         workflow_dir.mkdir()
         workflow_dir.chmod(0o444)
 
@@ -238,7 +236,7 @@ class TestPathUtils:
         assert result is True
         assert not old_md.exists()
 
-        new_md = temp_dir / ".workflow-commander" / "workflow_state.md"
+        new_md = temp_dir / ".accordo" / "workflow_state.md"
         assert new_md.exists()
         assert new_md.read_text() == "# Workflow State MD"
 
@@ -256,7 +254,7 @@ class TestPathUtils:
         assert result is True
         assert not old_json.exists()
 
-        new_json = temp_dir / ".workflow-commander" / "workflow_state.json"
+        new_json = temp_dir / ".accordo" / "workflow_state.json"
         assert new_json.exists()
         assert new_json.read_text() == '{"state": "data"}'
 
@@ -277,8 +275,8 @@ class TestPathUtils:
         assert not old_md.exists()
         assert not old_json.exists()
 
-        new_md = temp_dir / ".workflow-commander" / "workflow_state.md"
-        new_json = temp_dir / ".workflow-commander" / "workflow_state.json"
+        new_md = temp_dir / ".accordo" / "workflow_state.md"
+        new_json = temp_dir / ".accordo" / "workflow_state.json"
         assert new_md.exists()
         assert new_json.exists()
 
@@ -293,7 +291,7 @@ class TestPathUtils:
         old_json.write_text('{"old": "json"}')
 
         # Create existing target files
-        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir = temp_dir / ".accordo"
         workflow_dir.mkdir()
         existing_md = workflow_dir / "workflow_state.md"
         existing_md.write_text("# Existing MD")
@@ -326,7 +324,7 @@ class TestPathUtils:
         old_json.write_text('{"old": "json"}')
 
         # Make workflow directory read-only to cause failure
-        workflow_dir = temp_dir / ".workflow-commander"
+        workflow_dir = temp_dir / ".accordo"
         workflow_dir.mkdir()
         workflow_dir.chmod(0o444)
 

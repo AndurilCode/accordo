@@ -1,0 +1,41 @@
+{
+  "session_id": "c47b868c-c59a-4f46-ac67-11d8e1584560",
+  "client_id": "default",
+  "created_at": "2025-06-09 09:14:33.565939+00:00",
+  "workflow_name": "Custom YAML Test Workflow",
+  "workflow_file": null,
+  "workflow_yaml_content": "name: Custom YAML Test Workflow\ndescription: A custom workflow created from YAML content to test cache restoration\ninputs:\n  task_description:\n    type: string\n    description: Task to be performed\nworkflow:\n  goal: Test YAML content persistence across server restarts\n  root: discovery\n  tree:\n    discovery:\n      goal: Discover and analyze the test requirements\n      acceptance_criteria:\n        analysis_complete: Analyzed the YAML content restoration requirements\n        test_plan_ready: Created a test plan for validation\n      next_allowed_nodes:\n      - implement\n    implement:\n      goal: Implement the test workflow steps\n      acceptance_criteria:\n        code_working: Implementation is functional\n        tests_passing: All tests are passing\n      next_allowed_nodes:\n      - validate\n    validate:\n      goal: Validate the complete solution\n      acceptance_criteria:\n        validation_complete: Solution has been thoroughly validated\n        documentation_updated: Documentation reflects the changes\n      next_allowed_nodes:\n      - complete\n    complete:\n      goal: Finalize the test workflow\n      acceptance_criteria:\n        final_review: Final review completed successfully\n      next_allowed_nodes: []\n",
+  "session_filename": null,
+  "last_updated": "2025-06-09 09:14:51.098851+00:00",
+  "current_node": "implement",
+  "status": "RUNNING",
+  "execution_context": {},
+  "inputs": {
+    "task_description": "Test YAML content workflow restoration across server restarts"
+  },
+  "node_outputs": {
+    "discovery": {
+      "goal_achieved": true,
+      "completion_timestamp": "2025-06-09T09:14:51.098771+00:00",
+      "node_name": "discovery",
+      "completed_criteria": {
+        "analysis_complete": "Analyzed the complete workflow restoration system including cache persistence, session state management, and YAML content storage",
+        "test_plan_ready": "Created comprehensive test plan to validate YAML content workflows survive server restarts and can be properly restored"
+      }
+    }
+  },
+  "current_item": "Test YAML content workflow restoration across server restarts",
+  "plan": "",
+  "items": [],
+  "log": [
+    "[11:14:51] \u2705 Completed node: discovery with 2 criteria satisfied",
+    "[11:14:51]    \ud83d\udccb Criterion satisfied: analysis_complete",
+    "[11:14:51]    \ud83d\udccb Criterion satisfied: test_plan_ready",
+    "[11:14:51] \ud83d\udd04 Transitioned from discovery to implement",
+    "[11:14:51] \ud83d\udcdd CURRENT GOAL: Implement the test workflow steps"
+  ],
+  "archive_log": [],
+  "node_history": [
+    "discovery"
+  ]
+}

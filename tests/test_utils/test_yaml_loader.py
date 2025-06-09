@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.dev_workflow_mcp.models.yaml_workflow import WorkflowDefinition
-from src.dev_workflow_mcp.utils.yaml_loader import (
+from src.accordo_mcp.models.yaml_workflow import WorkflowDefinition
+from src.accordo_mcp.utils.yaml_loader import (
     WorkflowLoader,
     WorkflowLoadError,
     get_available_workflows,
@@ -119,7 +119,7 @@ invalid_field: "This should not be here"
     def test_init_default_path(self):
         """Test WorkflowLoader initialization with default path."""
         loader = WorkflowLoader()
-        assert loader.workflows_dir == Path(".workflow-commander/workflows")
+        assert loader.workflows_dir == Path(".accordo/workflows")
 
     def test_discover_workflows_no_directory(self, temp_dir):
         """Test discover_workflows when directory doesn't exist."""

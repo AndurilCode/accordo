@@ -4,12 +4,12 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.dev_workflow_mcp.services.config_service import (
+from src.accordo_mcp.services.config_service import (
     ConfigurationService,
     get_configuration_service,
     reset_configuration_service,
 )
-from src.dev_workflow_mcp.services.dependency_injection import (
+from src.accordo_mcp.services.dependency_injection import (
     clear_registry,
     get_service,
 )
@@ -30,7 +30,7 @@ class TestServerConfigurationIntegration:
 
     def test_server_configuration_creation_from_cli_args(self):
         """Test server configuration creation from command-line arguments."""
-        from src.dev_workflow_mcp.server import create_arg_parser
+        from src.accordo_mcp.server import create_arg_parser
 
         parser = create_arg_parser()
 
@@ -50,7 +50,7 @@ class TestServerConfigurationIntegration:
 
     def test_server_configuration_creation_with_custom_args(self):
         """Test server configuration creation with custom command-line arguments."""
-        from src.dev_workflow_mcp.server import create_arg_parser
+        from src.accordo_mcp.server import create_arg_parser
 
         parser = create_arg_parser()
 
@@ -88,14 +88,14 @@ class TestServerConfigurationIntegration:
             assert args.cache_embedding_model == "custom-model"
             assert args.cache_max_results == 100
 
-    @patch("src.dev_workflow_mcp.server.FastMCP")
-    @patch("src.dev_workflow_mcp.server.register_phase_prompts")
-    @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_mcp.server.FastMCP")
+    @patch("src.accordo_mcp.server.register_phase_prompts")
+    @patch("src.accordo_mcp.server.register_discovery_prompts")
     def test_server_startup_with_configuration_service(
         self, mock_register_discovery, mock_register_phase, mock_fastmcp
     ):
         """Test server startup with new configuration service."""
-        from src.dev_workflow_mcp.server import main
+        from src.accordo_mcp.server import main
 
         # Mock FastMCP instance
         mock_mcp_instance = Mock()
@@ -142,14 +142,14 @@ class TestServerConfigurationIntegration:
                 assert workflow_config.local_state_file is True
                 assert workflow_config.local_state_file_format == "JSON"
 
-    @patch("src.dev_workflow_mcp.server.FastMCP")
-    @patch("src.dev_workflow_mcp.server.register_phase_prompts")
-    @patch("src.dev_workflow_mcp.server.register_discovery_prompts")
+    @patch("src.accordo_mcp.server.FastMCP")
+    @patch("src.accordo_mcp.server.register_phase_prompts")
+    @patch("src.accordo_mcp.server.register_discovery_prompts")
     def test_server_startup_with_cache_mode(
         self, mock_register_discovery, mock_register_phase, mock_fastmcp
     ):
         """Test server startup with cache mode enabled."""
-        from src.dev_workflow_mcp.server import main
+        from src.accordo_mcp.server import main
 
         # Mock FastMCP instance
         mock_mcp_instance = Mock()
@@ -167,7 +167,7 @@ class TestServerConfigurationIntegration:
 
             with patch("sys.argv", test_args):
                 with patch(
-                    "src.dev_workflow_mcp.utils.session_manager.auto_restore_sessions_on_startup"
+                    "src.accordo_mcp.utils.session_manager.auto_restore_sessions_on_startup"
                 ) as mock_restore:
                     mock_restore.return_value = 2  # Simulate 2 restored sessions
 
@@ -185,10 +185,10 @@ class TestServerConfigurationIntegration:
                     assert server_config.enable_cache_mode is True
                     assert server_config.cache_max_results == 75
 
-    @patch("src.dev_workflow_mcp.server.FastMCP")
+    @patch("src.accordo_mcp.server.FastMCP")
     def test_server_startup_configuration_error(self, mock_fastmcp):
         """Test server startup with configuration error."""
-        from src.dev_workflow_mcp.server import main
+        from src.accordo_mcp.server import main
 
         # Test with invalid repository path
         test_args = [
@@ -208,7 +208,7 @@ class TestServerConfigurationIntegration:
 
     def test_dependency_injection_registration(self):
         """Test that configuration service is properly registered in dependency injection."""
-        from src.dev_workflow_mcp.server import main
+        from src.accordo_mcp.server import main
 
         with tempfile.TemporaryDirectory() as temp_dir:
             test_args = [
@@ -218,11 +218,9 @@ class TestServerConfigurationIntegration:
             ]
 
             with patch("sys.argv", test_args):
-                with patch("src.dev_workflow_mcp.server.FastMCP"):
-                    with patch("src.dev_workflow_mcp.server.register_phase_prompts"):
-                        with patch(
-                            "src.dev_workflow_mcp.server.register_discovery_prompts"
-                        ):
+                with patch("src.accordo_mcp.server.FastMCP"):
+                    with patch("src.accordo_mcp.server.register_phase_prompts"):
+                        with patch("src.accordo_mcp.server.register_discovery_prompts"):
                             result = main()
 
                             assert result == 0
@@ -237,8 +235,8 @@ class TestServerConfigurationIntegration:
 
     def test_backward_compatibility_legacy_config(self):
         """Test that legacy ServerConfig is still created for backward compatibility."""
-        from src.dev_workflow_mcp.config import ServerConfig
-        from src.dev_workflow_mcp.server import main
+        from src.accordo_mcp.config import ServerConfig
+        from src.accordo_mcp.server import main
 
         with tempfile.TemporaryDirectory() as temp_dir:
             test_args = [
@@ -249,12 +247,12 @@ class TestServerConfigurationIntegration:
             ]
 
             with patch("sys.argv", test_args):
-                with patch("src.dev_workflow_mcp.server.FastMCP"):
+                with patch("src.accordo_mcp.server.FastMCP"):
                     with patch(
-                        "src.dev_workflow_mcp.server.register_phase_prompts"
+                        "src.accordo_mcp.server.register_phase_prompts"
                     ) as mock_register_phase:
                         with patch(
-                            "src.dev_workflow_mcp.server.register_discovery_prompts"
+                            "src.accordo_mcp.server.register_discovery_prompts"
                         ) as mock_register_discovery:
                             result = main()
 
