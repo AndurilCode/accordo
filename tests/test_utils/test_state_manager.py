@@ -3,8 +3,8 @@
 import os
 from unittest.mock import patch
 
-from src.accordo_mcp.utils import session_manager
-from src.accordo_mcp.utils.state_manager import (
+from src.accordo_workflow_mcp.utils import session_manager
+from src.accordo_workflow_mcp.utils.state_manager import (
     StateManager,
     get_file_operation_instructions,
 )
@@ -16,7 +16,7 @@ class TestStateManager:
     def setup_method(self):
         """Set up test environment."""
         # Reset services to ensure clean state
-        from src.accordo_mcp.services import (
+        from src.accordo_workflow_mcp.services import (
             initialize_session_services,
             reset_session_services,
         )
@@ -153,7 +153,7 @@ class TestStateManagerCompatibility:
     def setup_method(self):
         """Clear session state before each test."""
         # Reset services to ensure clean state
-        from src.accordo_mcp.services import (
+        from src.accordo_workflow_mcp.services import (
             initialize_session_services,
             reset_session_services,
         )
@@ -181,7 +181,7 @@ class TestGetFileOperationInstructions:
     def setup_method(self):
         """Clear sessions before each test."""
         # Reset services to ensure clean state
-        from src.accordo_mcp.services import (
+        from src.accordo_workflow_mcp.services import (
             initialize_session_services,
             reset_session_services,
         )

@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 from fastmcp import Context, FastMCP
 
-from src.accordo_mcp.prompts.phase_prompts import register_phase_prompts
+from src.accordo_workflow_mcp.prompts.phase_prompts import register_phase_prompts
 
 
 class TestPhasePrompts:
@@ -458,7 +458,7 @@ inputs:
     @pytest.mark.asyncio
     async def test_json_context_parsing(self, mock_context):
         """Test the new JSON context parsing functionality."""
-        from src.accordo_mcp.prompts.phase_prompts import (
+        from src.accordo_workflow_mcp.prompts.phase_prompts import (
             _parse_criteria_evidence_context,
         )
 
@@ -509,8 +509,8 @@ inputs:
         """Test that criteria evidence is properly integrated into completion outputs."""
         from unittest.mock import Mock
 
-        from src.accordo_mcp.models.yaml_workflow import WorkflowNode
-        from src.accordo_mcp.prompts.phase_prompts import (
+        from src.accordo_workflow_mcp.models.yaml_workflow import WorkflowNode
+        from src.accordo_workflow_mcp.prompts.phase_prompts import (
             _generate_node_completion_outputs,
         )
 

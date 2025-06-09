@@ -1,6 +1,6 @@
 """Tests for placeholder processor functionality."""
 
-from src.accordo_mcp.utils.placeholder_processor import (
+from src.accordo_workflow_mcp.utils.placeholder_processor import (
     process_workflow_content,
     replace_placeholders,
 )

@@ -28,8 +28,8 @@ def test_final_auto_restore_verification():
             # Step 1: Initialize complete server stack (like real server startup)
             print("\n📋 STEP 1: Initialize complete server stack...")
 
-            from accordo_mcp.services import initialize_cache_service
-            from accordo_mcp.services.config_service import (
+            from accordo_workflow_mcp.services import initialize_cache_service
+            from accordo_workflow_mcp.services.config_service import (
                 ConfigurationService,
                 EnvironmentConfiguration,
                 PlatformConfiguration,
@@ -37,7 +37,7 @@ def test_final_auto_restore_verification():
                 WorkflowConfiguration,
                 initialize_configuration_service,
             )
-            from accordo_mcp.services.dependency_injection import (
+            from accordo_workflow_mcp.services.dependency_injection import (
                 clear_registry,
                 register_singleton,
             )
@@ -92,8 +92,8 @@ def test_final_auto_restore_verification():
 
             from datetime import datetime
 
-            from accordo_mcp.models.workflow_state import DynamicWorkflowState
-            from accordo_mcp.services import (
+            from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+            from accordo_workflow_mcp.services import (
                 get_session_repository,
                 get_session_sync_service,
             )
@@ -146,7 +146,7 @@ def test_final_auto_restore_verification():
             # Step 4: Test auto-restore (the critical test)
             print("\n📋 STEP 4: Test auto-restore functionality...")
 
-            from accordo_mcp.utils.session_manager import (
+            from accordo_workflow_mcp.utils.session_manager import (
                 auto_restore_sessions_on_startup,
             )
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.accordo_mcp.services.config_service import (
+from src.accordo_workflow_mcp.services.config_service import (
     ConfigurationError,
     ConfigurationService,
     ConfigurationValidationError,
@@ -512,7 +512,7 @@ class TestConfigurationService:
             legacy_config = service.to_legacy_server_config()
 
             # Import here to avoid circular imports
-            from src.accordo_mcp.config import ServerConfig
+            from src.accordo_workflow_mcp.config import ServerConfig
 
             assert isinstance(legacy_config, ServerConfig)
             assert str(legacy_config.repository_path) == str(temp_dir)

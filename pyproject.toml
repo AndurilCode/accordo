@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-accordo-workflow-mcp = "accordo_mcp.server:main"
+accordo-workflow-mcp = "accordo_workflow_mcp.server:main"
 accordo = "accordo_cli.main:app"
 
 [project.optional-dependencies]

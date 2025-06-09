@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.accordo_mcp.models.yaml_workflow import WorkflowDefinition
-from src.accordo_mcp.utils.yaml_loader import (
+from src.accordo_workflow_mcp.models.yaml_workflow import WorkflowDefinition
+from src.accordo_workflow_mcp.utils.yaml_loader import (
     WorkflowLoader,
     WorkflowLoadError,
     get_available_workflows,

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.accordo_mcp.models.responses import (
+from src.accordo_workflow_mcp.models.responses import (
     StateUpdateResponse,
     WorkflowResponse,
 )

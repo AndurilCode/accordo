@@ -11,7 +11,7 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_enhanced_debug_output(self):
         """Test that the enhanced auto-restore function produces proper debug output."""
 
-        from accordo_mcp.utils.session_manager import (
+        from accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
@@ -53,7 +53,7 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_with_cache_manager_available(self):
         """Test auto-restore when cache manager is available."""
 
-        from accordo_mcp.utils.session_manager import (
+        from accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
@@ -99,8 +99,8 @@ class TestWorkflowRestorationFunctionality:
     def test_restore_workflow_definition_debug_functionality(self):
         """Test that _restore_workflow_definition produces the enhanced debug output."""
 
-        from accordo_mcp.models.workflow_state import DynamicWorkflowState
-        from accordo_mcp.utils.session_manager import _restore_workflow_definition
+        from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+        from accordo_workflow_mcp.utils.session_manager import _restore_workflow_definition
 
         # Create a test session
         session = DynamicWorkflowState(
@@ -141,8 +141,8 @@ class TestWorkflowRestorationFunctionality:
     def test_restore_workflow_definition_handles_missing_workflow_name(self):
         """Test that _restore_workflow_definition handles missing workflow name properly."""
 
-        from accordo_mcp.models.workflow_state import DynamicWorkflowState
-        from accordo_mcp.utils.session_manager import _restore_workflow_definition
+        from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+        from accordo_workflow_mcp.utils.session_manager import _restore_workflow_definition
 
         # Create a session and manually set workflow_name to None
         session = DynamicWorkflowState(
@@ -173,7 +173,7 @@ class TestWorkflowRestorationFunctionality:
     def test_auto_restore_exception_handling_with_traceback(self):
         """Test that auto-restore handles exceptions with proper tracebacks."""
 
-        from accordo_mcp.utils.session_manager import (
+        from accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
@@ -218,7 +218,7 @@ class TestWorkflowRestorationFunctionality:
         # This test will only pass if our enhanced functionality is working
         # If it passes, it means our enhanced restoration is being tested
 
-        from accordo_mcp.utils.session_manager import (
+        from accordo_workflow_mcp.utils.session_manager import (
             auto_restore_sessions_on_startup,
         )
 
@@ -262,7 +262,7 @@ class TestOnDemandRestorationLogic:
         # Read the phase_prompts file to verify our on-demand restoration logic exists
         import inspect
 
-        from accordo_mcp.prompts import phase_prompts
+        from accordo_workflow_mcp.prompts import phase_prompts
 
         # Get the source code
         source = inspect.getsource(phase_prompts)
@@ -289,7 +289,7 @@ class TestOnDemandRestorationLogic:
 
         # This test validates that the import we added is working
         try:
-            from accordo_mcp.utils.session_manager import (
+            from accordo_workflow_mcp.utils.session_manager import (
                 _restore_workflow_definition,
             )
 
@@ -306,7 +306,7 @@ class TestOnDemandRestorationLogic:
     def test_workflow_definition_restoration_integration(self):
         """Integration test for the complete workflow definition restoration flow."""
 
-        from accordo_mcp.models.workflow_state import DynamicWorkflowState
+        from accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
 
         # Create a test session
         session = DynamicWorkflowState(
@@ -336,7 +336,7 @@ class TestOnDemandRestorationLogic:
             mock_loader.get_workflow_by_name.return_value = mock_workflow_def
             mock_loader_class.return_value = mock_loader
 
-            from accordo_mcp.utils.session_manager import (
+            from accordo_workflow_mcp.utils.session_manager import (
                 _restore_workflow_definition,
             )
 

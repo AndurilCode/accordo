@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.accordo_mcp.utils.path_utils import (
+from src.accordo_workflow_mcp.utils.path_utils import (
     get_project_config_path,
     get_workflow_dir,
     get_workflow_state_path,
@@ -88,7 +88,7 @@ class TestPathUtils:
 
     def test_get_project_config_path_default(self):
         """Test get_project_config_path with default base path."""
-        with patch("src.accordo_mcp.utils.path_utils.get_workflow_dir") as mock_get_dir:
+        with patch("src.accordo_workflow_mcp.utils.path_utils.get_workflow_dir") as mock_get_dir:
             # Create a mock that supports the / operator
             mock_workflow_dir = Mock()
             mock_workflow_dir.__truediv__ = Mock(
