@@ -2,13 +2,13 @@
 
 import tempfile
 
-from src.accordo_mcp.models.workflow_state import (
+from src.accordo_workflow_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
 )
-from src.accordo_mcp.utils import session_manager
-from src.accordo_mcp.utils.state_manager import StateManager
-from src.accordo_mcp.utils.validators import (
+from src.accordo_workflow_mcp.utils import session_manager
+from src.accordo_workflow_mcp.utils.state_manager import StateManager
+from src.accordo_workflow_mcp.utils.validators import (
     validate_project_config,
     validate_project_files,
 )

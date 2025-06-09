@@ -14,17 +14,17 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.accordo_mcp.config import ServerConfig
-from src.accordo_mcp.models.yaml_workflow import (
+from src.accordo_workflow_mcp.config import ServerConfig
+from src.accordo_workflow_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowNode,
     WorkflowTree,
 )
-from src.accordo_mcp.services import (
+from src.accordo_workflow_mcp.services import (
     initialize_session_services,
     reset_session_services,
 )
-from src.accordo_mcp.utils import session_manager
+from src.accordo_workflow_mcp.utils import session_manager
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ class TestCacheModeInitialization:
         """Test successful cache manager initialization."""
         # Mock the WorkflowCacheManager to avoid external dependencies
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -176,7 +176,7 @@ class TestCacheSessionOperations:
     def test_session_creation_with_cache(self, cache_enabled_config, test_workflow_def):
         """Test session creation with cache mode enabled."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -197,7 +197,7 @@ class TestCacheSessionOperations:
     def test_session_sync_to_cache(self, cache_enabled_config, test_workflow_def):
         """Test session synchronization to cache."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -219,7 +219,7 @@ class TestCacheSessionOperations:
     def test_force_cache_sync_session(self, cache_enabled_config, test_workflow_def):
         """Test force cache sync with detailed results."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -241,7 +241,7 @@ class TestCacheSessionOperations:
     def test_session_restoration_from_cache(self, cache_enabled_config):
         """Test session restoration from cache storage."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -259,7 +259,7 @@ class TestCacheSessionOperations:
     def test_auto_restore_sessions_on_startup(self, cache_enabled_config):
         """Test automatic session restoration on startup."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -277,7 +277,7 @@ class TestCacheSessionOperations:
     def test_list_cached_sessions(self, cache_enabled_config):
         """Test listing cached sessions."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -308,7 +308,7 @@ class TestCacheSessionLifecycle:
     ):
         """Test complete session lifecycle from creation to cleanup with cache."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -360,7 +360,7 @@ class TestCacheSessionLifecycle:
     ):
         """Test session cleanup with cache and archiving enabled."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -393,7 +393,7 @@ class TestCacheSessionLifecycle:
     ):
         """Test complete session clearing with cache."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -450,7 +450,7 @@ class TestCacheErrorHandling:
     ):
         """Test cache operations when cache manager throws errors."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             # Make cache operations raise exceptions
@@ -486,7 +486,7 @@ class TestCacheErrorHandling:
         minimal_config.cache_dir = None
 
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_class.side_effect = Exception("Invalid config")
 
@@ -510,7 +510,7 @@ class TestCachePerformanceAndScaling:
     ):
         """Test cache operations with multiple sessions."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance
@@ -540,7 +540,7 @@ class TestCachePerformanceAndScaling:
     ):
         """Test simulation of concurrent cache access."""
         with patch(
-            "src.accordo_mcp.utils.cache_manager.WorkflowCacheManager"
+            "src.accordo_workflow_mcp.utils.cache_manager.WorkflowCacheManager"
         ) as mock_cache_class:
             mock_cache_instance = Mock()
             mock_cache_class.return_value = mock_cache_instance

@@ -1,6 +1,6 @@
 """Tests for validation utilities."""
 
-from src.accordo_mcp.utils.validators import (
+from src.accordo_workflow_mcp.utils.validators import (
     validate_project_config,
     validate_project_files,
 )

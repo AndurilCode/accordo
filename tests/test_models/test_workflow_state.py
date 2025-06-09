@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from src.accordo_mcp.models.workflow_state import (
+from src.accordo_workflow_mcp.models.workflow_state import (
     WorkflowItem,
     WorkflowState,
 )
@@ -82,7 +82,7 @@ class TestWorkflowState:
         assert state.log == ["Test log"]
         assert state.archive_log == ["Archive log"]
 
-    @patch("src.accordo_mcp.models.workflow_state.datetime")
+    @patch("src.accordo_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry(self, mock_datetime):
         """Test adding log entry with timestamp."""
         # Mock datetime.now() to return a fixed time
@@ -95,7 +95,7 @@ class TestWorkflowState:
         assert state.log == ["[12:34:56] Test entry"]
         mock_datetime.now.assert_called_once()
 
-    @patch("src.accordo_mcp.models.workflow_state.datetime")
+    @patch("src.accordo_workflow_mcp.models.workflow_state.datetime")
     def test_add_multiple_log_entries(self, mock_datetime):
         """Test adding multiple log entries."""
         mock_datetime.now.return_value.strftime.side_effect = ["12:34:56", "12:35:00"]
@@ -134,7 +134,7 @@ class TestWorkflowState:
         assert state.archive_log == expected_archive
         assert state.log == []
 
-    @patch("src.accordo_mcp.models.workflow_state.datetime")
+    @patch("src.accordo_workflow_mcp.models.workflow_state.datetime")
     def test_add_log_entry_triggers_rotation(self, mock_datetime):
         """Test that adding log entry triggers rotation when over 5000 chars."""
         mock_datetime.now.return_value.strftime.return_value = "12:34:56"
@@ -515,7 +515,7 @@ class TestDynamicWorkflowStateProgress:
         """Create a mock WorkflowDefinition for testing."""
         from unittest.mock import Mock
 
-        from src.accordo_mcp.models.yaml_workflow import (
+        from src.accordo_workflow_mcp.models.yaml_workflow import (
             WorkflowDefinition,
             WorkflowNode,
             WorkflowTree,
@@ -572,7 +572,7 @@ class TestDynamicWorkflowStateProgress:
     @pytest.fixture
     def dynamic_state_with_progress(self, mock_workflow_def):
         """Create a DynamicWorkflowState with completed nodes and outputs."""
-        from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
+        from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
 
         state = DynamicWorkflowState(
             workflow_name="Test Workflow",
@@ -661,7 +661,7 @@ class TestDynamicWorkflowStateProgress:
 
     def test_to_markdown_handles_missing_evidence(self, mock_workflow_def):
         """Test that markdown handles cases where acceptance criteria evidence is missing."""
-        from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
+        from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
 
         state = DynamicWorkflowState(
             workflow_name="Test Workflow",
@@ -690,7 +690,7 @@ class TestDynamicWorkflowStateProgress:
 
     def test_to_markdown_handles_no_completed_nodes(self, mock_workflow_def):
         """Test that markdown handles cases with no completed nodes."""
-        from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
+        from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
 
         state = DynamicWorkflowState(
             workflow_name="Test Workflow",
@@ -709,7 +709,7 @@ class TestDynamicWorkflowStateProgress:
         self, mock_workflow_def
     ):
         """Test that markdown handles completed nodes that have no recorded outputs."""
-        from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
+        from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
 
         state = DynamicWorkflowState(
             workflow_name="Test Workflow",

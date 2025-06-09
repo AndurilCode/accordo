@@ -2,17 +2,17 @@
 
 import json
 
-from src.accordo_mcp.models.workflow_state import (
+from src.accordo_workflow_mcp.models.workflow_state import (
     DynamicWorkflowState,
     WorkflowItem,
 )
-from src.accordo_mcp.models.yaml_workflow import (
+from src.accordo_workflow_mcp.models.yaml_workflow import (
     ExecutionConfig,
     WorkflowDefinition,
     WorkflowNode,
     WorkflowTree,
 )
-from src.accordo_mcp.utils import session_manager
+from src.accordo_workflow_mcp.utils import session_manager
 
 
 # Test Helper Functions
@@ -55,7 +55,7 @@ class TestSessionManager:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.accordo_mcp.services import (
+        from src.accordo_workflow_mcp.services import (
             initialize_session_services,
             reset_session_services,
         )
@@ -137,7 +137,7 @@ class TestSessionExportFunctions:
     def setup_method(self):
         """Clear sessions and reset services before each test."""
         # Reset services to ensure clean state
-        from src.accordo_mcp.services import (
+        from src.accordo_workflow_mcp.services import (
             initialize_session_services,
             reset_session_services,
         )

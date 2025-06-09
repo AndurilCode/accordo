@@ -1,8 +1,8 @@
 """Integration tests for placeholder replacement in the workflow system."""
 
-from src.accordo_mcp.models.workflow_state import DynamicWorkflowState
-from src.accordo_mcp.prompts.phase_prompts import format_enhanced_node_status
-from src.accordo_mcp.utils.yaml_loader import WorkflowLoader
+from src.accordo_workflow_mcp.models.workflow_state import DynamicWorkflowState
+from src.accordo_workflow_mcp.prompts.phase_prompts import format_enhanced_node_status
+from src.accordo_workflow_mcp.utils.yaml_loader import WorkflowLoader
 
 
 class TestPlaceholderIntegration:
