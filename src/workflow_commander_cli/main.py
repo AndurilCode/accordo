@@ -53,7 +53,7 @@ def configure(
         None, "--server", "-s",
         help="Server name to configure"
     ),
-    config_path: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(  # noqa: B008
         None, "--config", "-c",
         help="Path to configuration file"
     ),
@@ -74,7 +74,7 @@ def configure(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1)  # noqa: B904
         else:
             if non_interactive:
                 display_error_message("Platform must be specified in non-interactive mode")
@@ -157,7 +157,7 @@ def configure(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 @app.command()
 def list_platforms():
@@ -184,7 +184,7 @@ def list_servers(
         None, "--platform", "-p",
         help="Platform to list servers for (cursor, claude, vscode)"
     ),
-    config_path: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(  # noqa: B008
         None, "--config", "-c",
         help="Path to configuration file"
     )
@@ -201,7 +201,7 @@ def list_servers(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1)  # noqa: B904
         else:
             platform_enum = select_platform()
         
@@ -239,7 +239,7 @@ def list_servers(
                 
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 @app.command()
 def remove_server(
@@ -248,7 +248,7 @@ def remove_server(
         None, "--platform", "-p",
         help="Platform to remove server from (cursor, claude, vscode)"
     ),
-    config_path: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(  # noqa: B008
         None, "--config", "-c",
         help="Path to configuration file"
     ),
@@ -269,7 +269,7 @@ def remove_server(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1)  # noqa: B904
         else:
             platform_enum = select_platform()
         
@@ -316,7 +316,7 @@ def remove_server(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 @app.command()
 def validate(
@@ -324,7 +324,7 @@ def validate(
         None, "--platform", "-p",
         help="Platform to validate (cursor, claude, vscode)"
     ),
-    config_path: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(  # noqa: B008
         None, "--config", "-c",
         help="Path to configuration file"
     )
@@ -341,7 +341,7 @@ def validate(
                     f"Invalid platform '{platform}'",
                     ["Valid platforms: cursor, claude, vscode"]
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1)  # noqa: B904
         else:
             platform_enum = select_platform()
         
@@ -403,11 +403,11 @@ def validate(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 @app.command("bootstrap-rules")
 def bootstrap_rules(
-    assistants: list[str] = typer.Argument(
+    assistants: list[str] = typer.Argument(  # noqa: B008
         None,
         help="Assistant types to deploy to (cursor, copilot, claude, all)"
     ),
@@ -467,7 +467,7 @@ def bootstrap_rules(
             
     except Exception as e:
         display_error_message(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 if __name__ == "__main__":
     app() 
