@@ -125,8 +125,8 @@ class TestCliCommands:
                 "accordo": {
                     "command": "uvx",
                     "args": [
-                        "--from",
-                        "git+https://github.com/AndurilCode/accordo@main",
+                        
+                        "accordo-workflow-mcp",
                         "accordo-mcp",
                     ],
                 },
@@ -181,8 +181,8 @@ class TestCliCommands:
                 "accordo": {
                     "command": "uvx",
                     "args": [
-                        "--from",
-                        "git+https://github.com/AndurilCode/accordo@main",
+                        
+                        "accordo-workflow-mcp",
                         "accordo-mcp",
                     ],
                 },
@@ -245,8 +245,8 @@ class TestCliCommands:
                 "accordo": {
                     "command": "uvx",
                     "args": [
-                        "--from",
-                        "git+https://github.com/AndurilCode/accordo@main",
+                        
+                        "accordo-workflow-mcp",
                         "accordo-mcp",
                     ],
                 }

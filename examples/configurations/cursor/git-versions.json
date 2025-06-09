@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "accordo-by-tag": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/AndurilCode/accordo@v0.1.0",
+        "accordo-workflow-mcp"
+      ]
+    },
+    "accordo-by-commit": {
+      "command": "uvx", 
+      "args": [
+        "--from",
+        "git+https://github.com/AndurilCode/accordo@abc123def456",
+        "accordo-workflow-mcp"
+      ]
+    },
+    "accordo-by-branch": {
+      "command": "uvx",
+      "args": [
+        "--from", 
+        "git+https://github.com/AndurilCode/accordo@development",
+        "accordo-workflow-mcp"
+      ]
+    }
+  }
+} 

@@ -150,8 +150,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
     "accordo": {
       "command": "uvx",
       "args": [
-        "--from",
-        "git+https://github.com/AndurilCode/accordo@main",
+        "accordo-workflow-mcp",
         "accordo-mcp",
         "--repository-path",
         "/path/to/your/project"
@@ -168,8 +167,8 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
     "accordo": {
       "command": "uvx",
       "args": [
-        "--from",
-        "git+https://github.com/AndurilCode/accordo@main",
+        
+        "accordo-workflow-mcp",
         "accordo-mcp",
         "--repository-path",
         "/path/to/your/project",
@@ -197,8 +196,8 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
     "accordo": {
       "command": "uvx",
       "args": [
-        "--from",
-        "git+https://github.com/AndurilCode/accordo@main",
+        
+        "accordo-workflow-mcp",
         "accordo-mcp",
         "--repository-path",
         "/path/to/your/project",
@@ -231,7 +230,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 uvx --version
 
 # Test the server manually
-uvx --from git+https://github.com/AndurilCode/accordo@main dev-workflow-mcp --help
+uvx --from accordo-workflow-mcp dev-workflow-mcp --help
 ```
 
 #### 2. Configuration Not Loading
@@ -249,7 +248,7 @@ uvx --from git+https://github.com/AndurilCode/accordo@main dev-workflow-mcp --he
 pip install sentence-transformers chromadb
 
 # Test cache initialization manually
-uvx --from git+https://github.com/AndurilCode/accordo@main dev-workflow-mcp \
+uvx --from accordo-workflow-mcp dev-workflow-mcp \
   --enable-cache-mode --cache-embedding-model all-MiniLM-L6-v2 --help
 
 # Check cache directory permissions

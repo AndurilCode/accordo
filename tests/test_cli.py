@@ -42,8 +42,8 @@ def sample_server():
     return MCPServer(
         command="uvx",
         args=[
-            "--from",
-            "git+https://github.com/AndurilCode/accordo@main",
+            
+            "accordo-workflow-mcp",
             "accordo-mcp",
         ],
         env={"TEST_ENV": "value"},
@@ -441,8 +441,8 @@ class TestConfigurationTemplates:
         assert template.name == "Basic Setup"
         assert "Minimal configuration" in template.description
         assert template.args == [
-            "--from",
-            "git+https://github.com/AndurilCode/accordo@main",
+            
+            "accordo-workflow-mcp",
             "accordo-mcp",
         ]
 
@@ -503,8 +503,8 @@ class TestConfigurationBuilder:
         builder = ConfigurationBuilder()
         assert builder.command == "uvx"
         assert builder.base_args == [
-            "--from",
-            "git+https://github.com/AndurilCode/accordo@main",
+            
+            "accordo-workflow-mcp",
             "accordo-mcp",
         ]
         assert len(builder.options) == 0
