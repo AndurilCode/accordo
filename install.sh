@@ -208,19 +208,34 @@ ensure_pipx() {
 
 # Install accordo
 install_workflow_commander() {
-    # Ensure we're in the project directory
-    if [[ ! -f "pyproject.toml" ]] || ! grep -q "accordo" pyproject.toml; then
-        print_error "Not in accordo project directory"
-        print_status "Please run this script from the accordo project root"
-        exit 1
+    # Smart installation source detection:
+    # - For development: If running from accordo project directory, install from local source
+    # - For end users: Install from PyPI package (default behavior)
+    # This allows the same script to work for both development and public installation
+    local install_source="accordo-workflow-mcp"
+    if [[ -f "pyproject.toml" ]] && grep -q '"accordo-workflow-mcp"' pyproject.toml; then
+        # We're in the accordo project directory, install from local source for development
+        install_source="."
+        print_status "Detected accordo project directory - installing from local source"
+    else
+        # Standard end-user installation from PyPI - works from any directory
+        print_status "Installing accordo from PyPI"
     fi
     
     case "$INSTALL_METHOD" in
         "global")
             print_status "Installing accordo globally using pipx..."
             ensure_pipx
-            pipx install --force .
-            print_success "accordo installed globally with pipx"
+            if pipx install --force "$install_source"; then
+                print_success "accordo installed globally with pipx"
+            else
+                print_error "Failed to install accordo with pipx"
+                if [[ "$install_source" == "accordo-workflow-mcp" ]]; then
+                    print_status "This may be because the package is not yet available on PyPI."
+                    print_status "Please check if the package name is correct or try installing from source."
+                fi
+                exit 1
+            fi
             ;;
         "venv_uv")
             print_status "Installing accordo in virtual environment using uv..."
@@ -228,13 +243,29 @@ install_workflow_commander() {
                 print_error "uv not available"
                 exit 1
             fi
-            uv pip install --force-reinstall .
-            print_success "accordo installed in virtual environment with uv"
+            if uv pip install --force-reinstall "$install_source"; then
+                print_success "accordo installed in virtual environment with uv"
+            else
+                print_error "Failed to install accordo with uv"
+                if [[ "$install_source" == "accordo-workflow-mcp" ]]; then
+                    print_status "This may be because the package is not yet available on PyPI."
+                    print_status "Please check if the package name is correct or try installing from source."
+                fi
+                exit 1
+            fi
             ;;
         "venv_pip")
             print_status "Installing accordo in virtual environment using pip..."
-            pip install --force-reinstall .
-            print_success "accordo installed in virtual environment with pip"
+            if pip install --force-reinstall "$install_source"; then
+                print_success "accordo installed in virtual environment with pip"
+            else
+                print_error "Failed to install accordo with pip"
+                if [[ "$install_source" == "accordo-workflow-mcp" ]]; then
+                    print_status "This may be because the package is not yet available on PyPI."
+                    print_status "Please check if the package name is correct or try installing from source."
+                fi
+                exit 1
+            fi
             ;;
         *)
             print_error "Unknown installation method: $INSTALL_METHOD"
