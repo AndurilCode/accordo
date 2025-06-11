@@ -118,7 +118,7 @@ class TestSessionManager:
         markdown = session_manager.export_session_to_markdown(session.session_id)
 
         assert markdown is not None
-        assert "# Dynamic Workflow State" in markdown
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in markdown
         assert "Test task" in markdown
         assert "Test Workflow" in markdown
         assert "start" in markdown
@@ -237,7 +237,7 @@ class TestSessionExportFunctions:
         result = session_manager.export_session(session.session_id, "MD")
 
         assert result is not None
-        assert "# Dynamic Workflow State" in result  # Markdown format
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in result  # Markdown format
         assert not result.startswith("{")  # Not JSON
 
     def test_export_session_format_dispatch_json(self):
@@ -261,7 +261,7 @@ class TestSessionExportFunctions:
         json_result = session_manager.export_session(session.session_id, "json")
 
         assert md_result is not None
-        assert "# Dynamic Workflow State" in md_result
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in md_result
 
         assert json_result is not None
         assert json_result.startswith("{")
@@ -273,7 +273,7 @@ class TestSessionExportFunctions:
         result = session_manager.export_session(session.session_id, "INVALID")
 
         assert result is not None
-        assert "# Dynamic Workflow State" in result  # Should default to markdown
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in result  # Should default to markdown
 
     def test_export_session_format_dispatch_not_exists(self):
         """Test export_session for non-existent session."""
