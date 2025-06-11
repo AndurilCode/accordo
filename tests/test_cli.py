@@ -20,7 +20,7 @@ from accordo_cli.models.config import (
     MCPServer,
     VSCodeConfig,
 )
-from accordo_cli.models.platform import Platform, PlatformInfo
+from accordo_cli.models.platform import Platform, PlatformInfo, ConfigLocation
 
 
 @pytest.fixture
@@ -633,6 +633,235 @@ class TestConfigurationBuilder:
         )
         assert option_missing_value.to_args() == []
 
+    def test_mcp_server_command_validation(self):
+        """Test MCPServer command validation."""
+        from accordo_cli.models.config import MCPServer
+        
+        # Test empty command raises ValueError
+        with pytest.raises(ValueError, match="Command cannot be empty"):
+            MCPServer(command="")
+            
+        # Test whitespace-only command raises ValueError  
+        with pytest.raises(ValueError, match="Command cannot be empty"):
+            MCPServer(command="   ")
+            
+        # Test command gets stripped
+        server = MCPServer(command="  uvx  ")
+        assert server.command == "uvx"
+
+    def test_mcp_server_to_dict_comprehensive(self):
+        """Test MCPServer to_dict method with all combinations."""
+        from accordo_cli.models.config import MCPServer
+        
+        # Test with minimal config
+        server_minimal = MCPServer(command="uvx")
+        assert server_minimal.to_dict() == {"command": "uvx"}
+        
+        # Test with args only
+        server_with_args = MCPServer(command="uvx", args=["package"])
+        assert server_with_args.to_dict() == {"command": "uvx", "args": ["package"]}
+        
+        # Test with env only
+        server_with_env = MCPServer(command="uvx", env={"VAR": "value"})
+        assert server_with_env.to_dict() == {"command": "uvx", "env": {"VAR": "value"}}
+        
+        # Test with url only
+        server_with_url = MCPServer(command="uvx", url="http://localhost:8000")
+        assert server_with_url.to_dict() == {"command": "uvx", "url": "http://localhost:8000"}
+        
+        # Test with all fields
+        server_full = MCPServer(
+            command="uvx",
+            args=["package"],
+            env={"VAR": "value"},
+            url="http://localhost:8000"
+        )
+        expected = {
+            "command": "uvx",
+            "args": ["package"],
+            "env": {"VAR": "value"},
+            "url": "http://localhost:8000"
+        }
+        assert server_full.to_dict() == expected
+
+    def test_template_config_get_template_invalid(self):
+        """Test TemplateConfig.get_template with invalid template."""
+        from accordo_cli.models.config import TemplateConfig
+        
+        with pytest.raises(ValueError, match="Unknown template"):
+            TemplateConfig.get_template("invalid_template")
+
+    def test_mcp_server_config_operations(self):
+        """Test MCPServerConfig add/remove operations."""
+        from accordo_cli.models.config import MCPServerConfig, MCPServer
+        
+        config = MCPServerConfig()
+        server = MCPServer(command="uvx")
+        
+        # Test add server
+        config.add_server("test", server)
+        assert "test" in config.servers
+        assert config.servers["test"] == server
+        
+        # Test remove existing server
+        result = config.remove_server("test")
+        assert result is True
+        assert "test" not in config.servers
+        
+        # Test remove non-existing server
+        result = config.remove_server("non-existing")
+        assert result is False
+
+    def test_cursor_config_operations(self):
+        """Test CursorConfig operations."""
+        from accordo_cli.models.config import CursorConfig, MCPServer, MCPServerConfig
+        
+        # Test from_base_config
+        base_config = MCPServerConfig()
+        server = MCPServer(command="uvx")
+        base_config.add_server("test", server)
+        
+        cursor_config = CursorConfig.from_base_config(base_config)
+        assert "test" in cursor_config.mcpServers
+        
+        # Test add_server
+        new_server = MCPServer(command="python")
+        cursor_config.add_server("new-test", new_server)
+        assert "new-test" in cursor_config.mcpServers
+        
+        # Test to_json
+        json_str = cursor_config.to_json()
+        assert "mcpServers" in json_str
+        assert "test" in json_str
+
+    def test_claude_config_operations(self):
+        """Test ClaudeConfig operations."""
+        from accordo_cli.models.config import ClaudeConfig, MCPServer, MCPServerConfig
+        
+        # Test from_base_config
+        base_config = MCPServerConfig()
+        server = MCPServer(command="uvx")
+        base_config.add_server("test", server)
+        
+        claude_config = ClaudeConfig.from_base_config(base_config)
+        assert "test" in claude_config.mcpServers
+        
+        # Test add_server
+        new_server = MCPServer(command="python")
+        claude_config.add_server("new-test", new_server)
+        assert "new-test" in claude_config.mcpServers
+        
+        # Test to_json
+        json_str = claude_config.to_json()
+        assert "mcpServers" in json_str
+
+    def test_vscode_config_operations(self):
+        """Test VSCodeConfig operations."""
+        from accordo_cli.models.config import VSCodeConfig, MCPServer
+        
+        # Create VSCodeConfig directly since the nested structure is complex
+        vscode_config = VSCodeConfig()
+        
+        # Test add_server
+        server = MCPServer(command="uvx")
+        vscode_config.add_server("test", server)
+        assert "test" in vscode_config.mcp["servers"]
+        
+        # Test add another server
+        new_server = MCPServer(command="python")
+        vscode_config.add_server("new-test", new_server)
+        assert "new-test" in vscode_config.mcp["servers"]
+        
+        # Test to_dict and to_json
+        config_dict = vscode_config.to_dict()
+        assert "mcp" in config_dict
+        assert "servers" in config_dict["mcp"]
+        assert "test" in config_dict["mcp"]["servers"]
+        assert "new-test" in config_dict["mcp"]["servers"]
+        
+        json_str = vscode_config.to_json()
+        assert "mcp" in json_str
+        assert "test" in json_str
+
+    def test_configuration_builder_add_custom_option(self):
+        """Test ConfigurationBuilder add_custom_option method."""
+        from accordo_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        
+        # Test adding custom option with value
+        builder.add_custom_option("--custom-flag", "custom-value", "Custom description")
+        assert any(opt.flag == "--custom-flag" for opt in builder.options)
+        custom_opt = next(opt for opt in builder.options if opt.flag == "--custom-flag")
+        assert custom_opt.value == "custom-value"
+        assert custom_opt.description == "Custom description"
+        assert custom_opt.requires_value is True
+        
+        # Test adding custom option without value
+        builder.add_custom_option("--custom-no-value", description="No value custom")
+        no_value_opt = next(opt for opt in builder.options if opt.flag == "--custom-no-value")
+        assert no_value_opt.value is None
+        assert no_value_opt.requires_value is False
+
+    def test_configuration_builder_with_global_local_flags(self):
+        """Test ConfigurationBuilder global and local flag methods."""
+        from accordo_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        
+        # Test add_global_flag
+        builder.add_global_flag()
+        assert any(opt.flag == "--global" for opt in builder.options)
+        global_opt = next(opt for opt in builder.options if opt.flag == "--global")
+        assert global_opt.requires_value is False
+        
+        # Test add_local_flag (should replace global due to _update_or_add_option removing existing)
+        builder.add_local_flag()
+        # The _update_or_add_option method removes flags with the same name, but these are different flags
+        # So both might exist unless we specifically remove the other in the method
+        local_flags = [opt for opt in builder.options if opt.flag == "--local"]
+        assert len(local_flags) == 1   # Should be added
+        
+        # Test deprecated add_repository_path (should remove local flag)
+        builder.add_repository_path("/custom/path")
+        repo_flags = [opt for opt in builder.options if opt.flag == "--repository-path"]
+        assert len(repo_flags) == 1        # Should be added
+        repo_opt = repo_flags[0]
+        assert repo_opt.value == "/custom/path"
+
+    def test_configuration_builder_cache_methods(self):
+        """Test ConfigurationBuilder cache-related methods."""
+        from accordo_cli.models.config import ConfigurationBuilder
+        
+        builder = ConfigurationBuilder()
+        
+        # Test set_cache_path
+        builder.set_cache_path("/custom/cache")
+        cache_opt = next(opt for opt in builder.options if opt.flag == "--cache-db-path")
+        assert cache_opt.value == "/custom/cache"
+        
+        # Test set_cache_max_results
+        builder.set_cache_max_results(100)
+        max_opt = next(opt for opt in builder.options if opt.flag == "--cache-max-results")
+        assert max_opt.value == "100"
+
+    def test_mcp_server_config_to_dict(self):
+        """Test MCPServerConfig to_dict method."""
+        from accordo_cli.models.config import MCPServerConfig, MCPServer
+        
+        config = MCPServerConfig()
+        server1 = MCPServer(command="uvx", args=["package1"])
+        server2 = MCPServer(command="python", args=["package2"])
+        
+        config.add_server("server1", server1)
+        config.add_server("server2", server2)
+        
+        result = config.to_dict()
+        assert "server1" in result
+        assert "server2" in result
+        assert result["server1"]["command"] == "uvx"
+        assert result["server2"]["command"] == "python"
+
 
 class TestEnhancedPrompts:
     """Test enhanced prompt functionality."""
@@ -661,6 +890,315 @@ class TestEnhancedPrompts:
         ):
             template = select_configuration_template()
             assert template is None  # Custom configuration
+
+    def test_select_configuration_template_all_options(self):
+        """Test all configuration template options."""
+        from accordo_cli.models.config import ConfigurationTemplate
+        from accordo_cli.utils.prompts import select_configuration_template
+
+        # Test each template option
+        test_cases = [
+            (1, ConfigurationTemplate.BASIC),
+            (2, ConfigurationTemplate.ADVANCED),
+            (3, ConfigurationTemplate.CACHE_ENABLED),
+            (4, None),  # Custom
+        ]
+
+        for choice, expected in test_cases:
+            with (
+                patch("accordo_cli.utils.prompts.typer.prompt", return_value=choice),
+                patch("accordo_cli.utils.prompts.typer.secho"),
+                patch("accordo_cli.utils.prompts.typer.echo"),
+            ):
+                template = select_configuration_template()
+                assert template == expected
+
+    def test_select_configuration_template_invalid_then_valid(self):
+        """Test invalid choice followed by valid choice."""
+        from accordo_cli.models.config import ConfigurationTemplate
+        from accordo_cli.utils.prompts import select_configuration_template
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[5, 1]),  # Invalid then valid
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            template = select_configuration_template()
+            assert template == ConfigurationTemplate.BASIC
+
+    def test_select_platform_all_options(self):
+        """Test all platform selection options."""
+        from accordo_cli.models.platform import Platform
+        from accordo_cli.utils.prompts import select_platform
+
+        test_cases = [
+            (1, Platform.CURSOR),
+            (2, Platform.CLAUDE_DESKTOP),
+            (3, Platform.CLAUDE_CODE),
+            (4, Platform.VSCODE),
+        ]
+
+        for choice, expected in test_cases:
+            with (
+                patch("accordo_cli.utils.prompts.typer.prompt", return_value=choice),
+                patch("accordo_cli.utils.prompts.typer.secho"),
+                patch("accordo_cli.utils.prompts.typer.echo"),
+            ):
+                platform = select_platform()
+                assert platform == expected
+
+    def test_select_platform_invalid_then_valid(self):
+        """Test invalid platform choice followed by valid choice."""
+        from accordo_cli.models.platform import Platform
+        from accordo_cli.utils.prompts import select_platform
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[5, 1]),  # Invalid then valid
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            platform = select_platform()
+            assert platform == Platform.CURSOR
+
+    def test_confirm_action(self):
+        """Test confirm_action function."""
+        from accordo_cli.utils.prompts import confirm_action
+
+        # Test with default True
+        with patch("accordo_cli.utils.prompts.typer.confirm", return_value=True):
+            result = confirm_action("Test message")
+            assert result is True
+
+        # Test with default False
+        with patch("accordo_cli.utils.prompts.typer.confirm", return_value=False):
+            result = confirm_action("Test message", default=False)
+            assert result is False
+
+    def test_build_custom_configuration(self):
+        """Test build_custom_configuration function."""
+        from accordo_cli.utils.prompts import build_custom_configuration
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[
+                "global",  # Repository location
+                "JSON",    # State file format
+                72,        # Session retention
+                "all-MiniLM-L6-v2",  # Embedding model
+                ".accordo/cache",    # Cache path
+                50,        # Max results
+            ]),
+            patch("accordo_cli.utils.prompts.typer.confirm", side_effect=[
+                True,   # Enable local state
+                True,   # Enable cache
+            ]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            builder = build_custom_configuration()
+            args = builder.get_args_preview()
+            assert "--global" in args
+
+    def test_build_custom_configuration_local_path(self):
+        """Test build_custom_configuration with local repository choice."""
+        from accordo_cli.utils.prompts import build_custom_configuration
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[
+                "local",  # Repository location
+            ]),
+            patch("accordo_cli.utils.prompts.typer.confirm", side_effect=[
+                False,  # Don't enable local state
+                False,  # Don't enable cache
+            ]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            builder = build_custom_configuration()
+            args = builder.get_args_preview()
+            assert "--local" in args
+
+    def test_build_custom_configuration_custom_path(self):
+        """Test build_custom_configuration with custom repository path."""
+        from accordo_cli.utils.prompts import build_custom_configuration
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[
+                "custom",  # Repository location
+                "/custom/path",  # Custom path
+            ]),
+            patch("accordo_cli.utils.prompts.typer.confirm", side_effect=[
+                False,  # Don't enable local state
+                False,  # Don't enable cache
+            ]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            builder = build_custom_configuration()
+            args = builder.get_args_preview()
+            assert "--repository-path" in args
+            assert "/custom/path" in args
+
+    def test_customize_configuration_comprehensive(self):
+        """Test customize_configuration with comprehensive scenarios."""
+        from accordo_cli.utils.prompts import customize_configuration
+        from accordo_cli.models.config import ConfigurationBuilder
+
+        # Test with builder that has existing options
+        builder = ConfigurationBuilder()
+        builder.add_global_flag()
+        builder.enable_local_state_file()
+        builder.enable_cache_mode()
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[
+                "local",  # Change to local repository
+                "MD",     # Change format to MD
+                48,       # Change session retention
+                "custom-model",  # Change embedding model
+                "/custom/cache", # Change cache path
+                25,       # Change max results
+            ]),
+            patch("accordo_cli.utils.prompts.typer.confirm", side_effect=[
+                True,   # Enable local state
+                True,   # Enable cache
+            ]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            result_builder = customize_configuration(builder)
+            args = result_builder.get_args_preview()
+            assert "--local" in args
+            assert "--local-state-file-format" in args
+            assert "MD" in args
+
+    def test_select_config_location_with_project_path(self):
+        """Test select_config_location with project path available."""
+        from accordo_cli.utils.prompts import select_config_location
+        from accordo_cli.models.platform import PlatformInfo, ConfigLocation, Platform
+        from pathlib import Path
+
+        platform_info = PlatformInfo(
+            name="Test Platform",
+            platform=Platform.CURSOR,
+            description="Test platform",
+            config_format="mcpServers",
+            locations=ConfigLocation(
+                global_path=Path.home() / ".config/test/config.json",
+                project_path=Path(".config/config.json"),
+                description="Test location"
+            )
+        )
+
+        # Test global choice
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", return_value=1),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            use_global, custom_path = select_config_location(platform_info)
+            assert use_global is True
+            assert custom_path is None
+
+        # Test project-specific choice
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", return_value=2),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            use_global, custom_path = select_config_location(platform_info)
+            assert use_global is False
+            assert custom_path is None
+
+        # Test custom path choice
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[3, "/custom/config.json"]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            use_global, custom_path = select_config_location(platform_info)
+            assert use_global is True
+            assert str(custom_path) == "/custom/config.json"
+
+    def test_select_config_location_without_project_path(self):
+        """Test select_config_location without project path."""
+        from accordo_cli.utils.prompts import select_config_location
+        from accordo_cli.models.platform import PlatformInfo, ConfigLocation, Platform
+        from pathlib import Path
+
+        platform_info = PlatformInfo(
+            name="Test Platform",
+            platform=Platform.CLAUDE_DESKTOP,
+            description="Test platform",
+            config_format="mcpServers",
+            locations=ConfigLocation(
+                global_path=Path.home() / ".config/test/config.json",
+                project_path=None,  # No project path
+                description="Test location"
+            )
+        )
+
+        # Test custom path choice (should be option 2 when no project path)
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[2, "/custom/config.json"]),
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            use_global, custom_path = select_config_location(platform_info)
+            assert use_global is True
+            assert str(custom_path) == "/custom/config.json"
+
+    def test_select_config_location_invalid_choice(self):
+        """Test select_config_location with invalid choice."""
+        from accordo_cli.utils.prompts import select_config_location
+        from accordo_cli.models.platform import PlatformInfo, ConfigLocation, Platform
+        from pathlib import Path
+
+        platform_info = PlatformInfo(
+            name="Test Platform",
+            platform=Platform.CURSOR,
+            description="Test platform",
+            config_format="mcpServers",
+            locations=ConfigLocation(
+                global_path=Path.home() / ".config/test/config.json",
+                project_path=Path(".config/config.json"),
+                description="Test location"
+            )
+        )
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.prompt", side_effect=[5, 1]),  # Invalid then valid
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            use_global, custom_path = select_config_location(platform_info)
+            assert use_global is True
+            assert custom_path is None
+
+    def test_display_success_message(self):
+        """Test display_success_message function."""
+        from accordo_cli.utils.prompts import display_success_message
+        from pathlib import Path
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            # Should not raise any exceptions
+            display_success_message("Test Platform", "test-server", Path("/test/config.json"))
+
+    def test_display_error_message(self):
+        """Test display_error_message function."""
+        from accordo_cli.utils.prompts import display_error_message
+
+        with (
+            patch("accordo_cli.utils.prompts.typer.secho"),
+            patch("accordo_cli.utils.prompts.typer.echo"),
+        ):
+            # Test without suggestions
+            display_error_message("Test error")
+
+            # Test with suggestions
+            display_error_message("Test error", ["Suggestion 1", "Suggestion 2"])
 
     def test_get_workflow_commander_details_with_template(self):
         """Test enhanced get_workflow_commander_details with template selection."""
