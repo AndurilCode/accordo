@@ -199,9 +199,11 @@ class DynamicWorkflowState(BaseModel):
                 self.add_log_entry(
                     f"✅ Completed node: {self.current_node} with {len(criteria_evidence)} criteria satisfied"
                 )
-                # Debug logging for troubleshooting
-                for criterion in criteria_evidence:
+                # Show detailed evidence for each criterion satisfied
+                for criterion, evidence in criteria_evidence.items():
+                    # Always show full evidence without truncation per user requirement
                     self.add_log_entry(f"   📋 Criterion satisfied: {criterion}")
+                    self.add_log_entry(f"      Evidence: {evidence}")
             else:
                 self.add_log_entry(
                     f"✅ Completed node: {self.current_node} (no detailed criteria recorded)"

@@ -357,14 +357,9 @@ class NodeExecutor:
                 # Mark as satisfied with detailed evidence
                 evidence_text = evidence[criterion].strip()
                 validated_evidence[criterion] = evidence_text
-                # Log with truncated evidence for readability
-                log_evidence = (
-                    evidence_text
-                    if len(evidence_text) <= 100
-                    else evidence_text[:100] + "..."
-                )
+                # Always show full evidence without truncation per user requirement
                 state.add_log_entry(
-                    f"✅ CRITERION SATISFIED: {criterion} - {log_evidence}"
+                    f"✅ CRITERION SATISFIED: {criterion} - {evidence_text}"
                 )
             else:
                 missing_criteria.append(f"{criterion}: {description}")
