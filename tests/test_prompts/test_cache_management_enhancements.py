@@ -79,7 +79,7 @@ class TestCacheManagementEnhancements:
                 "Search improvement: ✅ Better similarity matching expected"
                 in result_text
             )
-            assert "workflow_semantic_analysis" in result_text
+            assert "workflow_semantic_search" in result_text
 
     @pytest.mark.asyncio
     async def test_force_regenerate_embeddings_operation(self, mock_cache_manager):

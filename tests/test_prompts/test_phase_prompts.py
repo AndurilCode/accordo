@@ -33,7 +33,7 @@ class TestPhasePrompts:
         # Verify that mcp.tool() was called for each prompt function
         assert (
             mock_mcp.tool.call_count == 4
-        )  # 4 tools: workflow_guidance, workflow_state, workflow_cache_management, workflow_semantic_analysis
+        )  # 4 tools: workflow_guidance, workflow_state, workflow_cache_management, workflow_semantic_search
 
         # Verify the decorator was called (tool registration)
         mock_mcp.tool.assert_called()
