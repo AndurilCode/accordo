@@ -305,7 +305,7 @@ class TestPrompts:
                 side_effect=[
                     "custom-server",  # Server name
                     4,  # Custom configuration
-                    ".",  # Repository path
+                    "global",  # Repository location choice
                     "JSON",  # State file format
                     72,  # Session retention
                     "all-MiniLM-L6-v2",  # Embedding model
@@ -326,7 +326,7 @@ class TestPrompts:
             name, config = get_workflow_commander_details()
             assert name == "custom-server"
             assert config.command == "uvx"
-            assert "--repository-path" in config.args
+            assert "--global" in config.args
 
 
 class TestModels:
@@ -450,7 +450,7 @@ class TestConfigurationTemplates:
         template = TemplateConfig.get_advanced_template()
         assert template.name == "Advanced Setup"
         assert "comprehensive command line options" in template.description
-        assert "--repository-path" in template.args
+        assert "--local" in template.args
         assert "--enable-local-state-file" in template.args
         assert "--enable-cache-mode" in template.args
         assert "--cache-embedding-model" in template.args
@@ -517,7 +517,7 @@ class TestConfigurationBuilder:
 
         # Check that template options are parsed
         flags = [opt.flag for opt in builder.options]
-        assert "--repository-path" in flags
+        assert "--local" in flags
         assert "--enable-cache-mode" in flags
 
     def test_builder_add_repository_path(self):
@@ -679,7 +679,7 @@ class TestEnhancedPrompts:
             name, config = get_workflow_commander_details()
             assert name == "test-server"
             assert config.command == "uvx"
-            assert "--repository-path" in config.args  # Advanced template includes this
+            assert "--local" in config.args  # Advanced template includes this
 
     def test_get_workflow_commander_details_with_customization(self):
         """Test enhanced function with template customization."""
@@ -691,6 +691,7 @@ class TestEnhancedPrompts:
                 side_effect=[
                     "custom-server",  # Server name
                     1,  # Basic template
+                    "custom",  # Repository location choice
                     "/custom/path",  # Repository path customization
                 ],
             ),

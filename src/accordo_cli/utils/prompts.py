@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import click
 import typer
 
 from ..models.config import (
@@ -137,7 +138,7 @@ def customize_configuration(builder: ConfigurationBuilder) -> ConfigurationBuild
     repo_choice = typer.prompt(
         "Repository location (global/local/custom)",
         default=current_choice,
-        type=typer.Choice(["global", "local", "custom"]),
+        type=click.Choice(["global", "local", "custom"]),
     )
 
     if repo_choice == "global":
@@ -261,7 +262,7 @@ def build_custom_configuration() -> ConfigurationBuilder:
     repo_choice = typer.prompt(
         "Repository location (global=home directory, local=current directory, custom=specify path)",
         default="global",
-        type=typer.Choice(["global", "local", "custom"]),
+        type=click.Choice(["global", "local", "custom"]),
     )
 
     if repo_choice == "global":
