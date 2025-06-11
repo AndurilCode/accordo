@@ -29,28 +29,53 @@ Examples:
   # Run with default repository path (home directory)
   %(prog)s
   
-  # Run with specific repository path
-  %(prog)s --repository-path /path/to/my/project
+  # Use home directory explicitly (recommended for global MCP servers)
+  %(prog)s --global
+  
+  # Use current directory as repository root
+  %(prog)s --local
   
   # Enable local session file storage in markdown format
-  %(prog)s --enable-local-state-file --local-state-file-format MD
+  %(prog)s --global --enable-local-state-file --local-state-file-format MD
   
-  # Enable local session file storage in JSON format  
-  %(prog)s --repository-path ../my-project --enable-local-state-file --local-state-file-format JSON
+  # Enable local session file storage in JSON format with current directory
+  %(prog)s --local --enable-local-state-file --local-state-file-format JSON
   
   # Enable cache mode for persistent workflow states
-              %(prog)s --enable-cache-mode --cache-embedding-model all-mpnet-base-v2
+  %(prog)s --global --enable-cache-mode --cache-embedding-model all-mpnet-base-v2
   
   # Enable both file storage and cache mode
-  %(prog)s --enable-local-state-file --enable-cache-mode --cache-db-path ./cache
+  %(prog)s --local --enable-local-state-file --enable-cache-mode --cache-db-path ./cache
+
+  # [DEPRECATED] Using --repository-path (still works but not recommended)
+  %(prog)s --repository-path /path/to/my/project
 """,
     )
 
-    parser.add_argument(
+    # Create mutually exclusive group for repository path options
+    repo_group = parser.add_mutually_exclusive_group()
+
+    repo_group.add_argument(
+        "--global",
+        action="store_true",
+        help="Use home directory (~) as repository root where .accordo folder will be located. "
+        "This is the recommended option for globally configured MCP servers.",
+        dest="global_repo",
+    )
+
+    repo_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Use current working directory (.) as repository root where .accordo folder will be located. "
+        "Useful for project-specific MCP server configurations.",
+        dest="local_repo",
+    )
+
+    repo_group.add_argument(
         "--repository-path",
         type=str,
-        help="Path to the repository root where .accordo folder should be located. "
-        "Defaults to home directory if not specified.",
+        help="[DEPRECATED] Path to the repository root where .accordo folder should be located. "
+        "Use --global or --local instead. Defaults to home directory if not specified.",
         metavar="PATH",
     )
 
@@ -138,11 +163,24 @@ def main():
 
     # Create new configuration service
     try:
+        # Determine repository path based on new flags (with fallback to deprecated --repository-path)
+        if args.global_repo:
+            repository_path = Path.home()
+        elif args.local_repo:
+            repository_path = Path.cwd()
+        elif args.repository_path:
+            # Show deprecation warning for --repository-path usage
+            print(
+                "⚠️  WARNING: --repository-path is deprecated. Use --global or --local instead."
+            )
+            repository_path = Path(args.repository_path)
+        else:
+            # Default to home directory when no flags specified
+            repository_path = Path.home()
+
         # Create server configuration from CLI arguments
         server_config = ServerConfiguration(
-            repository_path=Path(args.repository_path)
-            if args.repository_path
-            else Path.home(),
+            repository_path=repository_path,
             enable_local_state_file=args.enable_local_state_file,
             local_state_file_format=args.local_state_file_format.upper(),
             session_retention_hours=args.session_retention_hours,

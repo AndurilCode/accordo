@@ -2,6 +2,16 @@
 
 This directory contains example MCP configurations for Cursor. These configurations show how to set up Workflow Commander with different feature sets and options.
 
+## 🆕 New Flag System
+
+**Recent Update**: Repository path configuration now uses simple `--global` and `--local` flags instead of `--repository-path`:
+
+- **`--global`**: Uses home directory (`~/.accordo/`) - **recommended for global Cursor MCP servers**
+- **`--local`**: Uses current directory (`./.accordo/`) - **ideal for project-specific configurations**
+- **`--repository-path`**: Still supported but deprecated - shows warning message
+
+**Migration**: Update your configurations to use the new flags for better Cursor compatibility!
+
 ## Configuration Files
 
 ### 1. Basic Setup (`basic-setup.json`)
@@ -9,16 +19,16 @@ This directory contains example MCP configurations for Cursor. These configurati
 **Purpose**: Minimal configuration for getting started with Workflow Commander in Cursor.
 
 **Features**:
-- Standard uvx-based installation from GitHub
+- Standard uvx-based installation from PyPI
 - No additional command line arguments
-- Uses default settings
+- Uses default settings (home directory: `~/.accordo/`)
 
 ### 2. Advanced Setup (`advanced-setup.json`)
 
 **Purpose**: Configuration with comprehensive command line options including cache features.
 
 **Features**:
-- Repository path specification (`--repository-path`)
+- Current directory as repository root (`--local`)
 - Local state file synchronization enabled (`--enable-local-state-file`)
 - JSON format for state files (`--local-state-file-format JSON`)
 - Custom session retention period (`--session-retention-hours 72`)
@@ -32,20 +42,60 @@ This directory contains example MCP configurations for Cursor. These configurati
 **Purpose**: Focused configuration highlighting cache features for semantic workflow analysis.
 
 **Features**:
+- Current directory as repository root (`--local`)
 - Essential cache configuration for semantic search
 - Optimized for workflow state persistence and discovery
 - Includes both local file storage and cache mode
 - Performance-tuned embedding model selection
 
+### 4. Specific Version Setup (`specific-version.json`)
+
+**Purpose**: Configuration pinned to a specific package version with global repository.
+
+**Features**:
+- Pinned to specific version (`accordo-workflow-mcp==0.1.0`)
+- Home directory repository root (`--global`) - ideal for global MCP
+- Full cache and state management features
+- Higher quality embedding model (`all-mpnet-base-v2`)
+
+### 5. PyPI Latest Setup (`pypi-latest.json`)
+
+**Purpose**: Always use the latest version from PyPI with global configuration.
+
+**Features**:
+- Latest PyPI version (no version pinning)
+- Home directory repository root (`--global`)
+- Full feature set enabled
+- Production-ready configuration
+
+### 6. Git Versions Setup (`git-versions.json`)
+
+**Purpose**: Examples of installing from specific Git references.
+
+**Features**:
+- Installation by tag, commit, or branch
+- Shows different Git-based installation methods
+- No additional configuration - uses defaults
+
 **Command Line Arguments Explained**:
 
 #### Repository Configuration
 
-##### `--repository-path`
-- **Purpose**: Specify the repository root where `.accordo` folder should be located
-- **Default**: Current directory
+##### `--global` / `--local` (Recommended)
+- **Purpose**: Choose repository location using simple flags
+- **`--global`**: Uses home directory (`~/.accordo/`) - **recommended for global MCP servers**
+- **`--local`**: Uses current directory (`./.accordo/`) - **ideal for project-specific setups**
+- **Default**: Home directory if no flag specified
+- **Benefits**: 
+  - Clearer than absolute paths
+  - Better for Cursor global MCP configurations
+  - Prevents working directory issues
+
+##### `--repository-path` (Deprecated)
+- **⚠️ DEPRECATED**: Use `--global` or `--local` instead
+- **Purpose**: Specify absolute path to repository root where `.accordo` folder should be located
 - **Example**: `--repository-path /path/to/your/project`
-- **Use Case**: Essential for project-specific workflow organization
+- **Migration**: Replace with `--local` for current directory or `--global` for home directory
 
 #### State File Configuration
 
@@ -151,9 +201,7 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
       "command": "uvx",
       "args": [
         "accordo-workflow-mcp",
-        "accordo-mcp",
-        "--repository-path",
-        "/path/to/your/project"
+        "--local"
       ]
     }
   }
@@ -167,16 +215,14 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
     "accordo": {
       "command": "uvx",
       "args": [
-        
         "accordo-workflow-mcp",
-        "accordo-mcp",
-        "--repository-path",
-        "/path/to/your/project",
+        "--local",
         "--enable-local-state-file",
         "--local-state-file-format",
         "JSON",
         "--session-retention-hours",
         "72",
+        "--enable-cache-mode",
         "--cache-db-path",
         ".accordo/cache",
         "--cache-embedding-model",
@@ -189,25 +235,21 @@ Create `.cursor/mcp.json` in your project root for project-specific settings:
 }
 ```
 
-### Performance-Optimized Setup (Large Projects)
+### Global MCP Setup (Recommended for Cursor)
 ```json
 {
   "mcpServers": {
     "accordo": {
       "command": "uvx",
       "args": [
-        
         "accordo-workflow-mcp",
-        "accordo-mcp",
-        "--repository-path",
-        "/path/to/your/project",
+        "--global",
         "--enable-local-state-file",
         "--local-state-file-format",
         "JSON",
         "--session-retention-hours",
-        "72",
-        "--cache-db-path",
-        ".accordo/cache",
+        "168",
+        "--enable-cache-mode",
         "--cache-embedding-model",
         "all-MiniLM-L6-v2",
         "--cache-max-results",

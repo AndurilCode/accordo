@@ -1,7 +1,7 @@
 """Tests for the main server module."""
 
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 
@@ -147,9 +147,17 @@ class TestMainFunction:
 
         # Verify error handling
         mock_init_config.assert_called_once()
-        mock_print.assert_called_once_with(
-            "Error: Configuration validation failed: ['Repository path does not exist: /invalid/path']"
-        )
+
+        # Verify both deprecation warning and error message are printed
+        expected_calls = [
+            call(
+                "⚠️  WARNING: --repository-path is deprecated. Use --global or --local instead."
+            ),
+            call(
+                "Error: Configuration validation failed: ['Repository path does not exist: /invalid/path']"
+            ),
+        ]
+        mock_print.assert_has_calls(expected_calls)
 
         # Verify error return code
         assert result == 1
@@ -296,17 +304,18 @@ class TestAutomaticCacheRestoration:
             initialize_session_services,
             reset_session_services,
         )
-        
+
         # Reset any existing services to ensure clean state
         reset_session_services()
-        
-        # Initialize all services including SessionSyncService 
+
+        # Initialize all services including SessionSyncService
         initialize_session_services()
 
     def teardown_method(self):
         """Clean up test environment."""
         # Clean up services after tests
         from src.accordo_workflow_mcp.services import reset_session_services
+
         reset_session_services()
 
     @patch("src.accordo_workflow_mcp.server.FastMCP")
@@ -399,10 +408,13 @@ class TestAutomaticCacheRestoration:
         # FIX: Verify no SUCCESS message was printed for 0 restored sessions,
         # but allow debug messages that are part of the server startup process
         success_message_calls = [
-            call for call in mock_print.call_args_list
+            call
+            for call in mock_print.call_args_list
             if call[0] and "Automatically restored" in str(call[0][0])
         ]
-        assert len(success_message_calls) == 0, "No success message should be printed for 0 restored sessions"
+        assert len(success_message_calls) == 0, (
+            "No success message should be printed for 0 restored sessions"
+        )
 
         # The test can still have debug output - that's fine and expected now
 
@@ -438,7 +450,9 @@ class TestAutomaticCacheRestoration:
 
         # FIX: Mock the SessionSyncService and its auto_restore method to throw exception
         mock_session_sync_service = Mock()
-        mock_session_sync_service.auto_restore_sessions_on_startup.side_effect = Exception("Cache connection failed")
+        mock_session_sync_service.auto_restore_sessions_on_startup.side_effect = (
+            Exception("Cache connection failed")
+        )
         mock_get_session_sync_service.return_value = mock_session_sync_service
 
         # Mock sys.argv with cache enabled
