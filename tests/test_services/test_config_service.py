@@ -29,7 +29,7 @@ class TestServerConfiguration:
         """Test default server configuration."""
         config = ServerConfiguration()
 
-        assert config.repository_path == Path.cwd()
+        assert config.repository_path == Path.home()
         assert config.enable_local_state_file is False
         assert config.local_state_file_format == "MD"
         assert config.session_retention_hours == 168

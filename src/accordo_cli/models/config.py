@@ -43,8 +43,7 @@ class TemplateConfig(BaseModel):
             description="Configuration with comprehensive command line options including cache features",
             args=[
                 "accordo-workflow-mcp",
-                "--repository-path",
-                ".",
+                "--local",
                 "--enable-local-state-file",
                 "--local-state-file-format",
                 "JSON",
@@ -68,8 +67,7 @@ class TemplateConfig(BaseModel):
             description="Focused configuration highlighting cache features for semantic workflow analysis",
             args=[
                 "accordo-workflow-mcp",
-                "--repository-path",
-                ".",
+                "--local",
                 "--enable-local-state-file",
                 "--local-state-file-format",
                 "JSON",
@@ -189,9 +187,25 @@ class ConfigurationBuilder:
             else:
                 i += 1
 
+    def add_global_flag(self) -> "ConfigurationBuilder":
+        """Add --global flag for home directory repository root."""
+        self._update_or_add_option(
+            "--global", None, "Use home directory as repository root", False
+        )
+        return self
+
+    def add_local_flag(self) -> "ConfigurationBuilder":
+        """Add --local flag for current directory repository root."""
+        self._update_or_add_option(
+            "--local", None, "Use current directory as repository root", False
+        )
+        return self
+
     def add_repository_path(self, path: str = ".") -> "ConfigurationBuilder":
-        """Add repository path option."""
-        self._update_or_add_option("--repository-path", path, "Repository root path")
+        """[DEPRECATED] Add repository path option. Use add_global_flag() or add_local_flag() instead."""
+        self._update_or_add_option(
+            "--repository-path", path, "[DEPRECATED] Repository root path"
+        )
         return self
 
     def enable_local_state_file(

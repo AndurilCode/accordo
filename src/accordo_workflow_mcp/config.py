@@ -23,7 +23,7 @@ class ServerConfig:
 
         Args:
             repository_path: Optional path to the repository root where .accordo
-                           folder should be located. Defaults to current directory.
+                           folder should be located. Defaults to home directory.
             enable_local_state_file: Enable automatic synchronization of workflow state
                                    to local files in .accordo/sessions/.
             local_state_file_format: Format for local state files ('MD' or 'JSON').
@@ -38,7 +38,7 @@ class ServerConfig:
         if repository_path:
             self.repository_path = Path(repository_path).resolve()
         else:
-            self.repository_path = Path.cwd()
+            self.repository_path = Path.home()
 
         # Validate the repository path exists
         if not self.repository_path.exists():

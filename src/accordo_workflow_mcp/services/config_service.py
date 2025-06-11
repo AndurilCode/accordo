@@ -226,7 +226,7 @@ class ServerConfiguration(BaseModel):
     """Server-specific configuration settings."""
 
     repository_path: Path = Field(
-        default_factory=lambda: Path.cwd(),
+        default_factory=lambda: Path.home(),
         description="Repository root path where .accordo folder is located",
     )
 
