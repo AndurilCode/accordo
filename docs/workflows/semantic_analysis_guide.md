@@ -41,7 +41,7 @@ Current task: Optimize slow database queries
    Current task: Optimize slow database queries affecting user experience
    
 2. Historical Context Discovery:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="database performance optimization slow queries",
      analysis_type="similar_tasks",
      max_results=5
@@ -53,7 +53,7 @@ Current task: Optimize slow database queries
    - Project Gamma: 65% similarity - "Database indexing strategy for large datasets"
    
 3. Lessons Learned Analysis:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="database optimization performance",
      analysis_type="lessons_learned",
      max_results=3
@@ -83,7 +83,7 @@ Current task: Optimize slow database queries
    "Build responsive user dashboard with charts and real-time data updates"
    
 2. Similar Tasks Discovery:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="React dashboard component responsive charts real-time data",
      analysis_type="similar_tasks"
    )
@@ -94,7 +94,7 @@ Current task: Optimize slow database queries
    - 71% similar: "Responsive admin panel with multiple chart types"
    
 3. Technology Context Analysis:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="React hooks useEffect useState real-time data WebSocket",
      analysis_type="related_context"
    )
@@ -124,7 +124,7 @@ Current task: Optimize slow database queries
 **Semantic-Enhanced Analysis**:
 ```
 1. Security Context Discovery:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="API authentication JWT OAuth2 security implementation",
      analysis_type="similar_tasks"
    )
@@ -135,7 +135,7 @@ Current task: Optimize slow database queries
    - 78% similar: "API rate limiting and security middleware setup"
    
 2. Security Lessons Analysis:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="JWT token security vulnerability",
      analysis_type="lessons_learned"
    )
@@ -147,7 +147,7 @@ Current task: Optimize slow database queries
    - Rate limiting prevented DOS attacks in 3 similar APIs
    
 3. Cross-Domain Security Insights:
-   workflow_semantic_analysis(
+   workflow_semantic_search(
      query="authentication security best practices",
      analysis_type="related_context"
    )
@@ -171,7 +171,7 @@ Current task: Optimize slow database queries
 ### Core Semantic Analysis Tool
 
 ```yaml
-workflow_semantic_analysis(
+workflow_semantic_search(
   query="description of current task or context",
   analysis_type="similar_tasks|related_context|lessons_learned",
   max_results=5,
@@ -196,7 +196,7 @@ analysis_phase:
   goal: "Analyze requirements with historical context"
   instructions: |
     1. Perform baseline analysis of current requirements
-    2. Use workflow_semantic_analysis() to find relevant past work
+    2. Use workflow_semantic_search() to find relevant past work
     3. Integrate historical insights into analysis
     4. Document synthesis of current + historical understanding
   

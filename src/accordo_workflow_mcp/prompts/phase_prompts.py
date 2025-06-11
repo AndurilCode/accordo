@@ -1943,7 +1943,7 @@ Cannot update state - no YAML workflow session is currently active.
 - Search improvement: ✅ Better similarity matching expected
 
 **Next Steps:**
-- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- Test semantic search with: `workflow_semantic_search(query="your search")`
 - Enhanced embeddings now include detailed node completion evidence
 - Similarity scores should be significantly improved"""
 
@@ -1975,7 +1975,7 @@ Cannot update state - no YAML workflow session is currently active.
 - Search improvement: ✅ Better similarity matching expected
 
 **Next Steps:**
-- Test semantic search with: `workflow_semantic_analysis(query="your search")`
+- Test semantic search with: `workflow_semantic_search(query="your search")`
 - All embeddings now use current embedding model and enhanced text generation
 - Similarity scores should be significantly improved"""
 
@@ -1988,7 +1988,7 @@ Cannot update state - no YAML workflow session is currently active.
             return f"❌ **Error in workflow_cache_management:** {str(e)}"
 
     @app.tool()
-    def workflow_semantic_analysis(
+    def workflow_semantic_search(
         query: str = Field(
             description="Description of current task, problem, or context to find related past work"
         ),
@@ -2105,4 +2105,4 @@ Context:
             return "\n".join(result_parts)
 
         except Exception as e:
-            return f"❌ Error in workflow_semantic_analysis: {str(e)}"
+            return f"❌ Error in workflow_semantic_search: {str(e)}"

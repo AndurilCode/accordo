@@ -45,7 +45,7 @@ class TestMCPClientSemanticWorkflow:
         assert "workflow_discovery" in tool_names
         assert "workflow_guidance" in tool_names
         assert "workflow_state" in tool_names
-        assert "workflow_semantic_analysis" in tool_names
+        assert "workflow_semantic_search" in tool_names
 
     @pytest.mark.asyncio
     async def test_workflow_session_creation_and_progression(
@@ -115,7 +115,7 @@ class TestMCPClientSemanticWorkflow:
             "workflow_discovery",
             "workflow_guidance",
             "workflow_state",
-            "workflow_semantic_analysis",
+            "workflow_semantic_search",
             "workflow_cache_management",
         ]
 
@@ -288,7 +288,7 @@ class TestMCPClientIntegrationErrorHandling:
 
         # All tools should still be available
         assert "workflow_guidance" in tool_names
-        assert "workflow_semantic_analysis" in tool_names
+        assert "workflow_semantic_search" in tool_names
 
     @pytest.mark.asyncio
     async def test_invalid_workflow_yaml_handling(
