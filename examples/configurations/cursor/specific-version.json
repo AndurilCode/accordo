@@ -4,8 +4,7 @@
       "command": "uvx",
       "args": [
         "accordo-workflow-mcp==0.1.0",
-        "--repository-path", 
-        "/home/gabe4game/Repositories/workflow-commander",
+        "--global",
         "--enable-local-state-file",
         "--local-state-file-format",
         "JSON",
