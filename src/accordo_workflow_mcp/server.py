@@ -26,7 +26,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run with default repository path (current directory)
+  # Run with default repository path (home directory)
   %(prog)s
   
   # Run with specific repository path
@@ -50,7 +50,7 @@ Examples:
         "--repository-path",
         type=str,
         help="Path to the repository root where .accordo folder should be located. "
-        "Defaults to current directory if not specified.",
+        "Defaults to home directory if not specified.",
         metavar="PATH",
     )
 
@@ -142,7 +142,7 @@ def main():
         server_config = ServerConfiguration(
             repository_path=Path(args.repository_path)
             if args.repository_path
-            else Path.cwd(),
+            else Path.home(),
             enable_local_state_file=args.enable_local_state_file,
             local_state_file_format=args.local_state_file_format.upper(),
             session_retention_hours=args.session_retention_hours,
