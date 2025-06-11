@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import click
 import typer
 
 from ..models.config import (
@@ -120,12 +121,54 @@ def customize_configuration(builder: ConfigurationBuilder) -> ConfigurationBuild
     )
     typer.echo()
 
-    # Repository path
-    current_repo_path = next(
-        (opt.value for opt in builder.options if opt.flag == "--repository-path"), "."
+    # Repository location choice
+    has_global = any(opt.flag == "--global" for opt in builder.options)
+    has_local = any(opt.flag == "--local" for opt in builder.options)
+    has_repository_path = any(
+        opt.flag == "--repository-path" for opt in builder.options
     )
-    new_repo_path = typer.prompt("Repository path", default=current_repo_path)
-    if new_repo_path != current_repo_path:
+
+    if has_global or has_local or has_repository_path:
+        current_choice = (
+            "global" if has_global else ("local" if has_local else "custom")
+        )
+    else:
+        current_choice = "global"  # Default
+
+    repo_choice = typer.prompt(
+        "Repository location (global/local/custom)",
+        default=current_choice,
+        type=click.Choice(["global", "local", "custom"]),
+    )
+
+    if repo_choice == "global":
+        # Remove any existing repo options and add global flag
+        builder.options = [
+            opt
+            for opt in builder.options
+            if opt.flag not in ["--global", "--local", "--repository-path"]
+        ]
+        builder.add_global_flag()
+    elif repo_choice == "local":
+        # Remove any existing repo options and add local flag
+        builder.options = [
+            opt
+            for opt in builder.options
+            if opt.flag not in ["--global", "--local", "--repository-path"]
+        ]
+        builder.add_local_flag()
+    else:  # custom
+        # Ask for custom path and use deprecated repository-path option
+        current_repo_path = next(
+            (opt.value for opt in builder.options if opt.flag == "--repository-path"),
+            ".",
+        )
+        new_repo_path = typer.prompt("Repository path", default=current_repo_path)
+        builder.options = [
+            opt
+            for opt in builder.options
+            if opt.flag not in ["--global", "--local", "--repository-path"]
+        ]
         builder.add_repository_path(new_repo_path)
 
     # Local state file
@@ -215,9 +258,23 @@ def build_custom_configuration() -> ConfigurationBuilder:
 
     builder = ConfigurationBuilder()
 
-    # Repository path
-    repo_path = typer.prompt("Repository path", default=".")
-    builder.add_repository_path(repo_path)
+    # Repository location choice
+    repo_choice = typer.prompt(
+        "Repository location (global=home directory, local=current directory, custom=specify path)",
+        default="global",
+        type=click.Choice(["global", "local", "custom"]),
+    )
+
+    if repo_choice == "global":
+        builder.add_global_flag()
+        typer.echo("  → Using home directory (~/.accordo/)")
+    elif repo_choice == "local":
+        builder.add_local_flag()
+        typer.echo("  → Using current directory (./.accordo/)")
+    else:  # custom
+        repo_path = typer.prompt("Repository path", default=".")
+        builder.add_repository_path(repo_path)
+        typer.echo(f"  → Using custom path: {repo_path}/.accordo/")
 
     # Local state file
     if typer.confirm("Enable local state file storage?", default=True):

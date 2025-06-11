@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "accordo-workflow-mcp", 
-        "--repository-path", ".",
+        "--local",
         "--enable-local-state-file",
         "--local-state-file-format", "JSON",
         "--session-retention-hours", "72",
