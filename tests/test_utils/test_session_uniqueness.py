@@ -56,7 +56,9 @@ class TestSessionFilenameGeneration:
             sessions_dir = Path(temp_dir)
 
             # Mock datetime to ensure same timestamp
-            with patch("src.accordo_workflow_mcp.utils.session_manager.datetime") as mock_dt:
+            with patch(
+                "src.accordo_workflow_mcp.utils.session_manager.datetime"
+            ) as mock_dt:
                 mock_dt.now.return_value.strftime.return_value = "2025-06-04T10-30-00"
 
                 # Generate first filename
@@ -134,9 +136,7 @@ class TestSessionArchiving:
             )
 
             # Initialize configuration service
-            initialize_configuration_service(
-                server_config=server_config
-            )
+            initialize_configuration_service(server_config=server_config)
 
             # Ensure sessions directory exists
             server_config.sessions_dir.mkdir(parents=True, exist_ok=True)
@@ -242,9 +242,7 @@ class TestCleanupWithArchiving:
             )
 
             # Initialize configuration service
-            initialize_configuration_service(
-                server_config=server_config
-            )
+            initialize_configuration_service(server_config=server_config)
 
             # Ensure sessions directory exists
             server_config.sessions_dir.mkdir(parents=True, exist_ok=True)

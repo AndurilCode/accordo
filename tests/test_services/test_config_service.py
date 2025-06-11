@@ -102,22 +102,16 @@ class TestWorkflowConfiguration:
 
         assert config.local_state_file is False
         assert config.local_state_file_format == "MD"
-        assert config.default_max_depth == 10
-        assert config.allow_backtracking is True
 
     def test_custom_configuration(self):
         """Test workflow configuration with custom values."""
         config = WorkflowConfiguration(
             local_state_file=True,
             local_state_file_format="JSON",
-            default_max_depth=20,
-            allow_backtracking=False,
         )
 
         assert config.local_state_file is True
         assert config.local_state_file_format == "JSON"
-        assert config.default_max_depth == 20
-        assert config.allow_backtracking is False
 
 
 class TestPlatformConfiguration:

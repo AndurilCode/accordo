@@ -7,7 +7,6 @@ from src.accordo_workflow_mcp.models.workflow_state import (
     WorkflowItem,
 )
 from src.accordo_workflow_mcp.models.yaml_workflow import (
-    ExecutionConfig,
     WorkflowDefinition,
     WorkflowNode,
     WorkflowTree,
@@ -21,7 +20,6 @@ def create_test_workflow_def(name: str = "Test Workflow") -> WorkflowDefinition:
     return WorkflowDefinition(
         name=name,
         description="Test workflow for unit tests",
-        execution=ExecutionConfig(),
         workflow=WorkflowTree(
             goal="Test goal",
             root="start",
@@ -321,6 +319,7 @@ class TestSessionExportFunctions:
         assert md1 == md2
         assert json1 == json2
         assert md1 != json1  # Different formats should be different
+
 
 def get_session_id_by_client(client_id: str) -> str | None:
     """Helper to get first session ID for a client (for test compatibility)."""

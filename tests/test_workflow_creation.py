@@ -213,27 +213,17 @@ class TestWorkflowCreationGuidance:
         yaml_content = example["yaml_content"]
 
         # Verify the YAML contains all required elements
-        required_yaml_elements = [
+        expected_content = [
             "name: Custom Task Workflow",
-            "description:",
+            "description: Dynamically created workflow",
             "inputs:",
             "task_description:",
-            "execution:",
-            "max_depth: 10",
-            "allow_backtracking: true",
             "workflow:",
-            "goal:",
+            "goal: Complete the specified task",
             "root: analyze",
-            "tree:",
-            "analyze:",
-            "plan:",
-            "execute:",
-            "validate:",
-            "acceptance_criteria:",
-            "next_allowed_nodes:",
         ]
 
-        for element in required_yaml_elements:
+        for element in expected_content:
             assert element in yaml_content, f"Missing required YAML element: {element}"
 
         # Verify the YAML contains proper phase structure markers
