@@ -222,12 +222,8 @@ class TestServerConfigurationIntegration:
             with (
                 patch("sys.argv", test_args),
                 patch("src.accordo_workflow_mcp.server.FastMCP"),
-                patch(
-                    "src.accordo_workflow_mcp.server.register_phase_prompts"
-                ),
-                patch(
-                    "src.accordo_workflow_mcp.server.register_discovery_prompts"
-                ),
+                patch("src.accordo_workflow_mcp.server.register_phase_prompts"),
+                patch("src.accordo_workflow_mcp.server.register_discovery_prompts"),
             ):
                 result = main()
 

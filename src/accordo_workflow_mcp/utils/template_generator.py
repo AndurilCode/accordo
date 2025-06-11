@@ -55,8 +55,6 @@ class WorkflowTemplateGenerator:
                         "required": True,
                     }
                 },
-                "execution": source_workflow.execution
-                or {"max_depth": 8, "allow_backtracking": True},
                 "workflow": {
                     "goal": "Define your workflow goal here (customized from: "
                     + source_workflow.workflow.goal
@@ -133,7 +131,6 @@ class WorkflowTemplateGenerator:
                         "required": True,
                     }
                 },
-                "execution": {"max_depth": node_count + 2, "allow_backtracking": True},
                 "workflow": {
                     "goal": f"Define the overall goal for {template_name}",
                     "root": node_names[0] if node_names else "start",
@@ -173,6 +170,9 @@ class WorkflowTemplateGenerator:
             "workflow_lengths": [],
             "common_inputs": {},
             "execution_patterns": {},
+            "input_patterns": {},
+            "node_patterns": {},
+            "length_distribution": {},
         }
 
         for workflow in workflows.values():
@@ -192,12 +192,23 @@ class WorkflowTemplateGenerator:
                         patterns["common_inputs"].get(input_name, 0) + 1
                     )
 
-            # Analyze execution settings
-            if workflow.execution:
-                max_depth = workflow.execution.max_depth
-                patterns["execution_patterns"][f"max_depth_{max_depth}"] = (
-                    patterns["execution_patterns"].get(f"max_depth_{max_depth}", 0) + 1
+            # Track input patterns
+            for input_name in workflow.inputs:
+                patterns["input_patterns"][input_name] = (
+                    patterns["input_patterns"].get(input_name, 0) + 1
                 )
+
+            # Track node patterns
+            for node_name in workflow.workflow.tree:
+                patterns["node_patterns"][node_name] = (
+                    patterns["node_patterns"].get(node_name, 0) + 1
+                )
+
+            # Track workflow length
+            workflow_length = len(workflow.workflow.tree)
+            patterns["length_distribution"][workflow_length] = (
+                patterns["length_distribution"].get(workflow_length, 0) + 1
+            )
 
         # Calculate averages and summarize
         avg_length = (
@@ -298,10 +309,6 @@ class WorkflowTemplateGenerator:
                 "name": template_name,
                 "description": f"Template based on patterns from {analysis['total_workflows']} existing workflows",
                 "inputs": inputs,
-                "execution": {
-                    "max_depth": suggested_length + 2,
-                    "allow_backtracking": True,
-                },
                 "workflow": {
                     "goal": f"Define the overall goal for {template_name} (based on common patterns)",
                     "root": root_node,

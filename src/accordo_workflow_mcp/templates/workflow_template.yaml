@@ -13,10 +13,6 @@ inputs:
   #   required: false
   #   default: "default_value"
 
-execution:
-  max_depth: 8
-  allow_backtracking: true
-
 workflow:
   goal: Define the overall goal of your workflow here
 
@@ -58,21 +54,20 @@ workflow:
 
     final_node:
       goal: |
-        Define the final step of your workflow.
-        This should wrap up and finalize the work.
+        The final step in your workflow.
+        Should complete the overall objective.
       acceptance_criteria:
-        final_validation: "Final checks before workflow completion"
-        documentation: "Any documentation or reporting requirements"
-      # No next_allowed_nodes means this is a terminal node
+        task_completed: "All workflow objectives achieved"
+        deliverables_ready: "Final deliverables prepared and validated"
+      next_allowed_nodes: []  # Empty list indicates this is a terminal node
 
 # Template Usage Instructions:
-# 1. Copy this template to create a new workflow
-# 2. Update the name and description
-# 3. Define your specific inputs and their types
-# 4. Set the root node to your starting point
-# 5. Define your workflow nodes with goals and acceptance criteria
-# 6. Set up the flow between nodes using next_allowed_nodes
-# 7. Test your workflow with the validation tools
+# 1. Replace the template name and description with your workflow specifics
+# 2. Define any additional inputs your workflow needs
+# 3. Update the workflow goal to match your objectives
+# 4. Customize each node's goal and acceptance criteria
+# 5. Adjust the workflow tree structure to match your process
+# 6. Test your workflow by loading it into the system
 
 # Node Design Guidelines:
 # - Each node should have a single, clear responsibility

@@ -45,18 +45,26 @@ class TestMarkdownGenerator:
         state.items = [completed_item, pending_item]
 
         # Mock to_markdown method
-        state.to_markdown.return_value = """# Dynamic Workflow State
+        state.to_markdown.return_value = """📊 **DYNAMIC WORKFLOW STATE**
+
+**Workflow:** Test Workflow
+**Current Node:** test_node 
+**Status:** RUNNING
+**→ Next:** End of workflow
+
+**Current Goal:** Loading...
+
+**Progress:** test_node
+
+---
+
+## Detailed Session State
 _Last updated: 2024-01-01_
 
-## State
-Workflow: Test Workflow
-Current Node: test_node
-Status: RUNNING
-
-## Plan
+### Plan
 Test plan content
 
-## ArchiveLog
+### ArchiveLog
 Sample archive content"""
 
         return state
@@ -68,7 +76,7 @@ Sample archive content"""
         # Verify the function delegates to state.to_markdown()
         mock_workflow_state.to_markdown.assert_called_once()
         assert result == mock_workflow_state.to_markdown.return_value
-        assert "# Dynamic Workflow State" in result
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in result
 
     def test_format_workflow_state_for_display_without_metadata(
         self, mock_workflow_state
@@ -103,12 +111,10 @@ Sample archive content"""
     ):
         """Test format_workflow_state_for_display with metadata when no ArchiveLog section exists."""
         # Mock to_markdown to return content without ArchiveLog section
-        mock_workflow_state.to_markdown.return_value = """# Dynamic Workflow State
-_Last updated: 2024-01-01_
+        mock_workflow_state.to_markdown.return_value = """📊 **DYNAMIC WORKFLOW STATE**
 
-## State
-Workflow: Test Workflow
-Status: RUNNING"""
+**Workflow:** Test Workflow
+**Status:** RUNNING"""
 
         result = format_workflow_state_for_display(
             mock_workflow_state, include_metadata=True
@@ -215,7 +221,7 @@ Status: RUNNING"""
         assert "**Generated**: 2024-01-01 13:30:00" in result
 
         # Should include both workflow markdown and summary
-        assert "# Dynamic Workflow State" in result  # From workflow markdown
+        assert "📊 **DYNAMIC WORKFLOW STATE**" in result  # From workflow markdown
         assert "# Workflow Summary" in result  # From summary markdown
 
         # Should have separator

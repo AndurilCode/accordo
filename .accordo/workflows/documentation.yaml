@@ -12,10 +12,6 @@ inputs:
     required: false
     default: "general"
 
-execution:
-  max_depth: 8
-  allow_backtracking: true
-
 workflow:
   goal: Create or update documentation with proper structure, content, and validation
 

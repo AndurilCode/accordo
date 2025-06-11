@@ -12,10 +12,6 @@ inputs:
     required: false
     default: ".accordo/project_config.md"
 
-execution:
-  max_depth: 10
-  allow_backtracking: true
-
 workflow:
   goal: Complete coding task with thorough analysis, planning, implementation, and validation
 
@@ -40,6 +36,7 @@ workflow:
         synthesis_report: "Combined current understanding with historical insights"
       next_allowed_nodes: [analyze]
 
+    # Analysis phase - understand requirements and codebase
     analyze:
       goal: |
         **ANALYZE PHASE:** ${{ inputs.task_description }}
@@ -55,23 +52,22 @@ workflow:
         understanding_validation: "Can clearly explain task requirements and identify all affected components with comprehensive understanding documented"
       next_allowed_nodes: [blueprint]
 
-    # Blueprint phase - create implementation plan
+    # Planning phase - create comprehensive implementation strategy
     blueprint:
       goal: |
         **BLUEPRINT PHASE:** ${{ inputs.task_description }}
 
         Create a comprehensive implementation plan with clear architecture, step-by-step execution strategy, and testing approach. The plan should be detailed enough for systematic execution.
-        
       acceptance_criteria:
         solution_architecture: "MUST define overall technical approach and strategy, specify design patterns and architectural decisions, identify all files to create/modify with rationale, and plan for error handling and edge cases"
         step_breakdown: "MUST break implementation into atomic ordered steps, ensure each step is small specific and verifiable, include verification commands for each step, and specify success criteria and validation methods"
         quality_plan: "MUST plan how each component will be tested, identify integration points requiring validation, specify acceptance criteria and quality gates, and include regression testing considerations"
         implementation_plan: "MUST create detailed implementation plan under ## Plan section, include risk assessment and mitigation strategies, specify quality assurance checkpoints, and define rollback procedures if needed"
         plan_approval: "Plan is comprehensive, actionable, and ready for systematic execution with user approval obtained"
-      next_allowed_nodes: [construct]
       needs_approval: true
+      next_allowed_nodes: [construct]
 
-    # Construction phase - implement the plan
+    # Implementation phase - execute the plan systematically
     construct:
       goal: |
         **CONSTRUCT PHASE:** ${{ inputs.task_description }}
@@ -81,7 +77,7 @@ workflow:
         **Key Points:** Complete each step fully before proceeding, maintain detailed progress logs, and ensure quality standards throughout.
       acceptance_criteria:
         step_execution: "MUST implement each planned step in exact sequence, complete each step fully before proceeding to next, NOT skip combine or reorder steps, and follow the approved implementation plan precisely"
-        progress_logging: "MUST call workflow_state tool after EVERY major step, log with format 'workflow_state(operation=\"update\", updates='{\"log_entry\": \"Step X: [description] - [status]\"}')', capture verification results in each log entry, and document any deviations from plan with rationale"
+        progress_logging: "MUST call workflow_state tool after EVERY major step with detailed and clear description of the step, log with format 'workflow_state(operation=\"update\", updates='{\"log_entry\": \"Step X: [description] - [status]\"}')', capture verification results in each log entry, and document any deviations from plan with rationale"
         verification_results: "MUST run verification commands immediately after each change, test functionality works as expected, run linting/formatting checks and fix any issues, and ensure code quality standards are maintained"
         quality_validation: "Code follows project standards with no new linting errors and quality gates passed"
         backwards_compatibility: "No breaking changes introduced unless explicitly specified in requirements"
@@ -104,7 +100,7 @@ workflow:
         documentation_validation: "MUST ensure code is properly documented, update relevant project documentation, verify examples and usage instructions accurate, and check documentation completeness"
       next_allowed_nodes: [complete]
 
-    # Completion phase - finalize and summarize
+    # Completion phase - finalize and document
     complete:
       goal: |
         **COMPLETE PHASE:** ${{ inputs.task_description }}

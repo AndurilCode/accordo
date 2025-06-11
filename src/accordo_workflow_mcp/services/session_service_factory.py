@@ -34,6 +34,7 @@ class SessionServiceFactory:
         # Initialize cache service first to ensure it's available
         try:
             from .cache_service import initialize_cache_service
+
             initialize_cache_service()
             print("🚨 DEBUG: Cache service initialized successfully")
         except Exception as e:
@@ -118,26 +119,32 @@ class SessionServiceFactory:
     def _get_cache_manager(self) -> Any:
         """Get cache manager for SessionSyncService."""
         print("🚨 DEBUG: SessionServiceFactory._get_cache_manager() called")
-        
+
         # Try to get cache manager from the new cache service first
         print("🚨 DEBUG: Trying to get cache manager from new cache service...")
         with contextlib.suppress(Exception):
             from .cache_service import get_cache_service
+
             cache_service = get_cache_service()
-            if cache_service and hasattr(cache_service, 'get_cache_manager'):
+            if cache_service and hasattr(cache_service, "get_cache_manager"):
                 cache_manager = cache_service.get_cache_manager()
                 if cache_manager:
-                    print(f"🚨 DEBUG: Got cache manager from cache service: {type(cache_manager)}")
+                    print(
+                        f"🚨 DEBUG: Got cache manager from cache service: {type(cache_manager)}"
+                    )
                     return cache_manager
-        
+
         print("🚨 DEBUG: New cache service not available")
-        
+
         # Fallback to legacy session manager cache
         print("🚨 DEBUG: Falling back to legacy session manager cache...")
         from ..utils import session_manager
+
         cache_manager = session_manager.get_cache_manager()
-        print(f"🚨 DEBUG: Got cache manager from legacy session manager: {type(cache_manager)}")
-        
+        print(
+            f"🚨 DEBUG: Got cache manager from legacy session manager: {type(cache_manager)}"
+        )
+
         return cache_manager
 
     def is_initialized(self) -> bool:

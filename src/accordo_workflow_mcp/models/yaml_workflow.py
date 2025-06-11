@@ -5,15 +5,6 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 
-class ExecutionConfig(BaseModel):
-    """Execution configuration for workflows."""
-
-    max_depth: int = Field(default=5, description="Maximum execution depth")
-    allow_backtracking: bool = Field(
-        default=True, description="Allow backtracking in workflow"
-    )
-
-
 class WorkflowInput(BaseModel):
     """Input definition for workflows."""
 
@@ -116,9 +107,6 @@ class WorkflowDefinition(BaseModel):
     description: str = Field(description="Workflow description")
     inputs: dict[str, WorkflowInput] = Field(
         default_factory=dict, description="Workflow input definitions"
-    )
-    execution: ExecutionConfig = Field(
-        default_factory=ExecutionConfig, description="Execution configuration"
     )
     workflow: WorkflowTree = Field(description="Workflow tree structure")
 

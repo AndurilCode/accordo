@@ -296,7 +296,7 @@ class TestDecorators:
             return "should not reach here"
 
         from src.accordo_workflow_mcp.services.config_service import ConfigurationError
-        
+
         with pytest.raises(ConfigurationError):  # Should raise ConfigurationError
             test_function()
 

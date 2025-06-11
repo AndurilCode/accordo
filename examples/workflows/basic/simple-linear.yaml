@@ -12,10 +12,6 @@ inputs:
     required: false
     default: "markdown"
 
-execution:
-  max_depth: 10
-  allow_backtracking: false
-
 workflow:
   goal: Complete a simple task using a linear progression of phases
 
