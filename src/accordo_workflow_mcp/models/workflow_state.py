@@ -346,7 +346,7 @@ class DynamicWorkflowState(BaseModel):
                             # Display full goal without truncation
                             progress_lines.append(f"**Goal:** {node_def.goal}")
 
-                        # Show acceptance criteria satisfaction
+                        # Show acceptance criteria satisfaction with comprehensive evidence
                         if node_def and node_def.acceptance_criteria:
                             progress_lines.append("**Acceptance Criteria Satisfied:**")
 
@@ -359,12 +359,17 @@ class DynamicWorkflowState(BaseModel):
                                 ) in node_def.acceptance_criteria.items():
                                     if criterion in criteria_evidence:
                                         evidence = criteria_evidence[criterion]
+                                        # Always show full evidence without truncation
                                         progress_lines.append(
-                                            f"- ✅ **{criterion}**: {evidence}"
+                                            f"   ✅ **{criterion}**: {evidence}"
+                                        )
+                                        # Also show the original criterion description for context
+                                        progress_lines.append(
+                                            f"      📋 Criterion satisfied: {description}"
                                         )
                                     else:
                                         progress_lines.append(
-                                            f"- ❓ **{criterion}**: {description} (no evidence recorded)"
+                                            f"   ❓ **{criterion}**: {description} (no evidence recorded)"
                                         )
                             else:
                                 # Fallback: just list the criteria as completed
@@ -373,7 +378,7 @@ class DynamicWorkflowState(BaseModel):
                                     description,
                                 ) in node_def.acceptance_criteria.items():
                                     progress_lines.append(
-                                        f"- ✅ **{criterion}**: {description}"
+                                        f"   ✅ **{criterion}**: {description}"
                                     )
 
                         # Show additional outputs if any
@@ -386,10 +391,8 @@ class DynamicWorkflowState(BaseModel):
                             if filtered_outputs:
                                 progress_lines.append("**Additional Outputs:**")
                                 for key, value in filtered_outputs.items():
-                                    # Truncate long values for readability
-                                    if isinstance(value, str) and len(value) > 100:
-                                        value = value[:100] + "..."
-                                    progress_lines.append(f"- **{key}**: {value}")
+                                    # Always provide full text without truncation per user requirement
+                                    progress_lines.append(f"   📄 **{key}**: {value}")
 
                         progress_lines.append("")  # Add spacing between nodes
 
