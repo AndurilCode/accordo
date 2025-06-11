@@ -22,10 +22,6 @@ inputs:
     required: false
     default: "medium"
 
-execution:
-  max_depth: 10
-  allow_backtracking: true
-
 workflow:
   goal: Create a compelling, well-researched editorial article through systematic research, planning, writing, and editing phases
 

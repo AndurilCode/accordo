@@ -12,10 +12,6 @@ inputs:
     required: false
     default: "medium"
 
-execution:
-  max_depth: 15
-  allow_backtracking: true
-
 workflow:
   goal: Complete a task with appropriate approach based on complexity assessment
 

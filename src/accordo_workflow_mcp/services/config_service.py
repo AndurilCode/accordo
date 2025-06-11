@@ -313,14 +313,6 @@ class WorkflowConfiguration(BaseModel):
         description="Format for local state files when local_state_file is enabled",
     )
 
-    default_max_depth: int = Field(
-        default=10, description="Default maximum depth for workflow execution"
-    )
-
-    allow_backtracking: bool = Field(
-        default=True, description="Allow backtracking in workflow execution"
-    )
-
 
 class PlatformConfiguration(BaseModel):
     """Platform-specific configuration settings."""

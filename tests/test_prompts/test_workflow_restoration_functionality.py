@@ -40,7 +40,9 @@ class TestWorkflowRestorationFunctionality:
         # FIX: Mock the legacy restore function that's actually called
         with (
             patch("builtins.print") as mock_print,
-            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
+            patch(
+                "src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache"
+            ) as mock_restore,
         ):
             # Mock the legacy restore function to return 2 sessions
             mock_restore.return_value = 2
@@ -53,10 +55,15 @@ class TestWorkflowRestorationFunctionality:
 
             # Verify the legacy restore function was called
             mock_restore.assert_called_once_with("default")
-            
+
             # Verify debug message was printed
-            debug_calls = [call for call in mock_print.call_args_list 
-                          if call[0] and "DEBUG: Legacy auto_restore_sessions_on_startup called" in str(call[0][0])]
+            debug_calls = [
+                call
+                for call in mock_print.call_args_list
+                if call[0]
+                and "DEBUG: Legacy auto_restore_sessions_on_startup called"
+                in str(call[0][0])
+            ]
             assert len(debug_calls) == 1
 
             # The utils function no longer produces debug output - it just delegates
@@ -71,7 +78,9 @@ class TestWorkflowRestorationFunctionality:
 
         # FIX: Mock the legacy restore function that's actually called
         with (
-            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
+            patch(
+                "src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache"
+            ) as mock_restore,
         ):
             # Mock the legacy restore function to return 1 session
             mock_restore.return_value = 1
@@ -172,16 +181,20 @@ class TestWorkflowRestorationFunctionality:
 
         # FIX: Mock the legacy restore function to throw an exception
         with (
-            patch("src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache") as mock_restore,
+            patch(
+                "src.accordo_workflow_mcp.utils.session_manager.restore_sessions_from_cache"
+            ) as mock_restore,
         ):
             # Mock the legacy restore function to throw an exception
             mock_restore.side_effect = Exception("Legacy restore error")
 
             # Call the function - the utils function should handle exceptions and return 0
             result = auto_restore_sessions_on_startup()
-            
+
             # Verify the function handled the exception and returned 0
-            assert result == 0, "Function should return 0 when legacy restore throws exception"
+            assert result == 0, (
+                "Function should return 0 when legacy restore throws exception"
+            )
 
             # Verify the legacy restore function was called
             mock_restore.assert_called_once_with("default")

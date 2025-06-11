@@ -522,7 +522,7 @@ def auto_restore_sessions_on_startup() -> int:
     """Legacy auto-restore function for backward compatibility.
 
     NOTE: This is a legacy function that is no longer actively used by server.py.
-    The server.py calls SessionSyncService directly. This function remains for 
+    The server.py calls SessionSyncService directly. This function remains for
     backward compatibility and testing purposes only.
 
     Returns:

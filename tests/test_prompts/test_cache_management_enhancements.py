@@ -66,7 +66,7 @@ class TestCacheManagementEnhancements:
                 result.get("content", result) if isinstance(result, dict) else result
             )
 
-            # Verify cache service was called correctly  
+            # Verify cache service was called correctly
             mock_cache_service.is_available.assert_called_once()
             mock_cache_service.get_cache_manager.assert_called_once()
             mock_cache_manager.regenerate_embeddings_for_enhanced_search.assert_called_once_with()
@@ -181,8 +181,8 @@ class TestCacheManagementEnhancements:
         mock_cache_service.is_available.return_value = False
 
         with patch(
-            "src.accordo_workflow_mcp.services.get_cache_service", 
-            return_value=mock_cache_service
+            "src.accordo_workflow_mcp.services.get_cache_service",
+            return_value=mock_cache_service,
         ):
             # Test regenerate_embeddings with no cache
             result = cache_tool.fn(
@@ -418,7 +418,7 @@ class TestEnhancedCacheManagementIntegration:
 
         with patch(
             "src.accordo_workflow_mcp.services.get_cache_service",
-            return_value=mock_cache_service
+            return_value=mock_cache_service,
         ):
             result = cache_tool.fn(operation="regenerate_embeddings", client_id="test")
             result_text = (

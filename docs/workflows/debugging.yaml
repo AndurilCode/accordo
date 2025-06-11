@@ -16,10 +16,6 @@ inputs:
     description: Steps to reproduce the issue
     required: false
 
-execution:
-  max_depth: 10
-  allow_backtracking: true
-
 workflow:
   goal: Identify, analyze, and fix bugs with thorough testing and validation
 

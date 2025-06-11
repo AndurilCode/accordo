@@ -64,18 +64,18 @@ class TestCliCommands:
         # 3. select_configuration_template() - choice (1-4) - NOTE: typer.prompt with type=int expects int
         # 4. select_config_location() - choice (1-3) - NOTE: typer.prompt with type=int expects int
         mock_prompt.side_effect = [
-            1,          # Platform choice: Cursor (int, not string!)
+            1,  # Platform choice: Cursor (int, not string!)
             "accordo",  # Server name (string)
-            1,          # Configuration template: Basic Setup (int, not string!)
-            1,          # Config location: Global (int, not string!)
+            1,  # Configuration template: Basic Setup (int, not string!)
+            1,  # Config location: Global (int, not string!)
         ]
-        
+
         # FIX: Provide enough confirm values:
         # 1. Customize configuration? (for template)
         # 2. Proceed with configuration? (final confirmation)
         mock_confirm.side_effect = [
             False,  # Don't customize configuration (use template as-is)
-            True,   # Proceed with configuration
+            True,  # Proceed with configuration
         ]
 
         # Use a specific config path
@@ -88,12 +88,17 @@ class TestCliCommands:
             print(f"Exit code: {result.exit_code}")
             print(f"Output: {result.output}")
             print(f"Stdout: {result.stdout}")
-            if hasattr(result, 'stderr'):
+            if hasattr(result, "stderr"):
                 print(f"Stderr: {result.stderr}")
             if result.exception:
                 print(f"Exception: {result.exception}")
                 import traceback
-                traceback.print_exception(type(result.exception), result.exception, result.exception.__traceback__)
+
+                traceback.print_exception(
+                    type(result.exception),
+                    result.exception,
+                    result.exception.__traceback__,
+                )
 
         # Should succeed and create configuration
         assert result.exit_code == 0
@@ -209,7 +214,6 @@ class TestCliCommands:
                 "accordo": {
                     "command": "uvx",
                     "args": [
-                        
                         "accordo-workflow-mcp",
                         "accordo-mcp",
                     ],
@@ -273,7 +277,6 @@ class TestCliCommands:
                 "accordo": {
                     "command": "uvx",
                     "args": [
-                        
                         "accordo-workflow-mcp",
                         "accordo-mcp",
                     ],
