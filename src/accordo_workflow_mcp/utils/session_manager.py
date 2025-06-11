@@ -1104,35 +1104,14 @@ def mark_item_completed_in_session(session_id: str, item_id: int) -> bool:
 def export_session_to_markdown(
     session_id: str, workflow_def: WorkflowDefinition | None = None
 ) -> str | None:
-    """Export session to markdown format."""
+    """Export session to markdown format using the session's own to_markdown method."""
     session = get_session(session_id)
     if not session:
         return None
 
-    try:
-        from ..prompts.formatting import (  # type: ignore
-            export_session_to_markdown as format_export_func,
-        )
-
-        return format_export_func(session_id, workflow_def)
-    except (ImportError, RecursionError):
-        # Fallback to basic format that matches test expectations
-        lines = [
-            "# Dynamic Workflow State",
-            f"**Session ID**: {session.session_id}",
-            f"**Client**: {session.client_id}",
-            f"**Status**: {session.status}",
-            f"**Workflow**: {session.workflow_name or 'Unknown'}",
-            f"**Current Node**: {session.current_node}",
-            f"**Created**: {session.created_at}",
-            f"**Current Item**: {session.current_item or 'None'}",
-            "",
-            "## Log",
-        ]
-        for entry in session.log:
-            lines.append(f"- {entry}")
-
-        return "\n".join(lines)
+    # Use the session's own to_markdown method directly
+    # This bypasses the problematic ImportError fallback and provides comprehensive workflow progression data
+    return session.to_markdown(workflow_def)
 
 
 def export_session_to_json(session_id: str) -> str | None:
