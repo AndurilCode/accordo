@@ -258,7 +258,6 @@ def register_discovery_prompts(mcp: FastMCP, config=None) -> None:
                         "name": "Human-readable workflow name",
                         "description": "Brief description of workflow purpose and scope",
                         "inputs": "Optional: Define input parameters with types and defaults",
-                        "execution": "Optional: Configure max_depth, allow_backtracking, etc.",
                         "workflow": "Core workflow definition containing goal, root, and tree",
                     },
                     "workflow_section_structure": {
@@ -316,10 +315,6 @@ inputs:
     type: string
     description: Task provided by the user
     required: true
-
-execution:
-  max_depth: 10
-  allow_backtracking: true
 
 workflow:
   goal: Complete the specified task with thorough analysis, planning, and implementation
@@ -444,6 +439,12 @@ workflow:
                 "message": "After creating your custom workflow YAML, start it with:",
                 "command_template": "workflow_guidance(action='start', context='workflow: <workflow_name>\\nyaml: <complete_yaml_content>')",
                 "freedom_note": "Feel free to adapt the examples and guidance to fit your specific needs. The goal is a workflow that makes sense for your task.",
+            },
+            "components": {
+                "name": "Workflow name - descriptive but concise",
+                "description": "Brief description of workflow purpose and scope",
+                "inputs": "Define workflow parameters with types and descriptions",
+                "workflow": "Root workflow structure with goal, root node, and tree definition",
             },
         }
 

@@ -12,10 +12,6 @@ inputs:
     required: false
     default: "medium"
 
-execution:
-  max_depth: 8
-  allow_backtracking: true
-
 workflow:
   goal: Complete a task with mandatory approval checkpoints to ensure user oversight
 

@@ -353,6 +353,7 @@ class SessionSyncService:
 
         # Get current timestamp
         from datetime import UTC
+
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
         # Determine extension
@@ -369,7 +370,7 @@ class SessionSyncService:
     def _session_to_markdown(self, session: DynamicWorkflowState) -> str:
         """Convert session to markdown format."""
         import contextlib
-        
+
         export_session_to_markdown = None
         with contextlib.suppress(ImportError):
             from ..prompts.formatting import export_session_to_markdown  # type: ignore

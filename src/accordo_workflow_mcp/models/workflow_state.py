@@ -199,9 +199,11 @@ class DynamicWorkflowState(BaseModel):
                 self.add_log_entry(
                     f"✅ Completed node: {self.current_node} with {len(criteria_evidence)} criteria satisfied"
                 )
-                # Debug logging for troubleshooting
-                for criterion in criteria_evidence:
+                # Show detailed evidence for each criterion satisfied
+                for criterion, evidence in criteria_evidence.items():
+                    # Always show full evidence without truncation per user requirement
                     self.add_log_entry(f"   📋 Criterion satisfied: {criterion}")
+                    self.add_log_entry(f"      Evidence: {evidence}")
             else:
                 self.add_log_entry(
                     f"✅ Completed node: {self.current_node} (no detailed criteria recorded)"
@@ -346,7 +348,7 @@ class DynamicWorkflowState(BaseModel):
                             # Display full goal without truncation
                             progress_lines.append(f"**Goal:** {node_def.goal}")
 
-                        # Show acceptance criteria satisfaction
+                        # Show acceptance criteria satisfaction with comprehensive evidence
                         if node_def and node_def.acceptance_criteria:
                             progress_lines.append("**Acceptance Criteria Satisfied:**")
 
@@ -359,12 +361,17 @@ class DynamicWorkflowState(BaseModel):
                                 ) in node_def.acceptance_criteria.items():
                                     if criterion in criteria_evidence:
                                         evidence = criteria_evidence[criterion]
+                                        # Always show full evidence without truncation
                                         progress_lines.append(
-                                            f"- ✅ **{criterion}**: {evidence}"
+                                            f"   ✅ **{criterion}**: {evidence}"
+                                        )
+                                        # Also show the original criterion description for context
+                                        progress_lines.append(
+                                            f"      📋 Criterion satisfied: {description}"
                                         )
                                     else:
                                         progress_lines.append(
-                                            f"- ❓ **{criterion}**: {description} (no evidence recorded)"
+                                            f"   ❓ **{criterion}**: {description} (no evidence recorded)"
                                         )
                             else:
                                 # Fallback: just list the criteria as completed
@@ -373,7 +380,7 @@ class DynamicWorkflowState(BaseModel):
                                     description,
                                 ) in node_def.acceptance_criteria.items():
                                     progress_lines.append(
-                                        f"- ✅ **{criterion}**: {description}"
+                                        f"   ✅ **{criterion}**: {description}"
                                     )
 
                         # Show additional outputs if any
@@ -386,10 +393,8 @@ class DynamicWorkflowState(BaseModel):
                             if filtered_outputs:
                                 progress_lines.append("**Additional Outputs:**")
                                 for key, value in filtered_outputs.items():
-                                    # Truncate long values for readability
-                                    if isinstance(value, str) and len(value) > 100:
-                                        value = value[:100] + "..."
-                                    progress_lines.append(f"- **{key}**: {value}")
+                                    # Always provide full text without truncation per user requirement
+                                    progress_lines.append(f"   📄 **{key}**: {value}")
 
                         progress_lines.append("")  # Add spacing between nodes
 
@@ -401,40 +406,69 @@ class DynamicWorkflowState(BaseModel):
 
 """
 
-        # Create dynamic template
-        template = f"""# Dynamic Workflow State
+        # Create summary section for key navigation info
+        current_node_def = workflow_def.workflow.get_node(self.current_node) if workflow_def else None
+        current_goal = current_node_def.goal if current_node_def else "Loading..."
+        
+        # Calculate progress
+        if workflow_def and hasattr(workflow_def.workflow, 'nodes'):
+            total_nodes = len(workflow_def.workflow.nodes)
+            current_position = len(self.node_history) + 1
+            progress_display = f"({current_position}/{total_nodes})"
+        else:
+            progress_display = ""
+        
+        # Format next steps prominently
+        next_steps_display = ""
+        if available_nodes:
+            next_steps_display = f"**→ Next:** {', '.join(available_nodes)}"
+        else:
+            next_steps_display = "**→ Next:** End of workflow"
+
+        # Create dynamic template with summary-first approach
+        template = f"""📊 **DYNAMIC WORKFLOW STATE**
+
+**Workflow:** {self.workflow_name}
+**Current Node:** {self.current_node} {progress_display}
+**Status:** {self.status}
+{next_steps_display}
+
+**Current Goal:** {current_goal}
+
+**Progress:** {" → ".join(self.node_history + [self.current_node])}
+
+---
+
+## Detailed Session State
 _Last updated: {timestamp}_
 
-## State
-Workflow: {self.workflow_name}  
-Current Node: {self.current_node}  
-Status: {self.status}  
-Current Item: {current_item}  
+### Workflow Information
+**Task:** {current_item}
 {workflow_info}
-{completed_nodes_progress}## Plan
+{completed_nodes_progress}### Plan
 {plan_section}
 
-## Rules
+### Rules
 > **Dynamic workflow execution based on YAML definition**
 
-### Current Node Processing
-1. Execute the goal: {workflow_def.workflow.get_node(self.current_node).goal if workflow_def else "Loading..."}
+#### Current Node Processing
+1. Execute the goal: {current_goal}
 2. Meet acceptance criteria before proceeding
 3. Choose next node from available options: {", ".join(available_nodes) if available_nodes else "End workflow"}
 
-### Workflow Navigation
+#### Workflow Navigation
 - **Available Next Nodes:** {", ".join(available_nodes) if available_nodes else "None (end of workflow)"}
 - **Node History:** {" → ".join(self.node_history + [self.current_node])}
 
 ---
 
-## Items
+### Items
 {items_table}
 
-## Log
+### Log
 {log_content}
 
-## ArchiveLog
+### ArchiveLog
 {archive_log_content}
 """
 

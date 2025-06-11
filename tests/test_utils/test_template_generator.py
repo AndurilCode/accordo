@@ -68,9 +68,6 @@ class TestWorkflowTemplateGenerator:
                 "required": True,
             }
         }
-        workflow.execution = Mock()
-        workflow.execution.max_depth = 5
-        workflow.execution.allow_backtracking = True
         workflow.workflow = tree
 
         return workflow
@@ -110,11 +107,10 @@ class TestWorkflowTemplateGenerator:
                 self.tree = tree
 
         class SimpleWorkflow:
-            def __init__(self, name, description, inputs, execution, workflow):
+            def __init__(self, name, description, inputs, workflow):
                 self.name = name
                 self.description = description
                 self.inputs = inputs
-                self.execution = execution  # This should be a dictionary, not an object
                 self.workflow = workflow
 
         # Create simple objects instead of Mock objects
@@ -129,8 +125,6 @@ class TestWorkflowTemplateGenerator:
         )
 
         # Use a dictionary for execution instead of a custom object
-        execution = {"max_depth": 5, "allow_backtracking": True}
-
         workflow = SimpleWorkflow(
             "Test Workflow",
             "Test workflow description",
@@ -141,7 +135,6 @@ class TestWorkflowTemplateGenerator:
                     "required": True,
                 }
             },
-            execution,  # Pass dictionary directly
             tree,
         )
 
@@ -164,6 +157,20 @@ class TestWorkflowTemplateGenerator:
         assert "Template based on Test Workflow" in template_data["description"]
         assert "task_description" in template_data["inputs"]
         assert template_data["workflow"]["root"] == "step1"
+
+        # Verify template structure
+        assert "name" in template_data
+        assert "description" in template_data
+        assert "inputs" in template_data
+        assert "workflow" in template_data
+
+        # Verify inputs contain task_description
+        assert "task_description" in template_data["inputs"]
+
+        # Verify workflow structure
+        assert "goal" in template_data["workflow"]
+        assert "root" in template_data["workflow"]
+        assert "tree" in template_data["workflow"]
 
     def test_create_basic_template_success(self, generator, temp_dir):
         """Test successful creation of basic template."""

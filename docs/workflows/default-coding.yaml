@@ -12,10 +12,6 @@ inputs:
     required: false
     default: ".accordo/project_config.md"
 
-execution:
-  max_depth: 10
-  allow_backtracking: true
-
 workflow:
   goal: Complete coding task with thorough analysis, planning, implementation, and validation
 
