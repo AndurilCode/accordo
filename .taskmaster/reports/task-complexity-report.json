@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "generatedAt": "2025-06-12T14:00:43.317Z",
+    "tasksAnalyzed": 12,
+    "totalTasks": 12,
+    "analysisCount": 12,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Establish Service Interface Design and Dependency Injection Foundation",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the foundational service architecture task into: 1) Design and implement the ServiceContainer class with registration/retrieval methods, 2) Create protocol-based interfaces for SessionService, CacheService, and WorkflowService, 3) Implement service lifecycle management and factory patterns, 4) Set up proper initialization order management, and 5) Create comprehensive unit tests for the dependency injection system.",
+      "reasoning": "High complexity due to being foundational architecture that affects all subsequent work. Requires careful design of dependency injection patterns, protocol definitions, and service lifecycle management. Critical for project success but involves complex architectural decisions."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Extract SessionRepository from Legacy Session Manager",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Decompose the session repository extraction into: 1) Analyze and extract session CRUD operations from session_manager.py, 2) Implement SessionRepository class with proper error handling and validation, 3) Create adapter patterns for backward compatibility during transition, and 4) Update existing code to use dependency injection for session operations.",
+      "reasoning": "Moderately high complexity due to need to maintain backward compatibility while extracting from legacy code. Requires careful analysis of existing session management patterns and proper abstraction design."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Implement Standardized Error Handling System",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Structure the error handling implementation into: 1) Design and implement the AccordoError exception hierarchy with specific error types, 2) Replace all print() statements with proper logging configuration, 3) Create consistent error response patterns with structured error information, and 4) Update all existing try/except blocks to use standardized patterns.",
+      "reasoning": "Medium-high complexity due to the need to touch 100+ inconsistent error handling blocks across the codebase. Requires systematic replacement of existing patterns while maintaining functionality."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Decompose Cache Manager into Focused Services",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the cache manager decomposition into: 1) Extract EmbeddingService with model initialization and embedding generation, 2) Create SemanticSearchService for search operations, 3) Implement CacheStorageService for ChromaDB persistence, 4) Design service interfaces and dependency relationships, 5) Register services with dependency injection container, and 6) Update existing cache operations to use appropriate services.",
+      "reasoning": "High complexity due to the large size (1,150 lines) and the need to carefully separate concerns while maintaining performance. Involves complex service interactions and potential performance implications."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Consolidate Workflow State Models",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Structure the workflow state consolidation into: 1) Analyze duplicate functionality between DynamicWorkflowState and WorkflowState classes, 2) Design unified WorkflowState class with composition-based approach, 3) Implement consolidated methods with consistent datetime handling, 4) Create adapter patterns for backward compatibility, and 5) Migrate all state-dependent code to use the unified model.",
+      "reasoning": "Moderately high complexity due to 810+ lines of duplicate functionality that need careful consolidation. Requires maintaining backward compatibility while eliminating duplication."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Eliminate Global State and Threading Locks",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Organize the global state elimination into: 1) Identify and catalog all global state variables and threading locks, 2) Design stateful services with proper internal state management, 3) Implement thread-safe service-based state managers, and 4) Update all code accessing global state to use injected services.",
+      "reasoning": "Medium-high complexity due to threading concerns and the need to maintain thread safety while refactoring. Requires careful analysis of concurrent access patterns."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Remove Legacy Session Manager Compatibility Layer",
+      "complexityScore": 9,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Structure the legacy removal into: 1) Migrate remaining session management functions to SessionRepository, 2) Remove all dynamic import patterns, 3) Update test files to use dependency injection, 4) Eliminate proxy compatibility layers, 5) Ensure all session operations work through service layer, and 6) Comprehensive testing of session functionality.",
+      "reasoning": "Very high complexity due to removing 1,422 lines of legacy code while maintaining functionality. Affects 50+ test files and requires careful migration to avoid breaking existing functionality."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Optimize Import Structure and Eliminate Circular Dependencies",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the import optimization into: 1) Identify and map all circular import patterns and lazy loading instances, 2) Implement proper dependency injection to replace dynamic imports, and 3) Establish clear service initialization order and lifecycle management.",
+      "reasoning": "Medium complexity as it's primarily about restructuring existing patterns rather than creating new functionality. Requires systematic analysis but follows established patterns from previous tasks."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Restructure Code Organization and Directory Cleanup",
+      "complexityScore": 4,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Organize the restructuring into: 1) Consolidate directory naming and resolve inconsistencies, 2) Move business logic from utils to appropriate service layers, and 3) Establish clear architectural boundaries between domain, service, and infrastructure layers.",
+      "reasoning": "Lower-medium complexity as it's primarily organizational work. While it affects many files, it's mostly moving code rather than changing functionality."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Enforce Service Architecture Consistency",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Structure the architecture enforcement into: 1) Remove all global function interfaces in favor of service interfaces, 2) Eliminate direct access to service internal state, 3) Update test files to use proper service mocking, and 4) Create service factories for consistent initialization.",
+      "reasoning": "Medium-high complexity due to the need to enforce architectural patterns consistently across the entire codebase. Requires systematic review and updates to maintain consistency."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Comprehensive Integration Testing and Performance Validation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Structure the testing and validation into: 1) Create end-to-end integration tests with real workflow scenarios, 2) Implement performance benchmarking against baseline metrics, 3) Set up memory usage optimization and monitoring, 4) Validate MCP protocol compatibility, and 5) Establish performance monitoring and baseline metrics.",
+      "reasoning": "Moderately high complexity due to the comprehensive nature of testing required. Involves performance analysis, integration testing, and ensuring no regressions in a complex system."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "Documentation and Migration Guide Creation",
+      "complexityScore": 3,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Organize the documentation creation into: 1) Create architecture documentation explaining service boundaries and patterns, 2) Develop developer guides for extending the system and migration guides, and 3) Generate API documentation for all service interfaces with code examples.",
+      "reasoning": "Lower complexity as it's primarily documentation work. While comprehensive, it doesn't involve complex technical implementation and follows established patterns from the completed refactoring work."
+    }
+  ]
+}

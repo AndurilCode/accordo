@@ -1,0 +1,397 @@
+# Overview
+This Product Requirements Document outlines an architecture improvement initiative for the Accordo Workflow MCP project. The primary goal is to identify and resolve architectural problems from a code perspective, eliminate duplications, and implement simplifications while maintaining all existing functionalities. Based on comprehensive analysis of the actual codebase structure and complexity assessment conducted on December 19, 2024, we have identified critical architectural issues that require systematic resolution to improve maintainability, scalability, and developer experience.
+
+The current codebase exhibits several problematic architectural patterns:
+- **Legacy Session Manager**: `session_manager.py` (1,422 lines) serves as both a compatibility layer and functional implementation, creating confusion and duplication
+- **Service Architecture Inconsistency**: Mixed patterns between legacy global functions and modern service-based architecture
+- **Duplicate State Management**: Both `DynamicWorkflowState` and `WorkflowState` classes with overlapping functionality (810 lines total)
+- **Inconsistent Error Handling**: Over 100+ `try/except` blocks with varying patterns across files
+- **Complex Import Dependencies**: Circular import patterns requiring lazy loading in multiple locations
+- **Cache Manager Complexity**: `cache_manager.py` (1,150 lines) mixing multiple concerns including embeddings, persistence, and search
+
+This initiative aims to transform the codebase into a well-structured, maintainable system following established software architecture principles.
+
+# Core Features
+
+## 1. Legacy Session Manager Elimination
+**Problem**: The `session_manager.py` file (1,422 lines) serves dual purposes as both a legacy compatibility layer and functional implementation, creating confusion and code duplication. Analysis reveals:
+- Functions that delegate to modern services (e.g., `get_session()` calls `get_session_repository()`)
+- Proxy classes (`_SessionsProxy`, `_ClientSessionRegistryProxy`) for test compatibility
+- Duplicate lazy import patterns throughout (30+ instances of dynamic imports)
+- Global state management patterns (locks, caches) mixed with service delegation
+
+**Solution**: Complete elimination of session_manager.py by:
+- Migrating all remaining functionality to appropriate service classes
+- Updating test files to use service interfaces directly
+- Removing proxy compatibility layers
+- Consolidating import patterns into proper dependency injection
+
+## 2. Global State Elimination
+**Problem**: Multiple global dictionaries with threading locks create scalability limitations, testing complexity, and unclear service boundaries.
+
+**Solution**: Replace with dependency injection container and service-based architecture with clear interfaces and protocol-based contracts.
+
+## 3. Workflow State Model Consolidation
+**Problem**: Analysis reveals significant duplication in state management:
+- `DynamicWorkflowState` (810 lines) and `WorkflowState` (300+ lines) with overlapping functionality
+- Both classes implement similar methods: `add_log_entry()`, `rotate_log()`, `get_next_pending_item()`, `mark_item_completed()`
+- Duplicate field validation and serialization logic
+- Both classes have `MARKDOWN_TEMPLATE` constants and markdown export functionality
+- Inconsistent datetime handling (some methods use naive datetime, others UTC)
+
+**Solution**: Create unified state model with:
+- Single `WorkflowState` class with both dynamic and legacy capabilities
+- Composition-based design for different workflow types
+- Consistent datetime handling throughout
+- Shared validation and serialization logic
+- Backward compatibility through interface adapters
+
+## 4. Error Handling Standardization
+**Problem**: Analysis reveals inconsistent error handling patterns across the codebase:
+- Mix of bare `except:`, `except Exception:`, and specific exception types
+- Some functions silently return `None` on errors, others print warnings, others raise exceptions
+- Inconsistent error logging (some use `print()`, others might use logging)
+- Cache manager has complex error recovery logic with fallback patterns
+- Session manager has numerous `try/except` blocks with varying recovery strategies
+- No standardized error response format across service interfaces
+
+**Solution**: Implement unified error handling:
+- Standardized exception hierarchy (`AccordoError`, `SessionError`, `WorkflowError`, `ValidationError`)
+- Consistent error response patterns with structured error information
+- Centralized logging configuration replacing `print()` statements
+- Service-level error handling interfaces with clear contract definitions
+- Error recovery strategies documented and consistently implemented
+
+## 5. Import Structure Optimization and Cache Manager Simplification
+**Problem**: Complex import dependencies and overly complex cache management:
+- Circular import patterns requiring lazy imports (e.g., `from ..services import get_session_repository` inside functions)
+- `session_manager.py` has 30+ dynamic import statements scattered throughout functions
+- `cache_manager.py` (1,150 lines) mixes concerns: embeddings, ChromaDB management, semantic search, and model initialization
+- Tight coupling between services requiring complex initialization order dependencies
+- Some modules import both legacy (`session_manager`) and modern (`services`) interfaces
+
+**Solution**: Implement clean dependency architecture:
+- Extract embedding service from cache manager into separate `EmbeddingService`
+- Create `SemanticSearchService` for search operations separate from storage
+- Establish clear service interfaces with dependency injection
+- Remove all dynamic/lazy imports in favor of constructor injection
+- Create `CacheStorageService` focused only on persistence operations
+- Implement interface segregation for cache operations (storage, search, embeddings)
+
+## 6. Service Architecture Inconsistency Resolution
+**Problem**: Analysis reveals mixed architectural patterns across the codebase:
+- Modern service-based architecture exists (`SessionRepository`, `SessionSyncService`, `SessionLifecycleManager`) but is not consistently used
+- Legacy global function patterns still present in `session_manager.py` that delegate to services
+- Test files still depend on proxy objects (`_SessionsProxy`) instead of service interfaces
+- Services exist but are sometimes bypassed by direct access to internal state (e.g., `repository._sessions`)
+- Configuration service pattern is modern but other areas still use global variables
+
+**Solution**: Enforce consistent service-based architecture:
+- Remove all global function interfaces in favor of service interfaces
+- Update all test files to use dependency injection and service mocking
+- Eliminate direct access to service internal state
+- Create service factories for consistent initialization
+- Establish clear service lifecycle management
+
+## 7. Code Organization and Duplicate File Structure
+**Problem**: Inconsistent code organization indicating architectural confusion:
+- Both `src/accordo_workflow_mcp/` and `src/accordo-mcp/` directories exist (naming inconsistency)
+- Template and prompt logic scattered across multiple files without clear organization
+- Utils directory contains business logic that should be in services
+- Models directory mixes data models with configuration classes
+- No clear separation between domain logic and infrastructure concerns
+
+**Solution**: Restructure codebase organization:
+- Consolidate directory naming conventions
+- Move business logic from utils to appropriate service layers
+- Separate domain models from configuration and infrastructure models
+- Create clear boundaries between layers (domain, service, infrastructure)
+- Establish consistent file and directory naming patterns
+
+# User Experience
+
+## Developer Personas
+- **Core Contributors**: Developers working on the MCP server codebase who need clear, maintainable code structure
+- **External Contributors**: Open source contributors who need to understand and extend the system easily
+- **Integration Developers**: Developers using the MCP server who need stable, predictable APIs
+
+## Key Developer Flows
+1. **Code Navigation**: Developers should easily understand system boundaries and locate relevant code
+2. **Feature Extension**: Adding new workflow capabilities should follow clear patterns
+3. **Testing**: Each component should be independently testable with minimal setup
+4. **Debugging**: Issues should be traceable through clear service boundaries
+
+## Architecture Quality Considerations
+- **Maintainability**: Code should be easy to modify without unintended side effects
+- **Testability**: Components should be unit testable in isolation
+- **Readability**: Code structure should clearly communicate intent and boundaries
+- **Performance**: Refactoring should maintain or improve system performance
+
+# Technical Architecture
+
+## System Components
+
+### Current Architecture Issues
+- **Session Management**: 1,422-line legacy compatibility layer with proxy patterns for test support
+- **State Management**: Duplicated state handling across `DynamicWorkflowState` (810 lines) and `WorkflowState` classes
+- **Cache Management**: 1,150-line file mixing embeddings, storage, and search concerns
+- **Error Handling**: Inconsistent patterns across 100+ error blocks with mixed exception types
+- **Module Coupling**: Circular import patterns requiring 30+ dynamic imports and lazy loading
+
+### Target Architecture
+
+#### Service Layer Architecture
+```
+Services/
+├── SessionService (interface)
+│   ├── SessionRepository (CRUD operations)
+│   ├── SessionSyncService (file/cache persistence)
+│   └── SessionLifecycleManager (cleanup/archival)
+├── CacheService (decomposed)
+│   ├── EmbeddingService (sentence transformers)
+│   ├── SemanticSearchService (search operations)
+│   └── CacheStorageService (ChromaDB persistence)
+├── WorkflowService (interface)
+│   ├── WorkflowExecutionEngine
+│   └── WorkflowDefinitionService
+└── ErrorHandlingService
+    ├── ExceptionHierarchy (standardized exceptions)
+    └── LoggingService (centralized logging)
+```
+
+## Data Models
+- **Unified WorkflowState**: Single model consolidating DynamicWorkflowState and WorkflowState functionality
+- **Standardized Session Model**: Simplified model focused on identity and lifecycle management
+- **Consistent Error Models**: Structured error responses with clear hierarchy
+- **Configuration Models**: Separated from domain models for clear boundaries
+
+## APIs and Integrations
+- **Service Interfaces**: Protocol-based design with clear contract definitions
+- **MCP Protocol Compatibility**: Maintain existing API endpoints and behaviors during transition
+- **Internal Service Communication**: Dependency injection for all service interactions
+- **Backward Compatibility**: Adapter patterns during migration phases
+
+## Infrastructure Requirements
+- **Runtime Environment**: Python 3.11+ with existing dependency management (uv/pip)
+- **Service Infrastructure**: Dependency injection container and service registry
+- **Testing Infrastructure**: Enhanced isolation capabilities for service unit testing
+- **Performance Requirements**: No degradation in response times, improved memory usage patterns
+
+# Development Roadmap
+
+## Phase 1: Legacy Session Manager Elimination (Weeks 1-4)
+**MVP Requirements**: Complete removal of session_manager.py compatibility layer
+- Migrate all proxy classes (`_SessionsProxy`, `_ClientSessionRegistryProxy`) to service interfaces
+- Update 50+ test files to use service injection instead of global objects
+- Remove all 30+ dynamic import patterns in session_manager.py
+- Create service factories for consistent session service initialization
+- Validate that all session operations work through service layer only
+
+## Phase 2: Cache Manager Decomposition (Weeks 5-7)
+**Goal**: Break down cache_manager.py into focused services
+- Extract `EmbeddingService` for sentence transformer operations
+- Create `SemanticSearchService` for search operations separate from storage
+- Implement `CacheStorageService` focused only on ChromaDB persistence
+- Remove model initialization complexity from cache operations
+- Establish clear interfaces between embedding, search, and storage concerns
+
+## Phase 3: State Management Consolidation (Weeks 8-10)
+**Goal**: Unify DynamicWorkflowState and WorkflowState
+- Merge duplicate methods (`add_log_entry()`, `rotate_log()`, etc.)
+- Consolidate validation and serialization logic
+- Implement consistent datetime handling (UTC throughout)
+- Create adapter patterns for backward compatibility
+- Migrate all state-dependent code to unified model
+
+## Phase 4: Import Structure and Dependency Cleanup (Weeks 11-12)
+**Goal**: Eliminate circular imports and establish clean dependencies
+- Remove all lazy/dynamic imports in favor of constructor injection
+- Establish clear service initialization order
+- Create proper service lifecycle management
+- Update all modules to use dependency injection patterns
+- Remove dual legacy/modern import patterns
+
+## Phase 5: Error Handling and Code Organization (Weeks 13-14)
+**Goal**: Standardize error handling and fix code organization
+- Implement standardized exception hierarchy
+- Replace print() statements with proper logging
+- Consolidate directory structure (remove duplicate accordo-mcp vs accordo_workflow_mcp)
+- Move business logic from utils to service layers
+- Separate domain models from configuration classes
+
+## Phase 6: Service Architecture Consistency (Weeks 15-16)
+**Goal**: Enforce consistent service-based architecture
+- Remove all global function interfaces
+- Eliminate direct access to service internal state
+- Update all test files to use proper service mocking
+- Establish clear service boundaries and contracts
+- Create comprehensive service integration tests
+
+## Phase 7: Validation and Performance Optimization (Weeks 17-18)
+**Goal**: Ensure functionality preservation and performance
+- End-to-end integration testing with real workflows
+- Performance benchmarking against baseline (especially cache operations)
+- Memory usage optimization (particularly embedding model loading)
+- Documentation of new architecture patterns and migration guides
+
+# Logical Dependency Chain
+
+## Foundation Dependencies (Must Complete First)
+1. **Service Interface Design**: All subsequent work depends on clear service contracts
+2. **Dependency Injection Setup**: Required for service-based architecture
+3. **Test Infrastructure**: Needed for safe refactoring of critical components
+
+## Core Refactoring Sequence
+1. **SessionRepository Extraction**: Least risky, highest impact, enables other refactoring
+2. **Global State Replacement**: Depends on service infrastructure, enables state consolidation
+3. **State Model Unification**: Depends on service layer, critical for consistency
+4. **Error Handling**: Can be done in parallel with other work
+5. **Import Optimization**: Final step requiring all service boundaries to be established
+
+## Getting to Usable Results Quickly
+- **Week 1**: Extract SessionRepository (immediate 30% complexity reduction in session_manager.py)
+- **Week 2**: Implement basic service container (enables parallel development)
+- **Week 3**: Demonstrate service-based session operations (visible architecture improvement)
+
+## Atomic Development Approach
+- Each service extraction is independently valuable and testable
+- Maintain backward compatibility throughout the process
+- Each phase delivers measurable complexity reduction
+- Progressive enhancement without breaking existing functionality
+
+# Risks and Mitigations
+
+## Technical Challenges
+
+### Risk: Breaking Existing Functionality
+**Probability**: Medium | **Impact**: High
+**Mitigation**: 
+- Comprehensive integration test suite before refactoring
+- Adapter patterns for backward compatibility
+- Incremental migration with feature flags
+- Extensive end-to-end testing at each phase
+
+### Risk: Performance Degradation
+**Probability**: Low | **Impact**: Medium
+**Mitigation**:
+- Performance benchmarking before and after each phase
+- Service layer designed for minimal overhead
+- Monitoring and profiling throughout development
+- Rollback plans for each architectural change
+
+### Risk: Development Timeline Overrun
+**Probability**: Medium | **Impact**: Medium
+**Mitigation**:
+- Conservative estimates with buffer time
+- Parallel development where possible
+- Clear phase gates and decision points
+- Regular progress assessment and scope adjustment
+
+## MVP Definition and Scope Management
+
+### Core MVP: Session Manager Decomposition
+**Minimum Viable Outcome**: Successfully extract SessionRepository with 30%+ complexity reduction
+**Success Criteria**: 
+- All existing session operations continue to work
+- SessionRepository handles all CRUD operations
+- Clear interface boundaries established
+- Test coverage maintained or improved
+
+### Scope Creep Prevention
+- Clear acceptance criteria for each phase
+- Regular stakeholder alignment on priorities
+- Feature freeze during critical refactoring phases
+- Documentation of any scope changes and impact
+
+## Resource Constraints
+
+### Single Developer Constraint
+**Challenge**: All work must be manageable by individual contributors
+**Mitigation**:
+- Phases sized for 1-2 week individual work cycles
+- Clear handoff documentation between phases
+- Self-contained deliverables that don't require coordination
+- Comprehensive documentation of architectural decisions
+
+### Backward Compatibility Requirement
+**Challenge**: Cannot break existing MCP client integrations
+**Mitigation**:
+- Adapter patterns for all interface changes
+- Versioned service interfaces where needed
+- Extensive compatibility testing
+- Clear deprecation timeline for old patterns
+
+# Appendix
+
+## Research Findings
+
+### Complexity Analysis Summary
+- **Total Lines**: 12,000+ across 47+ Python files
+- **Critical Components**: 3 files over 750 lines each
+- **Coupling Index**: 38 internal imports indicating high coupling
+- **Error Handling**: 304+ blocks requiring standardization
+- **Technical Debt**: Minimal TODO/FIXME markers (positive indicator)
+
+### Architecture Anti-Patterns Identified
+1. **God Object**: session_manager.py with 45 functions and multiple responsibilities
+2. **Global State**: Multiple global dictionaries with threading complexity
+3. **Shotgun Surgery**: Changes require modifications across multiple modules
+4. **Feature Envy**: Classes accessing data/methods from other classes excessively
+
+## Technical Specifications
+
+### Service Interface Standards
+```python
+# Protocol-based service interfaces
+class SessionService(Protocol):
+    def get_session(self, session_id: str) -> WorkflowState | None: ...
+    def create_session(self, workflow_name: str, **kwargs) -> WorkflowState: ...
+    def update_session(self, session_id: str, updates: dict) -> WorkflowState: ...
+    def delete_session(self, session_id: str) -> bool: ...
+```
+
+### Error Handling Standards
+```python
+# Standardized exception hierarchy
+class AccordoError(Exception): ...
+class SessionError(AccordoError): ...
+class WorkflowError(AccordoError): ...
+class ValidationError(AccordoError): ...
+```
+
+### Dependency Injection Pattern
+```python
+# Service container for dependency management
+class ServiceContainer:
+    def register(self, interface: type, implementation: Any) -> None: ...
+    def get(self, interface: type) -> Any: ...
+    def configure_services(self) -> None: ...
+```
+
+## Success Metrics
+
+### Quantitative Metrics
+- **Lines of Code Reduction**: Target 30-50% in complex modules
+- **Cyclomatic Complexity**: Reduce average complexity per function
+- **Import Dependencies**: Reduce from 38 to <20 internal imports
+- **Test Coverage**: Maintain or improve current coverage levels
+
+### Qualitative Metrics
+- **Developer Experience**: Easier code navigation and understanding
+- **Maintenance Velocity**: Faster feature development and bug fixes
+- **System Reliability**: Improved error handling and recovery
+- **Code Quality**: Better adherence to SOLID principles
+
+## Migration Timeline Summary
+
+| Phase | Duration | Key Deliverable | Success Criteria |
+|-------|----------|----------------|------------------|
+| 1 | 4 weeks | Legacy Manager Elimination | session_manager.py removed |
+| 2 | 3 weeks | Cache Decomposition | Separate embedding/search/storage services |
+| 3 | 3 weeks | State Consolidation | Unified WorkflowState model |
+| 4 | 2 weeks | Import/Dependency Cleanup | No circular imports |
+| 5 | 2 weeks | Error & Organization | Consistent patterns and structure |
+| 6 | 2 weeks | Service Consistency | Pure service-based architecture |
+| 7 | 2 weeks | Validation & Performance | All functionality preserved |
+
+**Total Timeline**: 18 weeks with 40-60% complexity reduction target 

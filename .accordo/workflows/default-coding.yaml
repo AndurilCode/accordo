@@ -82,22 +82,6 @@ workflow:
         quality_validation: "Code follows project standards with no new linting errors and quality gates passed"
         backwards_compatibility: "No breaking changes introduced unless explicitly specified in requirements"
         integration_check: "All imports resolve correctly with no circular dependencies and integration points tested"
-      next_allowed_nodes: [validate]
-
-    # Validation phase - comprehensive quality verification
-    validate:
-      goal: |
-        **VALIDATE PHASE:** ${{ inputs.task_description }}
-
-        Perform comprehensive quality verification to ensure the implementation is production-ready. This includes functional testing, quality checks, integration validation, and documentation review.
-
-        **Objective:** Confirm all requirements are met and the implementation is ready for deployment.
-      acceptance_criteria:
-        functional_testing: "MUST run complete test suite with all tests passing, test all implemented functionality thoroughly, verify edge cases and error conditions, and ensure no regressions in existing functionality"
-        quality_verification: "MUST run linting checks with zero errors (ruff check .), verify code formatting (ruff format --check .), run type checking if applicable (mypy src/), and ensure code follows project standards"
-        integration_testing: "MUST verify backwards compatibility maintained, test all integration points work correctly, ensure imports resolve without circular dependencies, and validate system works end-to-end"
-        requirements_verification: "MUST verify all original requirements implemented, confirm task objectives achieved, validate all acceptance criteria satisfied, and document any limitations or considerations"
-        documentation_validation: "MUST ensure code is properly documented, update relevant project documentation, verify examples and usage instructions accurate, and check documentation completeness"
       next_allowed_nodes: [complete]
 
     # Completion phase - finalize and document
