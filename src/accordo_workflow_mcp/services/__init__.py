@@ -8,6 +8,10 @@ from .cache_service import (
     initialize_cache_service,
     reset_cache_service,
 )
+from .cache_storage_service import (
+    CacheStorageService,
+    CacheStorageServiceProtocol,
+)
 from .config_service import (
     ConfigLocationSettings,
     ConfigurationError,
@@ -37,6 +41,14 @@ from .dependency_injection import (
     register_factory,
     register_service,
     register_singleton,
+)
+from .embedding_service import (
+    EmbeddingService,
+    EmbeddingServiceProtocol,
+)
+from .semantic_search_service import (
+    SemanticSearchService,
+    SemanticSearchServiceProtocol,
 )
 from .session_lifecycle_manager import (
     SessionLifecycleManager,
@@ -118,4 +130,11 @@ __all__ = [
     "get_cache_service",
     "initialize_cache_service",
     "reset_cache_service",
+    # Decomposed Cache Services
+    "EmbeddingService",
+    "EmbeddingServiceProtocol",
+    "CacheStorageService",
+    "CacheStorageServiceProtocol",
+    "SemanticSearchService",
+    "SemanticSearchServiceProtocol",
 ]
