@@ -1245,11 +1245,9 @@ def register_phase_prompts(app: FastMCP, config=None):
         app: FastMCP application instance
         config: ServerConfig instance with repository path settings (optional)
     """
-    # Initialize session manager with server config for auto-sync
-    if config:
-        from ..utils.session_manager import set_server_config
-
-        set_server_config(config)
+    # Legacy config setting is no longer needed
+    # The modern configuration service is already initialized in server.py
+    # and available through dependency injection
 
     @app.tool()
     def workflow_guidance(

@@ -15,7 +15,7 @@ from .path_utils import (
     migrate_workflow_state_files,
 )
 
-# New session-based utilities
+# Session-based utilities (legacy session_manager for compatibility)
 from .session_manager import (
     add_item_to_session,
     add_log_to_session,
