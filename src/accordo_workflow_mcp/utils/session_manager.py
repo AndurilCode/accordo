@@ -10,8 +10,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ..exceptions import (
+    CacheError,
+    ConfigurationError,
+    wrap_exception,
+)
+from ..logging_config import get_logger
 from ..models.workflow_state import DynamicWorkflowState
 from ..models.yaml_workflow import WorkflowDefinition
+
+# Initialize logger for this module
+logger = get_logger(__name__)
 
 # Thread locks for global variable access
 _server_config_lock = threading.Lock()
@@ -32,7 +41,21 @@ def _get_server_config_from_service():
 
         config_service = get_configuration_service()
         return config_service.to_legacy_server_config()
-    except Exception:
+    except ImportError as e:
+        # Config service module not available
+        logger.debug(
+            "Configuration service not available",
+            error=str(e),
+            module="config_service"
+        )
+        return None
+    except Exception as e:
+        # Wrap any unexpected errors with structured logging
+        logger.warning(
+            "Failed to get server configuration from service",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return None
 
 
@@ -46,24 +69,60 @@ def _ensure_services_initialized():
         # Check if services are registered
         if not has_service(SessionRepository):
             # Services not registered, initialize them
+            logger.debug("Session services not registered, initializing...")
             initialize_session_services()
 
         # Try to get a service to verify they work
         get_session_repository()
-    except DependencyInjectionError:
+        logger.debug("Services successfully initialized and verified")
+    except DependencyInjectionError as e:
         # Services not initialized properly, re-initialize them
-        initialize_session_services()
-    except Exception:
-        pass
+        logger.warning(
+            "Dependency injection error, re-initializing services",
+            error=str(e)
+        )
+        try:
+            initialize_session_services()
+        except Exception as init_error:
+            logger.error(
+                "Failed to re-initialize services after DI error",
+                original_error=str(e),
+                init_error=str(init_error)
+            )
+    except ImportError as e:
+        # Service modules not available
+        logger.warning(
+            "Service modules not available during initialization",
+            error=str(e),
+            module="services"
+        )
+    except Exception as e:
+        # Log any unexpected errors instead of silently ignoring
+        logger.error(
+            "Unexpected error during service initialization",
+            error=str(e),
+            error_type=type(e).__name__
+        )
 
     try:
         from ..services.config_service import get_configuration_service
 
         # Fallback to global configuration service
         config_service = get_configuration_service()
-        return config_service.to_legacy_server_config()
-    except Exception:
-        pass
+        result = config_service.to_legacy_server_config()
+        logger.debug("Successfully retrieved fallback configuration")
+        return result
+    except ImportError as e:
+        logger.debug(
+            "Configuration service not available for fallback",
+            error=str(e)
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to get fallback configuration",
+            error=str(e),
+            error_type=type(e).__name__
+        )
 
     return None
 
@@ -117,6 +176,7 @@ def _initialize_cache_manager(server_config) -> bool:
 
     with _cache_manager_lock:
         if _cache_manager is not None:
+            logger.debug("Cache manager already initialized")
             return True  # Already initialized
 
         try:
@@ -124,6 +184,10 @@ def _initialize_cache_manager(server_config) -> bool:
 
             # Ensure cache directory exists
             if not server_config.ensure_cache_dir():
+                logger.warning(
+                    "Failed to ensure cache directory exists",
+                    cache_dir=str(server_config.cache_dir)
+                )
                 return False
 
             _cache_manager = WorkflowCacheManager(
@@ -133,9 +197,34 @@ def _initialize_cache_manager(server_config) -> bool:
                 max_results=server_config.cache_max_results,
             )
 
+            logger.info(
+                "Cache manager successfully initialized",
+                cache_dir=str(server_config.cache_dir),
+                collection_name=server_config.cache_collection_name,
+                embedding_model=server_config.cache_embedding_model
+            )
             return True
 
-        except Exception:
+        except ImportError as e:
+            logger.warning(
+                "Cache manager module not available",
+                error=str(e),
+                module="cache_manager"
+            )
+            return False
+        except Exception as e:
+            # Wrap in CacheError for better error tracking
+            cache_error = wrap_exception(
+                e, 
+                CacheError,
+                message="Failed to initialize cache manager",
+                cache_dir=str(getattr(server_config, 'cache_dir', 'unknown')),
+                collection_name=getattr(server_config, 'cache_collection_name', 'unknown')
+            )
+            logger.error(
+                "Cache manager initialization failed",
+                **cache_error.to_dict()
+            )
             return False
 
 
@@ -162,19 +251,40 @@ def _should_initialize_cache_from_environment() -> bool:
 
         for cache_path in cache_paths:
             if Path(cache_path).exists() and Path(cache_path).is_dir():
+                logger.debug(
+                    "Cache directory found, cache initialization recommended",
+                    cache_path=str(cache_path)
+                )
                 return True
 
         # Method 2: Check for MCP server arguments in environment
         # This catches cases where cache was configured but directory doesn't exist yet
         command_line = " ".join(os.environ.get("MCP_COMMAND_LINE", "").split())
         if "--enable-cache-mode" in command_line:
+            logger.debug("Cache mode enabled in MCP command line")
             return True
 
         # Method 3: Check if we're in a repository that likely has cache configured
         workflow_commander_dir = Path(".accordo")
-        return workflow_commander_dir.exists() and workflow_commander_dir.is_dir()
+        if workflow_commander_dir.exists() and workflow_commander_dir.is_dir():
+            logger.debug("Accordo workflow directory found")
+            return True
 
-    except Exception:
+        logger.debug("No cache environment indicators found")
+        return False
+
+    except OSError as e:
+        logger.warning(
+            "File system error while checking cache environment",
+            error=str(e)
+        )
+        return False
+    except Exception as e:
+        logger.warning(
+            "Unexpected error while checking cache environment",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return False
 
 
@@ -195,6 +305,8 @@ def _reinitialize_cache_from_environment() -> bool:
 
         from ..config import ServerConfig
 
+        logger.debug("Starting cache manager reinitialization from environment")
+
         # Determine appropriate cache configuration
         cache_path = None
         embedding_model = "all-mpnet-base-v2"  # Safe default
@@ -210,11 +322,13 @@ def _reinitialize_cache_from_environment() -> bool:
         for path in cache_paths:
             if Path(path).exists() and Path(path).is_dir():
                 cache_path = str(path)
+                logger.debug("Found existing cache directory", cache_path=cache_path)
                 break
 
         # If no existing cache dir, use default location
         if not cache_path:
             cache_path = ".accordo/cache"
+            logger.debug("Using default cache path", cache_path=cache_path)
 
         # Try to extract configuration from environment if available
         command_line = os.environ.get("MCP_COMMAND_LINE", "")
@@ -225,8 +339,9 @@ def _reinitialize_cache_from_environment() -> bool:
                 model_idx = parts.index("--cache-embedding-model") + 1
                 if model_idx < len(parts):
                     embedding_model = parts[model_idx]
-            except (ValueError, IndexError):
-                pass  # Use default
+                    logger.debug("Extracted embedding model from command line", model=embedding_model)
+            except (ValueError, IndexError) as e:
+                logger.debug("Failed to extract embedding model from command line", error=str(e))
 
         if "--cache-max-results" in command_line:
             # Extract max results from command line
@@ -235,8 +350,9 @@ def _reinitialize_cache_from_environment() -> bool:
                 results_idx = parts.index("--cache-max-results") + 1
                 if results_idx < len(parts):
                     max_results = int(parts[results_idx])
-            except (ValueError, IndexError):
-                pass  # Use default
+                    logger.debug("Extracted max results from command line", max_results=max_results)
+            except (ValueError, IndexError) as e:
+                logger.debug("Failed to extract max results from command line", error=str(e))
 
         # Create minimal config for cache initialization
         temp_config = ServerConfig(
@@ -247,18 +363,50 @@ def _reinitialize_cache_from_environment() -> bool:
             cache_max_results=max_results,
         )
 
+        logger.debug(
+            "Created temporary cache configuration",
+            cache_path=cache_path,
+            embedding_model=embedding_model,
+            max_results=max_results
+        )
+
         # Initialize cache manager with detected configuration
         success = _initialize_cache_manager(temp_config)
 
         if success:
             # Store the config for future reference (helps with subsequent calls)
             _server_config = temp_config
+            logger.info("Cache manager successfully reinitialized from environment")
+        else:
+            logger.warning("Cache manager reinitialization from environment failed")
 
         return success
 
+    except ImportError as e:
+        logger.warning(
+            "Required modules not available for cache reinitialization",
+            error=str(e),
+            module="config"
+        )
+        return False
+    except OSError as e:
+        logger.warning(
+            "File system error during cache reinitialization",
+            error=str(e)
+        )
+        return False
     except Exception as e:
-        # Minimal logging to avoid noise, but track the issue
-        print(f"Warning: Failed to reinitialize cache from environment: {e}")
+        # Convert to ConfigurationError for better error tracking
+        config_error = wrap_exception(
+            e,
+            ConfigurationError,
+            message="Failed to reinitialize cache from environment",
+            operation="cache_reinitialization"
+        )
+        logger.error(
+            "Cache reinitialization failed",
+            **config_error.to_dict()
+        )
         return False
 
 
@@ -301,23 +449,23 @@ def get_cache_manager():
 
     # Skip cache initialization entirely in test environments
     if _is_test_environment():
+        logger.debug("Test environment detected, skipping cache manager")
         return None
 
     with _cache_manager_lock:
         # Check if cache manager is uninitialized due to module reimport
         # but we can detect cache mode should be enabled from environment
         if _cache_manager is None and _should_initialize_cache_from_environment():
-            print("Debug: Attempting cache manager reinitialization from environment")
+            logger.debug("Attempting cache manager reinitialization from environment")
             success = _reinitialize_cache_from_environment()
-            print(
-                f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}"
-            )
+            if success:
+                logger.info("Cache manager reinitialization succeeded")
+            else:
+                logger.warning("Cache manager reinitialization failed")
 
-        # NEW: Try configuration service if legacy approach hasn't worked
+        # Try configuration service if legacy approach hasn't worked
         if _cache_manager is None:
-            print(
-                "Debug: Attempting cache manager initialization from configuration service"
-            )
+            logger.debug("Attempting cache manager initialization from configuration service")
             try:
                 config = _get_effective_server_config()
                 if (
@@ -325,28 +473,38 @@ def get_cache_manager():
                     and hasattr(config, "enable_cache_mode")
                     and config.enable_cache_mode
                 ):
-                    print(
-                        "Debug: Configuration service has cache enabled, initializing cache manager"
-                    )
+                    logger.debug("Configuration service has cache enabled, initializing cache manager")
                     success = _initialize_cache_manager(config)
-                    print(
-                        f"Debug: Cache manager initialization from config service {'succeeded' if success else 'failed'}"
-                    )
+                    if success:
+                        logger.info("Cache manager initialization from config service succeeded")
+                    else:
+                        logger.warning("Cache manager initialization from config service failed")
                 else:
-                    print(
-                        "Debug: Configuration service does not have cache enabled or config unavailable"
-                    )
+                    logger.debug("Configuration service does not have cache enabled or config unavailable")
+            except ConfigurationError as e:
+                logger.warning(
+                    "Configuration error during cache initialization",
+                    **e.to_dict()
+                )
             except Exception as e:
-                print(
-                    f"Debug: Exception during configuration service cache initialization: {e}"
+                logger.warning(
+                    "Unexpected error during configuration service cache initialization",
+                    error=str(e),
+                    error_type=type(e).__name__
                 )
 
         if _cache_manager is None:
-            print("Debug: Cache manager unavailable - skipping cache operations")
+            logger.debug("Cache manager unavailable - skipping cache operations")
         else:
-            print(
-                f"Debug: Cache manager available - is_available: {_cache_manager.is_available()}"
-            )
+            try:
+                is_available = _cache_manager.is_available()
+                logger.debug("Cache manager available", is_available=is_available)
+            except Exception as e:
+                logger.warning(
+                    "Error checking cache manager availability",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
 
         return _cache_manager
 
@@ -360,28 +518,44 @@ def _restore_workflow_definition(
         session: The restored session state
         workflows_dir: Directory containing workflow YAML files
     """
+    session_id_short = session.session_id[:8] if session.session_id else "unknown"
+    
     try:
-        print(
-            f"DEBUG: _restore_workflow_definition called for session {session.session_id[:8]}..."
+        logger.debug(
+            "Restoring workflow definition for session",
+            session_id=session_id_short,
+            workflow_name=getattr(session, 'workflow_name', None)
         )
 
         if not session.workflow_name:
-            print(f"DEBUG: No workflow name for session {session.session_id[:8]}...")
+            logger.debug(
+                "No workflow name provided for session, skipping workflow restoration",
+                session_id=session_id_short
+            )
             return
 
-        print(
-            f"DEBUG: Restoring workflow '{session.workflow_name}' for session {session.session_id[:8]}..."
+        logger.debug(
+            "Starting workflow restoration",
+            workflow_name=session.workflow_name,
+            session_id=session_id_short,
+            workflows_dir=workflows_dir
         )
 
         # Check if workflow definition is already cached
         cached_def = get_workflow_definition_from_cache(session.session_id)
         if cached_def:
-            print(
-                f"DEBUG: Workflow definition already cached for session {session.session_id[:8]}..."
+            logger.debug(
+                "Workflow definition already cached for session",
+                session_id=session_id_short,
+                workflow_name=cached_def.name
             )
             return  # Already available
 
-        print(f"DEBUG: Loading workflow definition from {workflows_dir}...")
+        logger.debug(
+            "Loading workflow definition from file",
+            workflows_dir=workflows_dir,
+            workflow_name=session.workflow_name
+        )
 
         # Load workflow definition using WorkflowLoader
         from ..utils.yaml_loader import WorkflowLoader
@@ -390,24 +564,45 @@ def _restore_workflow_definition(
         workflow_def = loader.get_workflow_by_name(session.workflow_name)
 
         if workflow_def:
-            print(
-                f"DEBUG: Successfully loaded workflow '{workflow_def.name}', storing in cache..."
+            logger.info(
+                "Successfully loaded workflow definition, storing in cache",
+                workflow_name=workflow_def.name,
+                session_id=session_id_short
             )
             # Store in workflow definition cache
             store_workflow_definition_in_cache(session.session_id, workflow_def)
-            print(
-                f"DEBUG: Workflow definition cached for session {session.session_id[:8]}..."
+            logger.debug(
+                "Workflow definition cached successfully",
+                session_id=session_id_short,
+                workflow_name=workflow_def.name
             )
         else:
-            print(
-                f"DEBUG: Failed to load workflow '{session.workflow_name}' for session {session.session_id[:8]}..."
+            logger.warning(
+                "Failed to load workflow definition",
+                workflow_name=session.workflow_name,
+                session_id=session_id_short,
+                workflows_dir=workflows_dir
             )
 
+    except ImportError as e:
+        # WorkflowLoader module not available
+        logger.warning(
+            "Workflow loader module not available",
+            error=str(e),
+            session_id=session_id_short,
+            module="yaml_loader"
+        )
     except Exception as e:
         # Gracefully handle any workflow loading failures
         # Session restoration should succeed even if workflow definition fails
-        print(f"DEBUG: Exception in _restore_workflow_definition: {e}")
-        pass
+        logger.warning(
+            "Exception during workflow definition restoration",
+            error=str(e),
+            error_type=type(e).__name__,
+            session_id=session_id_short,
+            workflow_name=getattr(session, 'workflow_name', None),
+            workflows_dir=workflows_dir
+        )
 
 
 def restore_sessions_from_cache(client_id: str | None = None) -> int:

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 else:
     SentenceTransformer = object  # Type placeholder for runtime
 
+from ..logging_config import get_logger
 from ..models.cache_models import (
     CacheMetadata,
     CacheOperationResult,
@@ -24,6 +25,9 @@ from ..models.cache_models import (
     SemanticSearchResult,
 )
 from ..models.workflow_state import DynamicWorkflowState
+
+# Initialize logger for this module
+logger = get_logger(__name__)
 
 
 class WorkflowCacheManager:
@@ -99,10 +103,11 @@ class WorkflowCacheManager:
                         )
                     except Exception as create_error:
                         # Fallback: create with default settings if cosine fails
-                        print(
-                            f"Warning: Failed to create collection with cosine distance: {create_error}"
+                        logger.warning(
+                            "Failed to create collection with cosine distance, falling back to default metric",
+                            collection_name=self.collection_name,
+                            error=str(create_error)
                         )
-                        print("Falling back to default distance metric...")
                         self._collection = self._client.create_collection(
                             name=self.collection_name,
                             metadata={
@@ -122,7 +127,12 @@ class WorkflowCacheManager:
 
             except Exception as e:
                 # Log error but don't raise to avoid breaking workflow execution
-                print(f"Warning: Failed to initialize cache manager: {e}")
+                logger.warning(
+                    "Failed to initialize cache manager",
+                    db_path=str(self.db_path),
+                    collection_name=self.collection_name,
+                    error=str(e)
+                )
                 return False
 
     def _verify_embedding_compatibility(self) -> None:
@@ -143,12 +153,14 @@ class WorkflowCacheManager:
 
             # Mark that we need to verify compatibility when model is first loaded
             self._needs_compatibility_check = True
-            print(
-                "Deferred embedding compatibility check - will verify on first model use"
-            )
+            logger.debug("Deferred embedding compatibility check - will verify on first model use")
 
         except Exception as e:
-            print(f"Warning: Failed to check for existing embeddings: {e}")
+            logger.warning(
+                "Failed to check for existing embeddings",
+                collection_name=self.collection_name,
+                error=str(e)
+            )
 
     def _perform_deferred_compatibility_check(self) -> None:
         """Perform the deferred embedding compatibility check when model is first loaded."""
@@ -173,20 +185,27 @@ class WorkflowCacheManager:
                 existing_dim = len(results["embeddings"][0])
 
                 if existing_dim != expected_dim:
-                    print("Warning: Embedding dimension mismatch detected!")
-                    print(f"  Existing embeddings: {existing_dim} dimensions")
-                    print(f"  Current model expects: {expected_dim} dimensions")
-                    print("  Clearing cache to rebuild with compatible embeddings...")
+                    logger.warning(
+                        "Embedding dimension mismatch detected, clearing cache to rebuild",
+                        existing_dimensions=existing_dim,
+                        expected_dimensions=expected_dim,
+                        model_name=self.embedding_model_name,
+                        collection_name=self.collection_name
+                    )
 
                     # Clear incompatible embeddings
                     self._collection.delete(where={})
-                    print("  Cache cleared successfully.")
+                    logger.info("Cache cleared successfully due to dimension mismatch")
 
             # Mark check as completed
             self._needs_compatibility_check = False
 
         except Exception as e:
-            print(f"Warning: Failed to verify embedding compatibility: {e}")
+            logger.warning(
+                "Failed to verify embedding compatibility",
+                model_name=self.embedding_model_name,
+                error=str(e)
+            )
             self._needs_compatibility_check = False
 
     def _is_test_environment(self) -> bool:
@@ -267,7 +286,7 @@ class WorkflowCacheManager:
 
         # Skip heavy model loading in test environments
         if self._is_test_environment():
-            print("Test environment detected: using mock embedding model")
+            logger.debug("Test environment detected: using mock embedding model")
             self._embedding_model = self._create_mock_model()
             return self._embedding_model
 
@@ -287,13 +306,15 @@ class WorkflowCacheManager:
 
             for model_name in model_chain:
                 try:
-                    print(f"Loading embedding model: {model_name}")
+                    logger.info(f"Loading embedding model: {model_name}")
                     self._embedding_model = SentenceTransformer(
                         model_name, device="cpu"
                     )
                     if model_name != self.embedding_model_name:
-                        print(
-                            f"Note: Using fallback model {model_name} instead of {self.embedding_model_name}"
+                        logger.info(
+                            "Using fallback embedding model",
+                            fallback_model=model_name,
+                            requested_model=self.embedding_model_name
                         )
 
                     # Perform deferred compatibility check now that model is loaded
@@ -301,15 +322,22 @@ class WorkflowCacheManager:
 
                     return self._embedding_model
                 except Exception as e:
-                    print(f"Warning: Failed to load model {model_name}: {e}")
+                    logger.warning(
+                        "Failed to load embedding model",
+                        model_name=model_name,
+                        error=str(e)
+                    )
                     continue
 
             # All models failed
-            print("Error: All embedding models failed to load")
+            logger.error("All embedding models failed to load")
             return None
 
         except ImportError as e:
-            print(f"Warning: sentence-transformers not available: {e}")
+            logger.warning(
+                "sentence-transformers library not available",
+                error=str(e)
+            )
             return None
 
     def _get_distance_metric(self) -> str:
