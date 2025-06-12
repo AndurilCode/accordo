@@ -176,6 +176,7 @@ class AccordoLogger:
         Args:
             name: Logger name
         """
+        self.name = name  # Store name for compatibility
         self.logger = logging.getLogger(name)
         self._ensure_handlers_configured()
     
@@ -237,11 +238,12 @@ class AccordoLogger:
         set_correlation_id(correlation_id)
         return self
     
-    def with_context(self, **kwargs) -> "AccordoLogger":
+    def with_context(self, context: Dict[str, Any] = None, **kwargs) -> "AccordoLogger":
         """Add context to subsequent log messages.
         
         Args:
-            **kwargs: Context to add
+            context: Context dictionary to add
+            **kwargs: Additional context to add
             
         Returns:
             Self for method chaining
@@ -249,6 +251,9 @@ class AccordoLogger:
         # Store context in thread-local storage
         if not hasattr(_local, 'context'):
             _local.context = {}
+        
+        if context:
+            _local.context.update(context)
         _local.context.update(kwargs)
         return self
 
