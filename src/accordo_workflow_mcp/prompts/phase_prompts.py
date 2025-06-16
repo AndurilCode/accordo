@@ -1532,13 +1532,16 @@ The workflow '{workflow_name}' was not found in the server cache.
                                             current_node, selected_workflow, session
                                         )
 
-                                        return f"""🚀 **Workflow Started:** {selected_workflow.name}
+                                        return add_session_id_to_response(
+                                        f"""🚀 **Workflow Started:** {selected_workflow.name}
 
 **Task:** {task_description}
 
 **Source:** YAML fallback (custom workflow)
 
-{status}"""
+{status}""",
+                                        session.session_id,
+                                    )
                                     else:
                                         return _format_yaml_error_guidance(
                                             "Failed to load workflow from provided YAML - invalid structure",
@@ -1590,13 +1593,16 @@ The workflow '{workflow_name}' was not found in the server cache.
                                         current_node, selected_workflow, session
                                     )
 
-                                    return f"""🚀 **Workflow Started:** {selected_workflow.name}
+                                    return add_session_id_to_response(
+                                        f"""🚀 **Workflow Started:** {selected_workflow.name}
 
 **Task:** {task_description}
 
 **Source:** YAML content (custom workflow)
 
-{status}"""
+{status}""",
+                                        session.session_id,
+                                    )
                                 else:
                                     return _format_yaml_error_guidance(
                                         "Failed to load workflow from provided YAML - invalid structure",
