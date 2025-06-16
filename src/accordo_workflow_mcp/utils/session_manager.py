@@ -120,22 +120,52 @@ def _initialize_cache_manager(server_config) -> bool:
             return True  # Already initialized
 
         try:
+            print(f"Debug: Attempting to initialize cache manager with path: {getattr(server_config, 'cache_db_path', 'unknown')}")
+            
             from .cache_manager import WorkflowCacheManager
 
-            # Ensure cache directory exists
+            # IMPROVED: Check if cache directory should exist
+            # If ensure_cache_dir() fails, don't proceed with initialization
+            print("Debug: Ensuring cache directory exists...")
             if not server_config.ensure_cache_dir():
+                print("Debug: Cache directory creation failed, aborting cache initialization")
                 return False
 
-            _cache_manager = WorkflowCacheManager(
-                db_path=str(server_config.cache_dir),
-                collection_name=server_config.cache_collection_name,
-                embedding_model=server_config.cache_embedding_model,
-                max_results=server_config.cache_max_results,
-            )
+            print("Debug: Creating WorkflowCacheManager instance...")
+            # IMPROVED: Add timeout mechanism by using signal (Unix) or threading timer
+            import signal
+            import os
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Cache manager initialization timed out")
+            
+            # Set a 5-second timeout for cache initialization
+            if os.name != 'nt':  # Unix/Linux systems
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(5)
+            
+            try:
+                _cache_manager = WorkflowCacheManager(
+                    db_path=str(server_config.cache_dir),
+                    collection_name=server_config.cache_collection_name,
+                    embedding_model=server_config.cache_embedding_model,
+                    max_results=server_config.cache_max_results,
+                )
+                print("Debug: WorkflowCacheManager created successfully")
+                return True
+                
+            except TimeoutError:
+                print("Debug: Cache manager initialization timed out after 5 seconds")
+                return False
+            finally:
+                if os.name != 'nt':
+                    signal.alarm(0)  # Disable the alarm
 
-            return True
-
-        except Exception:
+        except ImportError as e:
+            print(f"Debug: Failed to import WorkflowCacheManager: {e}")
+            return False
+        except Exception as e:
+            print(f"Debug: Exception during cache manager initialization: {e}")
             return False
 
 
@@ -143,8 +173,12 @@ def _should_initialize_cache_from_environment() -> bool:
     """Check if cache manager should be initialized from environment indicators.
 
     This function detects when cache mode should be enabled based on:
-    1. Cache directory existence (indicates cache was configured)
-    2. MCP configuration context hints
+    1. Explicit MCP configuration context (--enable-cache-mode flag)
+    2. Strong environmental indicators that cache was intentionally configured
+    
+    NOTE: This function should be CONSERVATIVE and only return True when there are 
+    EXPLICIT indicators that cache mode was intentionally configured by the user.
+    The mere existence of cache directories is not sufficient.
 
     Returns:
         bool: True if cache initialization should be attempted
@@ -153,28 +187,44 @@ def _should_initialize_cache_from_environment() -> bool:
         import os
         from pathlib import Path
 
-        # Method 1: Check for cache directory existence
-        cache_paths = [
-            ".accordo/cache",  # Default relative path
-            Path.cwd() / ".accordo" / "cache",  # Current directory
-            Path("~/.accordo/cache").expanduser(),  # User home
-        ]
+        print("Debug: _should_initialize_cache_from_environment() called")
 
-        for cache_path in cache_paths:
-            if Path(cache_path).exists() and Path(cache_path).is_dir():
-                return True
-
-        # Method 2: Check for MCP server arguments in environment
-        # This catches cases where cache was configured but directory doesn't exist yet
+        # Method 1: Check for MCP server arguments in environment
+        # This is the STRONGEST indicator that cache was explicitly configured
         command_line = " ".join(os.environ.get("MCP_COMMAND_LINE", "").split())
+        print(f"Debug: MCP_COMMAND_LINE = '{command_line}'")
+        
         if "--enable-cache-mode" in command_line:
+            print("Debug: Found --enable-cache-mode in command line, returning True")
             return True
 
-        # Method 3: Check if we're in a repository that likely has cache configured
-        workflow_commander_dir = Path(".accordo")
-        return workflow_commander_dir.exists() and workflow_commander_dir.is_dir()
+        # Method 2: Check for EXPLICIT cache configuration in command line
+        # If the user specified cache-related parameters, they likely want cache
+        cache_config_flags = [
+            "--cache-db-path",
+            "--cache-collection-name", 
+            "--cache-embedding-model",
+            "--cache-max-results"
+        ]
+        
+        for flag in cache_config_flags:
+            if flag in command_line:
+                print(f"Debug: Found cache config flag {flag} in command line, returning True")
+                return True
 
-    except Exception:
+        # REMOVED: Cache directory existence check (too aggressive)
+        # OLD CODE: Check for cache directory existence
+        # REASON: Just because .accordo/cache exists doesn't mean the user wants
+        # cache mode enabled for this session. They might have used cache mode
+        # previously but intentionally disabled it for this run.
+        #
+        # NEW POLICY: Only enable cache when user explicitly requests it.
+
+        print("Debug: No explicit cache configuration found, returning False")
+        return False
+
+    except Exception as e:
+        print(f"Debug: Exception in _should_initialize_cache_from_environment: {e}")
         return False
 
 
@@ -190,11 +240,13 @@ def _reinitialize_cache_from_environment() -> bool:
     global _cache_manager, _server_config
 
     try:
+        print("Debug: _reinitialize_cache_from_environment() starting...")
         import os
         from pathlib import Path
 
         from ..config import ServerConfig
 
+        print("Debug: Determining cache configuration...")
         # Determine appropriate cache configuration
         cache_path = None
         embedding_model = "all-mpnet-base-v2"  # Safe default
@@ -207,17 +259,24 @@ def _reinitialize_cache_from_environment() -> bool:
             Path("~/.accordo/cache").expanduser(),
         ]
 
+        print(f"Debug: Checking cache paths: {cache_paths}")
         for path in cache_paths:
+            print(f"Debug: Checking path {path}...")
             if Path(path).exists() and Path(path).is_dir():
                 cache_path = str(path)
+                print(f"Debug: Found existing cache directory: {cache_path}")
                 break
 
         # If no existing cache dir, use default location
         if not cache_path:
             cache_path = ".accordo/cache"
+            print(f"Debug: No existing cache dir found, using default: {cache_path}")
 
+        print("Debug: Extracting configuration from environment...")
         # Try to extract configuration from environment if available
         command_line = os.environ.get("MCP_COMMAND_LINE", "")
+        print(f"Debug: MCP_COMMAND_LINE = '{command_line}'")
+        
         if "--cache-embedding-model" in command_line:
             # Extract embedding model from command line
             parts = command_line.split()
@@ -225,6 +284,7 @@ def _reinitialize_cache_from_environment() -> bool:
                 model_idx = parts.index("--cache-embedding-model") + 1
                 if model_idx < len(parts):
                     embedding_model = parts[model_idx]
+                    print(f"Debug: Extracted embedding model: {embedding_model}")
             except (ValueError, IndexError):
                 pass  # Use default
 
@@ -235,9 +295,11 @@ def _reinitialize_cache_from_environment() -> bool:
                 results_idx = parts.index("--cache-max-results") + 1
                 if results_idx < len(parts):
                     max_results = int(parts[results_idx])
+                    print(f"Debug: Extracted max results: {max_results}")
             except (ValueError, IndexError):
                 pass  # Use default
 
+        print("Debug: Creating ServerConfig...")
         # Create minimal config for cache initialization
         temp_config = ServerConfig(
             repository_path=".",
@@ -246,19 +308,26 @@ def _reinitialize_cache_from_environment() -> bool:
             cache_embedding_model=embedding_model,
             cache_max_results=max_results,
         )
+        print("Debug: ServerConfig created successfully")
 
+        print("Debug: Calling _initialize_cache_manager...")
         # Initialize cache manager with detected configuration
         success = _initialize_cache_manager(temp_config)
+        print(f"Debug: _initialize_cache_manager returned: {success}")
 
         if success:
             # Store the config for future reference (helps with subsequent calls)
             _server_config = temp_config
+            print("Debug: Stored temp_config as _server_config")
 
+        print(f"Debug: _reinitialize_cache_from_environment() returning {success}")
         return success
 
     except Exception as e:
         # Minimal logging to avoid noise, but track the issue
         print(f"Warning: Failed to reinitialize cache from environment: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -308,10 +377,19 @@ def get_cache_manager():
         # but we can detect cache mode should be enabled from environment
         if _cache_manager is None and _should_initialize_cache_from_environment():
             print("Debug: Attempting cache manager reinitialization from environment")
-            success = _reinitialize_cache_from_environment()
-            print(
-                f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}"
-            )
+            try:
+                success = _reinitialize_cache_from_environment()
+                print(
+                    f"Debug: Cache manager reinitialization {'succeeded' if success else 'failed'}"
+                )
+                # IMPROVED: If reinitialization fails, don't continue trying other methods
+                # This prevents cascading failures and hangs
+                if not success:
+                    print("Debug: Environment-based cache initialization failed, skipping cache operations")
+                    return None
+            except Exception as e:
+                print(f"Debug: Exception during environment cache initialization: {e}")
+                return None
 
         # NEW: Try configuration service if legacy approach hasn't worked
         if _cache_manager is None:
@@ -332,6 +410,10 @@ def get_cache_manager():
                     print(
                         f"Debug: Cache manager initialization from config service {'succeeded' if success else 'failed'}"
                     )
+                    # IMPROVED: If this fails too, gracefully return None
+                    if not success:
+                        print("Debug: Configuration service cache initialization failed, proceeding without cache")
+                        return None
                 else:
                     print(
                         "Debug: Configuration service does not have cache enabled or config unavailable"
@@ -340,6 +422,8 @@ def get_cache_manager():
                 print(
                     f"Debug: Exception during configuration service cache initialization: {e}"
                 )
+                # IMPROVED: Return None instead of continuing when exceptions occur
+                return None
 
         if _cache_manager is None:
             print("Debug: Cache manager unavailable - skipping cache operations")
@@ -1376,46 +1460,3 @@ def _unregister_session_for_client(client_id: str, session_id: str) -> None:
 # Global variables for test compatibility
 _server_config = None
 _cache_manager = None
-_should_initialize_cache_from_environment = None
-_is_test_environment = None
-
-
-# Duplicate _initialize_cache_manager function removed - use the earlier definition at line 107
-
-
-def _should_initialize_cache_from_environment() -> bool:
-    """Check if cache should be initialized from environment (compatibility)."""
-    import os
-    from pathlib import Path
-
-    # Check for cache directory existence
-    cache_dir = Path(".accordo/cache")
-    if cache_dir.exists():
-        return True
-
-    # Check command line arguments
-    import sys
-
-    if "--cache" in sys.argv or "--enable-cache" in sys.argv:
-        return True
-
-    # Check workflow directory
-    workflow_dir = Path(".accordo/workflows")
-    if workflow_dir.exists():
-        return True
-
-    # Check environment variables
-    return bool(os.getenv("WORKFLOW_CACHE_ENABLED"))
-
-
-def _is_test_environment() -> bool:
-    """Check if running in test environment."""
-    import os
-    import sys
-
-    # Check for pytest
-    if "pytest" in sys.modules:
-        return True
-
-    # Check for test environment variables
-    return bool(os.getenv("PYTEST_CURRENT_TEST"))
