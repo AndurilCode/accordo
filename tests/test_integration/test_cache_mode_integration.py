@@ -134,26 +134,22 @@ class TestCacheModeInitialization:
         assert session_manager._cache_manager is None
 
     def test_cache_environment_detection_cache_dir_exists(self):
-        """Test cache environment detection when cache directory exists."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            cache_dir = Path(temp_dir) / ".accordo" / "cache"
-            cache_dir.mkdir(parents=True)
+        """Test cache environment detection when MCP command line has cache flags."""
+        with patch.dict(
+            "os.environ", {"MCP_COMMAND_LINE": "server --enable-cache-mode"}
+        ):
+            result = session_manager._should_initialize_cache_from_environment()
 
-            with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
-                result = session_manager._should_initialize_cache_from_environment()
-
-            assert result is True
+        assert result is True
 
     def test_cache_environment_detection_workflow_dir(self):
-        """Test cache environment detection from workflow commander directory."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            workflow_dir = Path(temp_dir) / ".accordo"
-            workflow_dir.mkdir()
+        """Test cache environment detection from cache configuration flags."""
+        with patch.dict(
+            "os.environ", {"MCP_COMMAND_LINE": "server --cache-db-path /tmp/cache"}
+        ):
+            result = session_manager._should_initialize_cache_from_environment()
 
-            with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
-                result = session_manager._should_initialize_cache_from_environment()
-
-            assert result is True
+        assert result is True
 
     def test_cache_environment_detection_command_line(self):
         """Test cache environment detection from command line."""

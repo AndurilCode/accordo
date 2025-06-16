@@ -1,7 +1,5 @@
 """Extended tests for session manager functions to improve coverage."""
 
-import tempfile
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -124,15 +122,13 @@ class TestSessionManagerConfiguration:
         assert result is False
 
     def test_should_initialize_cache_from_environment_cache_dir_exists(self):
-        """Test cache initialization detection when cache directory exists."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            cache_dir = Path(temp_dir) / ".accordo" / "cache"
-            cache_dir.mkdir(parents=True)
+        """Test cache initialization detection when MCP command line has cache flags."""
+        with patch.dict(
+            "os.environ", {"MCP_COMMAND_LINE": "server --enable-cache-mode"}
+        ):
+            result = session_manager._should_initialize_cache_from_environment()
 
-            with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
-                result = session_manager._should_initialize_cache_from_environment()
-
-            assert result is True
+        assert result is True
 
     def test_should_initialize_cache_from_environment_command_line(self):
         """Test cache initialization detection from command line."""
@@ -144,13 +140,11 @@ class TestSessionManagerConfiguration:
         assert result is True
 
     def test_should_initialize_cache_from_environment_workflow_dir(self):
-        """Test cache initialization detection from workflow commander directory."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            workflow_dir = Path(temp_dir) / ".accordo"
-            workflow_dir.mkdir()
-
-            with patch("pathlib.Path.cwd", return_value=Path(temp_dir)):
-                result = session_manager._should_initialize_cache_from_environment()
+        """Test cache initialization detection from cache configuration flags."""
+        with patch.dict(
+            "os.environ", {"MCP_COMMAND_LINE": "server --cache-embedding-model test-model"}
+        ):
+            result = session_manager._should_initialize_cache_from_environment()
 
         assert result is True
 
