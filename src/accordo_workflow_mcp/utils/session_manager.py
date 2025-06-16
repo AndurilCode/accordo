@@ -133,8 +133,8 @@ def _initialize_cache_manager(server_config) -> bool:
 
             print("Debug: Creating WorkflowCacheManager instance...")
             # IMPROVED: Add timeout mechanism by using signal (Unix) or threading timer
-            import signal
             import os
+            import signal
             
             def timeout_handler(signum, frame):
                 raise TimeoutError("Cache manager initialization timed out")
@@ -185,7 +185,6 @@ def _should_initialize_cache_from_environment() -> bool:
     """
     try:
         import os
-        from pathlib import Path
 
         print("Debug: _should_initialize_cache_from_environment() called")
 
