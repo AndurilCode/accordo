@@ -1,7 +1,5 @@
 """Extended tests for session manager functions to improve coverage."""
 
-import tempfile
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
