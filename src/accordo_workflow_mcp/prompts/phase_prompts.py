@@ -1230,6 +1230,40 @@ def _try_restore_workflow_definition(session, target_session_id, config):
     return None
 
 
+def _start_workflow_session(client_id, task_description, workflow, source_description):
+    """Create and start a new workflow session.
+
+    Args:
+        client_id: Client identifier
+        task_description: Description of the task
+        workflow: WorkflowDefinition to start
+        source_description: Description of workflow source for display
+
+    Returns:
+        Formatted response string with session ID
+    """
+    # Create dynamic session directly with workflow
+    session = create_dynamic_session(client_id, task_description, workflow)
+
+    # Store workflow definition in cache for later retrieval
+    store_workflow_definition_in_cache(session.session_id, workflow)
+
+    # Get current node info
+    current_node = workflow.workflow.tree[session.current_node]
+    status = format_enhanced_node_status(current_node, workflow, session)
+
+    return add_session_id_to_response(
+        f"""🚀 **Workflow Started:** {workflow.name}
+
+**Task:** {task_description}
+
+**Source:** {source_description}
+
+{status}""",
+        session.session_id,
+    )
+
+
 def _sanitize_workflow_state_parameters(
     operation: str, updates: str, session_id: str
 ) -> tuple[str, str, str]:
@@ -1579,8 +1613,8 @@ def register_phase_prompts(app: FastMCP, config=None):
 
                 # If on-demand loading failed, fall back to discovery requirement
                 if not workflow_def:
-                        return add_session_id_to_response(
-                            f"""❌ **Missing Workflow Definition**
+                    return add_session_id_to_response(
+                        f"""❌ **Missing Workflow Definition**
 
 Dynamic session exists but workflow definition is missing.
 
@@ -1588,8 +1622,8 @@ Dynamic session exists but workflow definition is missing.
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
 2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                            target_session_id,
-                        )
+                        target_session_id,
+                    )
 
                 result = _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
@@ -1616,33 +1650,11 @@ Dynamic session exists but workflow definition is missing.
                         if cached_workflow:
                             # Found in cache - use it directly
                             try:
-                                # Create dynamic session directly with cached workflow
-                                session = create_dynamic_session(
-                                    client_id, task_description, cached_workflow
-                                )
-
-                                # Store workflow definition in cache for later retrieval
-                                store_workflow_definition_in_cache(
-                                    session.session_id, cached_workflow
-                                )
-
-                                # Get current node info
-                                current_node = cached_workflow.workflow.tree[
-                                    session.current_node
-                                ]
-                                status = format_enhanced_node_status(
-                                    current_node, cached_workflow, session
-                                )
-
-                                return add_session_id_to_response(
-                                    f"""🚀 **Workflow Started:** {cached_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** Server-side discovery cache
-
-{status}""",
-                                    session.session_id,
+                                return _start_workflow_session(
+                                    client_id,
+                                    task_description,
+                                    cached_workflow,
+                                    "Server-side discovery cache",
                                 )
 
                             except Exception as e:
@@ -1685,35 +1697,11 @@ The workflow '{workflow_name}' was not found in the server cache.
                                     )
 
                                     if selected_workflow:
-                                        # Create dynamic session directly with selected workflow
-                                        session = create_dynamic_session(
+                                        return _start_workflow_session(
                                             client_id,
                                             task_description,
                                             selected_workflow,
-                                        )
-
-                                        # Store workflow definition in cache for later retrieval
-                                        store_workflow_definition_in_cache(
-                                            session.session_id, selected_workflow
-                                        )
-
-                                        # Get current node info
-                                        current_node = selected_workflow.workflow.tree[
-                                            session.current_node
-                                        ]
-                                        status = format_enhanced_node_status(
-                                            current_node, selected_workflow, session
-                                        )
-
-                                        return add_session_id_to_response(
-                                            f"""🚀 **Workflow Started:** {selected_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** YAML fallback (custom workflow)
-
-{status}""",
-                                            session.session_id,
+                                            "YAML fallback (custom workflow)",
                                         )
                                     else:
                                         return _format_yaml_error_guidance(
@@ -1748,33 +1736,11 @@ The workflow '{workflow_name}' was not found in the server cache.
                                 )
 
                                 if selected_workflow:
-                                    # Create dynamic session directly with selected workflow
-                                    session = create_dynamic_session(
-                                        client_id, task_description, selected_workflow
-                                    )
-
-                                    # Store workflow definition in cache for later retrieval
-                                    store_workflow_definition_in_cache(
-                                        session.session_id, selected_workflow
-                                    )
-
-                                    # Get current node info
-                                    current_node = selected_workflow.workflow.tree[
-                                        session.current_node
-                                    ]
-                                    status = format_enhanced_node_status(
-                                        current_node, selected_workflow, session
-                                    )
-
-                                    return add_session_id_to_response(
-                                        f"""🚀 **Workflow Started:** {selected_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** YAML content (custom workflow)
-
-{status}""",
-                                        session.session_id,
+                                    return _start_workflow_session(
+                                        client_id,
+                                        task_description,
+                                        selected_workflow,
+                                        "YAML content (custom workflow)",
                                     )
                                 else:
                                     return _format_yaml_error_guidance(
