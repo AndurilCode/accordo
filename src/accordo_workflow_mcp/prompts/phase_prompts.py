@@ -1120,6 +1120,287 @@ def _generate_node_completion_outputs(
 
 
 # =============================================================================
+# WORKFLOW_GUIDANCE HELPER FUNCTIONS
+# =============================================================================
+
+
+def _sanitize_workflow_guidance_parameters(
+    action: str, context: str, session_id: str, options: str
+) -> tuple[str, str, str, str]:
+    """Sanitize workflow_guidance parameters, handling Field objects and ensuring strings.
+    
+    Args:
+        action: Action parameter (may be FieldInfo object)
+        context: Context parameter (may be FieldInfo object)
+        session_id: Session ID parameter (may be FieldInfo object)
+        options: Options parameter (may be FieldInfo object)
+        
+    Returns:
+        Tuple of sanitized string parameters: (action, context, session_id, options)
+    """
+    # Handle direct function calls where Field defaults may be FieldInfo objects
+    if hasattr(action, "default"):  # FieldInfo object
+        action = action.default if action.default else ""
+    if hasattr(context, "default"):  # FieldInfo object
+        context = context.default if context.default else ""
+    if hasattr(session_id, "default"):  # FieldInfo object
+        session_id = session_id.default if session_id.default else ""
+    if hasattr(options, "default"):  # FieldInfo object
+        options = options.default if options.default else ""
+
+    # Ensure parameters are strings
+    action = str(action) if action is not None else ""
+    context = str(context) if context is not None else ""
+    session_id = str(session_id) if session_id is not None else ""
+    options = str(options) if options is not None else ""
+    
+    return action, context, session_id, options
+
+
+def _determine_session_handling(
+    target_session_id: str | None, client_id: str, task_description: str
+) -> tuple[str | None, Any | None, str | None]:
+    """Determine how to handle session for workflow guidance.
+    
+    Args:
+        target_session_id: Optional explicit session ID
+        client_id: Client identifier
+        task_description: Task description for session creation
+        
+    Returns:
+        Tuple of (resolved_session_id, session, session_type)
+    """
+    if target_session_id:
+        # Explicit session ID provided - work with specific session
+        session = get_session(target_session_id)
+        session_type = "dynamic" if session else None
+        return target_session_id, session, session_type
+    else:
+        # No explicit session - check for client sessions (backward compatibility)
+        session_type = (
+            get_session_type(client_id) if client_id != "default" else None
+        )
+
+        # For backward compatibility, try to get any existing client session
+        if session_type == "dynamic":
+            session = get_or_create_dynamic_session(client_id, task_description)
+            target_session_id = session.session_id if session else None
+        else:
+            session = None
+            target_session_id = None
+
+        return target_session_id, session, session_type
+
+
+# =============================================================================
+# WORKFLOW_STATE HELPER FUNCTIONS  
+# =============================================================================
+
+
+def _sanitize_workflow_state_parameters(
+    operation: str, updates: str, session_id: str
+) -> tuple[str, str, str]:
+    """Sanitize workflow_state parameters, handling Field objects and ensuring strings.
+    
+    Args:
+        operation: Operation parameter (may be FieldInfo object)
+        updates: Updates parameter (may be FieldInfo object)
+        session_id: Session ID parameter (may be FieldInfo object)
+        
+    Returns:
+        Tuple of sanitized parameters
+    """
+    # Handle direct function calls where Field defaults may be FieldInfo objects
+    if hasattr(operation, "default"):  # FieldInfo object
+        operation = operation.default if operation.default else ""
+    if hasattr(updates, "default"):  # FieldInfo object
+        updates = updates.default if updates.default else ""
+    if hasattr(session_id, "default"):  # FieldInfo object
+        session_id = session_id.default if session_id.default else ""
+    
+    # Ensure parameters are strings
+    operation = str(operation) if operation is not None else ""
+    updates = str(updates) if updates is not None else ""
+    session_id = str(session_id) if session_id is not None else ""
+    
+    return operation, updates, session_id
+
+
+def _handle_get_operation(
+    target_session_id: str | None, client_id: str, config
+) -> str:
+    """Handle the 'get' operation for workflow_state.
+    
+    Args:
+        target_session_id: Optional session ID to target
+        client_id: Client identifier
+        config: Server configuration
+        
+    Returns:
+        Formatted state response
+    """
+    # Determine which session to work with
+    if target_session_id:
+        # Explicit session ID provided
+        session = get_session(target_session_id)
+        if not session:
+            return add_session_id_to_response(
+                f"❌ **Session Not Found:** {target_session_id}",
+                target_session_id,
+            )
+        workflow_def = get_dynamic_session_workflow_def(target_session_id)
+    else:
+        # Fallback to client-based session (backward compatibility)
+        session_type = get_session_type(client_id)
+        if session_type == "dynamic":
+            session = get_or_create_dynamic_session(client_id, "")
+            workflow_def = get_dynamic_session_workflow_def(
+                session.session_id if session else None
+            )
+            target_session_id = session.session_id if session else None
+        else:
+            session = None
+            workflow_def = None
+
+    # Try on-demand workflow definition restoration if missing
+    if session and not workflow_def and session.workflow_name:
+        try:
+            # Use config to construct correct workflows directory (same approach as workflow_guidance)
+            if config is not None:
+                workflows_dir = str(config.workflows_dir)
+            else:
+                workflows_dir = ".accordo/workflows"
+
+            # Import the restoration function
+            from ..utils.session_manager import _restore_workflow_definition
+
+            # Attempt restore with proper path
+            _restore_workflow_definition(session, workflows_dir)
+
+            # Check if workflow definition is now available
+            workflow_def = get_dynamic_session_workflow_def(target_session_id)
+
+        except Exception:
+            # If on-demand loading fails, continue with error
+            pass
+
+    if session and workflow_def:
+        current_node = workflow_def.workflow.tree.get(session.current_node)
+        summary = get_workflow_summary(workflow_def)
+
+        result = f"""📊 **DYNAMIC WORKFLOW STATE**
+
+**Workflow:** {summary["name"]}
+**Current Node:** {session.current_node}
+**Status:** {session.status}
+
+**Current Goal:** {current_node.goal if current_node else "Unknown"}
+
+**Progress:** {session.current_node} (Node {list(summary["all_nodes"]).index(session.current_node) + 1} of {summary["total_nodes"]})
+
+**Workflow Structure:**
+- **Root:** {summary["root_node"]}
+- **Total Nodes:** {summary["total_nodes"]}
+- **Decision Points:** {", ".join(summary["decision_nodes"]) if summary["decision_nodes"] else "None"}
+- **Terminal Nodes:** {", ".join(summary["terminal_nodes"]) if summary["terminal_nodes"] else "None"}
+
+**Session State:**
+```markdown
+{export_session_to_markdown(target_session_id)}
+```"""
+        return add_session_id_to_response(result, target_session_id)
+    elif session:
+        return add_session_id_to_response(
+            "❌ **Error:** Dynamic session has no workflow definition. Try manually restoring cache with workflow_cache_management(operation='restore').",
+            target_session_id,
+        )
+
+    else:
+        # No dynamic session found
+        return """❌ **No Active Workflow Session**
+
+No YAML workflow session is currently active.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+
+
+def _handle_update_operation(
+    updates: str, target_session_id: str | None, client_id: str
+) -> str:
+    """Handle the 'update' operation for workflow_state.
+    
+    Args:
+        updates: JSON string with updates
+        target_session_id: Optional session ID to target
+        client_id: Client identifier
+        
+    Returns:
+        Update result response
+    """
+    if not updates:
+        return add_session_id_to_response(
+            "❌ **Error:** No updates provided.", target_session_id
+        )
+
+    try:
+        update_data = json.loads(updates)
+
+        # Determine which session to update
+        update_session_id = target_session_id
+        if not update_session_id:
+            # Fallback to client-based session (backward compatibility)
+            session_type = get_session_type(client_id)
+            if session_type == "dynamic":
+                session = get_or_create_dynamic_session(client_id, "")
+                update_session_id = session.session_id if session else None
+            else:
+                return add_session_id_to_response(
+                    """❌ **No Active Workflow Session**
+
+Cannot update state - no YAML workflow session is currently active.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
+                    None,
+                )
+
+        if update_session_id:
+            # Update dynamic session
+            if "node" in update_data:
+                update_dynamic_session_node(
+                    update_session_id, update_data["node"]
+                )
+            if "status" in update_data:
+                update_dynamic_session_status(
+                    update_session_id, update_data["status"]
+                )
+            if "log_entry" in update_data:
+                add_log_to_session(
+                    update_session_id, update_data["log_entry"]
+                )
+
+            # Force immediate cache sync after state updates
+            from ..utils.session_manager import sync_session
+
+            sync_session(update_session_id)
+
+        return add_session_id_to_response(
+            "✅ **State updated successfully.**", update_session_id
+        )
+
+    except json.JSONDecodeError:
+        return add_session_id_to_response(
+            "❌ **Error:** Invalid JSON in updates parameter.",
+            target_session_id,
+        )
+
+
+# =============================================================================
 # MAIN REGISTRATION FUNCTION
 # =============================================================================
 
@@ -1303,21 +1584,10 @@ def register_phase_prompts(app: FastMCP, config=None):
         - Use JSON format for ALL node transitions to capture real work details
         """
         try:
-            # Handle direct function calls where Field defaults may be FieldInfo objects
-            if hasattr(action, "default"):  # FieldInfo object
-                action = action.default if action.default else ""
-            if hasattr(context, "default"):  # FieldInfo object
-                context = context.default if context.default else ""
-            if hasattr(session_id, "default"):  # FieldInfo object
-                session_id = session_id.default if session_id.default else ""
-            if hasattr(options, "default"):  # FieldInfo object
-                options = options.default if options.default else ""
-
-            # Ensure parameters are strings
-            action = str(action) if action is not None else ""
-            context = str(context) if context is not None else ""
-            session_id = str(session_id) if session_id is not None else ""
-            options = str(options) if options is not None else ""
+            # Sanitize parameters using helper function
+            action, context, session_id, options = _sanitize_workflow_guidance_parameters(
+                action, context, session_id, options
+            )
 
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(
@@ -1328,28 +1598,17 @@ def register_phase_prompts(app: FastMCP, config=None):
             engine = WorkflowEngine()
             loader = WorkflowLoader()
 
-            # Determine session handling approach
-            if target_session_id:
-                # Explicit session ID provided - work with specific session
-                session = get_session(target_session_id)
-                if not session:
-                    return add_session_id_to_response(
-                        f"❌ **Session Not Found:** {target_session_id}\n\nThe specified session does not exist.",
-                        target_session_id,
-                    )
-                session_type = "dynamic" if session else None
-            else:
-                # No explicit session - check for client sessions (backward compatibility)
-                session_type = (
-                    get_session_type(client_id) if client_id != "default" else None
+            # Determine session handling using helper function  
+            target_session_id, session, session_type = _determine_session_handling(
+                target_session_id, client_id, task_description
+            )
+            
+            # Check if specific session was requested but not found
+            if session_id and not session:
+                return add_session_id_to_response(
+                    f"❌ **Session Not Found:** {session_id}\n\nThe specified session does not exist.",
+                    session_id,
                 )
-
-                # For backward compatibility, try to get any existing client session
-                if session_type == "dynamic":
-                    session = get_or_create_dynamic_session(client_id, task_description)
-                    target_session_id = session.session_id if session else None
-                else:
-                    session = None
 
             if session_type == "dynamic" and session:
                 # Continue with existing dynamic workflow
@@ -1675,180 +1934,19 @@ You called workflow_guidance with action="{action}" but there's no active workfl
     ) -> str:
         """Get or update workflow state."""
         try:
+            # Sanitize parameters using helper function
+            operation, updates, session_id = _sanitize_workflow_state_parameters(
+                operation, updates, session_id
+            )
+            
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(session_id, "", ctx)
 
             if operation == "get":
-                # Determine which session to work with
-                if target_session_id:
-                    # Explicit session ID provided
-                    session = get_session(target_session_id)
-                    if not session:
-                        return add_session_id_to_response(
-                            f"❌ **Session Not Found:** {target_session_id}",
-                            target_session_id,
-                        )
-                    workflow_def = get_dynamic_session_workflow_def(target_session_id)
-                else:
-                    # Fallback to client-based session (backward compatibility)
-                    session_type = get_session_type(client_id)
-                    if session_type == "dynamic":
-                        session = get_or_create_dynamic_session(client_id, "")
-                        workflow_def = get_dynamic_session_workflow_def(
-                            session.session_id if session else None
-                        )
-                        target_session_id = session.session_id if session else None
-                    else:
-                        session = None
-                        workflow_def = None
-
-                # Try on-demand workflow definition restoration if missing
-                if session and not workflow_def and session.workflow_name:
-                    try:
-                        # Use config to construct correct workflows directory (same approach as workflow_guidance)
-                        if config is not None:
-                            workflows_dir = str(config.workflows_dir)
-                        else:
-                            workflows_dir = ".accordo/workflows"
-
-                        print(
-                            f"🚨 DEBUG: Attempting on-demand workflow definition restore for session {target_session_id}"
-                        )
-                        print(
-                            f"🚨 DEBUG: Session workflow_name: {session.workflow_name}"
-                        )
-                        print(f"🚨 DEBUG: Using workflows_dir: {workflows_dir}")
-
-                        # Import the restoration function
-                        from ..utils.session_manager import _restore_workflow_definition
-
-                        # Attempt restore with proper path
-                        _restore_workflow_definition(session, workflows_dir)
-                        print(
-                            "🚨 DEBUG: _restore_workflow_definition completed without exception"
-                        )
-
-                        # Check if workflow definition is now available
-                        workflow_def = get_dynamic_session_workflow_def(
-                            target_session_id
-                        )
-                        print(
-                            f"🚨 DEBUG: After restore, workflow_def is: {workflow_def is not None}"
-                        )
-
-                    except Exception as e:
-                        # If on-demand loading fails, continue with error
-                        print(
-                            f"🚨 DEBUG: On-demand workflow definition restore failed: {e}"
-                        )
-                        import traceback
-
-                        traceback.print_exc()
-
-                if session and workflow_def:
-                    current_node = workflow_def.workflow.tree.get(session.current_node)
-                    summary = get_workflow_summary(workflow_def)
-
-                    result = f"""📊 **DYNAMIC WORKFLOW STATE**
-
-**Workflow:** {summary["name"]}
-**Current Node:** {session.current_node}
-**Status:** {session.status}
-
-**Current Goal:** {current_node.goal if current_node else "Unknown"}
-
-**Progress:** {session.current_node} (Node {list(summary["all_nodes"]).index(session.current_node) + 1} of {summary["total_nodes"]})
-
-**Workflow Structure:**
-- **Root:** {summary["root_node"]}
-- **Total Nodes:** {summary["total_nodes"]}
-- **Decision Points:** {", ".join(summary["decision_nodes"]) if summary["decision_nodes"] else "None"}
-- **Terminal Nodes:** {", ".join(summary["terminal_nodes"]) if summary["terminal_nodes"] else "None"}
-
-**Session State:**
-```markdown
-{export_session_to_markdown(target_session_id)}
-```"""
-                    return add_session_id_to_response(result, target_session_id)
-                elif session:
-                    return add_session_id_to_response(
-                        "❌ **Error:** Dynamic session has no workflow definition. Try manually restoring cache with workflow_cache_management(operation='restore').",
-                        target_session_id,
-                    )
-
-                else:
-                    # No dynamic session found
-                    return """❌ **No Active Workflow Session**
-
-No YAML workflow session is currently active.
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+                return _handle_get_operation(target_session_id, client_id, config)
 
             elif operation == "update":
-                if not updates:
-                    return add_session_id_to_response(
-                        "❌ **Error:** No updates provided.", target_session_id
-                    )
-
-                try:
-                    update_data = json.loads(updates)
-
-                    # Determine which session to update
-                    update_session_id = target_session_id
-                    if not update_session_id:
-                        # Fallback to client-based session (backward compatibility)
-                        session_type = get_session_type(client_id)
-                        if session_type == "dynamic":
-                            session = get_or_create_dynamic_session(client_id, "")
-                            update_session_id = session.session_id if session else None
-                        else:
-                            return add_session_id_to_response(
-                                """❌ **No Active Workflow Session**
-
-Cannot update state - no YAML workflow session is currently active.
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                                None,
-                            )
-
-                    if update_session_id:
-                        # Update dynamic session
-                        if "node" in update_data:
-                            update_dynamic_session_node(
-                                update_session_id, update_data["node"]
-                            )
-                        if "status" in update_data:
-                            update_dynamic_session_status(
-                                update_session_id, update_data["status"]
-                            )
-                        if "log_entry" in update_data:
-                            add_log_to_session(
-                                update_session_id, update_data["log_entry"]
-                            )
-
-                        # Force immediate cache sync after state updates
-                        from ..utils.session_manager import sync_session
-
-                        sync_result = sync_session(update_session_id)
-                        print(
-                            f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}"
-                        )
-
-                    return add_session_id_to_response(
-                        "✅ **State updated successfully.**", update_session_id
-                    )
-
-                except json.JSONDecodeError:
-                    return add_session_id_to_response(
-                        "❌ **Error:** Invalid JSON in updates parameter.",
-                        target_session_id,
-                    )
+                return _handle_update_operation(updates, target_session_id, client_id)
 
             elif operation == "reset":
                 # Reset session (implementation depends on session manager)
