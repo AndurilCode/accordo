@@ -1,51 +1,49 @@
 """Tests for phase_prompts.py helper functions to improve code coverage."""
 
-import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
-from pydantic import Field
 
 from src.accordo_workflow_mcp.models.yaml_workflow import (
     WorkflowDefinition,
     WorkflowNode,
 )
 from src.accordo_workflow_mcp.prompts.phase_prompts import (
+    _create_discovery_required_message,
+    _determine_session_handling,
+    # Evidence extraction functions
+    _extract_automatic_evidence_from_session,
+    _extract_criterion_evidence,
+    _extract_evidence_from_activity_patterns,
+    _extract_evidence_from_log_entry,
+    _extract_evidence_from_tool_patterns,
+    _extract_workflow_name_from_context,
+    _extract_workflow_name_only,
+    # Formatting functions
+    _format_yaml_error_guidance,
+    _get_criterion_keywords,
+    _handle_cache_list_operation,
+    _handle_cache_restore_operation,
+    _handle_get_operation,
+    _handle_update_operation,
+    _handle_workflow_not_found_error,
+    _looks_like_yaml,
+    # Context parsing functions
+    _parse_criteria_evidence_context,
+    _parse_pure_yaml,
+    _parse_standard_format,
+    # Helper functions
+    _sanitize_workflow_guidance_parameters,
+    _sanitize_workflow_state_parameters,
+    _try_restore_workflow_definition,
+    _validate_and_reformat_yaml,
+    format_enhanced_node_status,
+    # YAML parsing functions
+    parse_and_validate_yaml_context,
     # Session resolution
     resolve_session_context,
     # Validation functions
     validate_task_description,
-    # YAML parsing functions
-    parse_and_validate_yaml_context,
-    _parse_standard_format,
-    _parse_pure_yaml,
-    _extract_workflow_name_only,
-    _looks_like_yaml,
-    _validate_and_reformat_yaml,
-    # Context parsing functions
-    _parse_criteria_evidence_context,
-    # Evidence extraction functions
-    _extract_automatic_evidence_from_session,
-    _extract_criterion_evidence,
-    _get_criterion_keywords,
-    _extract_evidence_from_log_entry,
-    _extract_evidence_from_activity_patterns,
-    _extract_evidence_from_tool_patterns,
-    # Formatting functions
-    _format_yaml_error_guidance,
-    format_enhanced_node_status,
-    # Helper functions
-    _sanitize_workflow_guidance_parameters,
-    _determine_session_handling,
-    _try_restore_workflow_definition,
-    _create_discovery_required_message,
-    _extract_workflow_name_from_context,
-    _handle_workflow_not_found_error,
-    _sanitize_workflow_state_parameters,
-    _handle_get_operation,
-    _handle_update_operation,
-    _handle_cache_restore_operation,
-    _handle_cache_list_operation,
 )
 
 
