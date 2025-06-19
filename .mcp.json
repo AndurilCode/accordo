@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+     "accordo": {
+        "command": "uvx",
+        "args": ["--from", "git+https://github.com/AndurilCode/accordo@68453164646e227b70853a1c3ae21cce6dfbbb5f", "accordo-workflow-mcp", "--global"]
+      }
+    }
+  }
