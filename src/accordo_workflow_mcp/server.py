@@ -192,6 +192,26 @@ def main():
             cache_max_results=args.cache_max_results,
         )
 
+        # FIX: Ensure cache directory exists immediately if cache mode is enabled
+        # This addresses the issue where cache operations fail because the directory
+        # doesn't exist, even when --enable-cache-mode is properly configured
+        if server_config.enable_cache_mode:
+            from .config import ServerConfig
+            
+            # Create legacy ServerConfig to ensure cache directory creation
+            legacy_cache_config = ServerConfig(
+                repository_path=str(server_config.repository_path),
+                enable_cache_mode=True,
+                cache_db_path=server_config.cache_db_path,
+            )
+            
+            # Ensure cache directory is created
+            cache_dir_created = legacy_cache_config.ensure_cache_dir()
+            print(f"🚨 DEBUG: Cache directory creation: {'SUCCESS' if cache_dir_created else 'FAILED'}")
+            print(f"🚨 DEBUG: Cache directory path: {legacy_cache_config.cache_dir}")
+        else:
+            print("🚨 DEBUG: Cache mode not enabled, skipping cache directory creation")
+
         # Create workflow configuration based on server settings
         workflow_config = WorkflowConfiguration(
             local_state_file=server_config.enable_local_state_file,
