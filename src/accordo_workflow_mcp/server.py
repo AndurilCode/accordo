@@ -167,7 +167,9 @@ def main():
         if args.global_repo:
             repository_path = Path.home()
         elif args.local_repo:
-            repository_path = Path.cwd()
+            # FIX: Make --local equivalent to --repository-path .
+            # Use Path(".") to match --repository-path . behavior exactly
+            repository_path = Path(".")
         elif args.repository_path:
             # Show deprecation warning for --repository-path usage
             print(
