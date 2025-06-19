@@ -1417,53 +1417,7 @@ def _handle_cache_restore_operation(client_id: str) -> str:
         return f"❌ Error restoring sessions from cache: {str(e)}"
 
 
-def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
-    """Extract actual acceptance criteria from text content."""
-    if not text:
-        return []
 
-    # Split text into sentences for analysis
-    sentences = []
-    for delimiter in [".", "!", "?"]:
-        text = text.replace(delimiter, "|||SPLIT|||")
-
-    potential_sentences = text.split("|||SPLIT|||")
-    for sentence in potential_sentences:
-        clean_sentence = sentence.strip()
-        if len(clean_sentence) > 10:  # Ignore very short fragments
-            sentences.append(clean_sentence)
-
-    # Return the sentences as criteria
-    return sentences
-
-
-def _generate_temporal_insights(results: list) -> str:
-    """Generate temporal pattern insights."""
-    if not results:
-        return "No results to analyze"
-
-    from datetime import datetime, timedelta
-
-    now = datetime.now(UTC)
-    recent = len(
-        [
-            r
-            for r in results
-            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)
-        ]
-    )
-    this_month = len(
-        [
-            r
-            for r in results
-            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)
-        ]
-    )
-
-    oldest = min(results, key=lambda x: x.metadata.last_updated)
-    newest = max(results, key=lambda x: x.metadata.last_updated)
-
-    return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
 
 
 def _handle_cache_list_operation(client_id: str) -> str:
