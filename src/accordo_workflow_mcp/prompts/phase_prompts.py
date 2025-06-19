@@ -1195,6 +1195,41 @@ def _determine_session_handling(
 # =============================================================================
 
 
+def _try_restore_workflow_definition(session, target_session_id, config):
+    """Try to restore workflow definition for a session.
+
+    Args:
+        session: Session object with workflow_name attribute
+        target_session_id: Session ID to get workflow definition for
+        config: Server config with workflows_dir
+
+    Returns:
+        WorkflowDefinition if restoration successful, None otherwise
+    """
+    if session and session.workflow_name:
+        try:
+            # Use config to construct correct workflows directory
+            if config is not None:
+                workflows_dir = str(config.workflows_dir)
+            else:
+                workflows_dir = ".accordo/workflows"
+
+            # Import the restoration function
+            from ..utils.session_manager import _restore_workflow_definition
+
+            # Attempt restore with proper path
+            _restore_workflow_definition(session, workflows_dir)
+
+            # Check if workflow definition is now available
+            return get_dynamic_session_workflow_def(target_session_id)
+
+        except Exception:
+            # If on-demand loading fails, return None
+            pass
+
+    return None
+
+
 def _sanitize_workflow_state_parameters(
     operation: str, updates: str, session_id: str
 ) -> tuple[str, str, str]:
@@ -1259,26 +1294,10 @@ def _handle_get_operation(target_session_id: str | None, client_id: str, config)
             workflow_def = None
 
     # Try on-demand workflow definition restoration if missing
-    if session and not workflow_def and session.workflow_name:
-        try:
-            # Use config to construct correct workflows directory (same approach as workflow_guidance)
-            if config is not None:
-                workflows_dir = str(config.workflows_dir)
-            else:
-                workflows_dir = ".accordo/workflows"
-
-            # Import the restoration function
-            from ..utils.session_manager import _restore_workflow_definition
-
-            # Attempt restore with proper path
-            _restore_workflow_definition(session, workflows_dir)
-
-            # Check if workflow definition is now available
-            workflow_def = get_dynamic_session_workflow_def(target_session_id)
-
-        except Exception:
-            # If on-demand loading fails, continue with error
-            pass
+    if session and not workflow_def:
+        workflow_def = _try_restore_workflow_definition(
+            session, target_session_id, config
+        )
 
     if session and workflow_def:
         current_node = workflow_def.workflow.tree.get(session.current_node)
@@ -1391,11 +1410,6 @@ Cannot update state - no YAML workflow session is currently active.
 
 
 # =============================================================================
-# MAIN REGISTRATION FUNCTION
-# =============================================================================
-
-
-# =============================================================================
 # CACHE MANAGEMENT FUNCTIONS
 # =============================================================================
 
@@ -1415,9 +1429,6 @@ def _handle_cache_restore_operation(client_id: str) -> str:
 
     except Exception as e:
         return f"❌ Error restoring sessions from cache: {str(e)}"
-
-
-
 
 
 def _handle_cache_list_operation(client_id: str) -> str:
@@ -1561,56 +1572,13 @@ def register_phase_prompts(app: FastMCP, config=None):
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
                 # Try on-demand workflow definition restoration if missing
-                if not workflow_def and session and session.workflow_name:
-                    try:
-                        # Use config to construct correct workflows directory
-                        if config is not None:
-                            workflows_dir = str(config.workflows_dir)
-                        else:
-                            workflows_dir = ".accordo/workflows"
-
-                        # Import the restoration function
-                        from ..utils.session_manager import _restore_workflow_definition
-
-                        # Attempt restore with proper path
-                        _restore_workflow_definition(session, workflows_dir)
-
-                        # Check if workflow definition is now available
-                        workflow_def = get_dynamic_session_workflow_def(
-                            target_session_id
-                        )
-
-                    except Exception:
-                        # If on-demand loading fails, continue to discovery requirement
-                        pass
+                if not workflow_def:
+                    workflow_def = _try_restore_workflow_definition(
+                        session, target_session_id, config
+                    )
 
                 # If on-demand loading failed, fall back to discovery requirement
                 if not workflow_def:
-                    # Try on-demand workflow definition loading before giving up
-                    from ..utils.session_manager import _restore_workflow_definition
-
-                    if session and session.workflow_name:
-                        try:
-                            # Use config to construct correct workflows directory
-                            if config is not None:
-                                workflows_dir = str(config.workflows_dir)
-                            else:
-                                workflows_dir = ".accordo/workflows"
-
-                            # Attempt restore with proper path
-                            _restore_workflow_definition(session, workflows_dir)
-
-                            # Check if workflow definition is now available
-                            workflow_def = get_dynamic_session_workflow_def(
-                                target_session_id
-                            )
-
-                        except Exception:
-                            # If on-demand loading fails, continue to discovery requirement
-                            pass
-
-                    # If on-demand loading failed, fall back to discovery requirement
-                    if not workflow_def:
                         return add_session_id_to_response(
                             f"""❌ **Missing Workflow Definition**
 
