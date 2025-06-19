@@ -1120,8 +1120,502 @@ def _generate_node_completion_outputs(
 
 
 # =============================================================================
-# MAIN REGISTRATION FUNCTION
+# WORKFLOW_GUIDANCE HELPER FUNCTIONS
 # =============================================================================
+
+
+def _sanitize_workflow_guidance_parameters(
+    action: str, context: str, session_id: str, options: str
+) -> tuple[str, str, str, str]:
+    """Sanitize workflow_guidance parameters, handling Field objects and ensuring strings.
+
+    Args:
+        action: Action parameter (may be FieldInfo object)
+        context: Context parameter (may be FieldInfo object)
+        session_id: Session ID parameter (may be FieldInfo object)
+        options: Options parameter (may be FieldInfo object)
+
+    Returns:
+        Tuple of sanitized string parameters: (action, context, session_id, options)
+    """
+    # Handle direct function calls where Field defaults may be FieldInfo objects
+    if hasattr(action, "default"):  # FieldInfo object
+        action = action.default if action.default else ""
+    if hasattr(context, "default"):  # FieldInfo object
+        context = context.default if context.default else ""
+    if hasattr(session_id, "default"):  # FieldInfo object
+        session_id = session_id.default if session_id.default else ""
+    if hasattr(options, "default"):  # FieldInfo object
+        options = options.default if options.default else ""
+
+    # Ensure parameters are strings
+    action = str(action) if action is not None else ""
+    context = str(context) if context is not None else ""
+    session_id = str(session_id) if session_id is not None else ""
+    options = str(options) if options is not None else ""
+
+    return action, context, session_id, options
+
+
+def _determine_session_handling(
+    target_session_id: str | None, client_id: str, task_description: str
+) -> tuple[str | None, Any | None, str | None]:
+    """Determine how to handle session for workflow guidance.
+
+    Args:
+        target_session_id: Optional explicit session ID
+        client_id: Client identifier
+        task_description: Task description for session creation
+
+    Returns:
+        Tuple of (resolved_session_id, session, session_type)
+    """
+    if target_session_id:
+        # Explicit session ID provided - work with specific session
+        session = get_session(target_session_id)
+        session_type = "dynamic" if session else None
+        return target_session_id, session, session_type
+    else:
+        # No explicit session - check for client sessions (backward compatibility)
+        session_type = get_session_type(client_id) if client_id != "default" else None
+
+        # For backward compatibility, try to get any existing client session
+        if session_type == "dynamic":
+            session = get_or_create_dynamic_session(client_id, task_description)
+            target_session_id = session.session_id if session else None
+        else:
+            session = None
+            target_session_id = None
+
+        return target_session_id, session, session_type
+
+
+# =============================================================================
+# WORKFLOW_STATE HELPER FUNCTIONS
+# =============================================================================
+
+
+def _try_restore_workflow_definition(session, target_session_id, config):
+    """Try to restore workflow definition for a session.
+
+    Args:
+        session: Session object with workflow_name attribute
+        target_session_id: Session ID to get workflow definition for
+        config: Server config with workflows_dir
+
+    Returns:
+        WorkflowDefinition if restoration successful, None otherwise
+    """
+    if session and session.workflow_name:
+        try:
+            # Use config to construct correct workflows directory
+            if config is not None:
+                workflows_dir = str(config.workflows_dir)
+            else:
+                workflows_dir = ".accordo/workflows"
+
+            # Import the restoration function
+            from ..utils.session_manager import _restore_workflow_definition
+
+            # Attempt restore with proper path
+            _restore_workflow_definition(session, workflows_dir)
+
+            # Check if workflow definition is now available
+            return get_dynamic_session_workflow_def(target_session_id)
+
+        except Exception:
+            # If on-demand loading fails, return None
+            pass
+
+    return None
+
+
+def _create_discovery_required_message(task_description, context=""):
+    """Create a standardized discovery required message.
+
+    Args:
+        task_description: The task description to include in discovery command
+        context: Optional context for specific scenarios
+
+    Returns:
+        Formatted discovery required message
+    """
+    base_message = f"""❌ **No Active Workflow Session**
+
+{context}
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+
+    return base_message.strip()
+
+
+def _extract_workflow_name_from_context(context):
+    """Extract workflow name from context string.
+
+    Args:
+        context: Context string that may contain workflow name
+
+    Returns:
+        workflow_name or None if not found
+    """
+    if not context or not isinstance(context, str):
+        return None
+
+    if context.startswith("workflow:"):
+        workflow_name = context.split("workflow:", 1)[1].strip()
+        # Remove any additional content after workflow name
+        if "\n" in workflow_name:
+            workflow_name = workflow_name.split("\n")[0].strip()
+        return workflow_name if workflow_name else None
+
+    return None
+
+
+def _handle_workflow_not_found_error(workflow_name, task_description):
+    """Handle workflow not found in cache error.
+
+    Args:
+        workflow_name: Name of the workflow that wasn't found
+        task_description: Task description for discovery command
+
+    Returns:
+        Formatted error message with solution options
+    """
+    return f"""❌ **Workflow Not Found:** {workflow_name}
+
+The workflow '{workflow_name}' was not found in the server cache.
+
+**🔍 SOLUTION OPTIONS:**
+
+1. **Run discovery first:** `workflow_discovery(task_description="{task_description}")`
+   - This will discover and cache available workflows
+   - Then retry with: `workflow_guidance(action="start", context="workflow: {workflow_name}")`
+
+2. **Provide YAML directly:** Use the format:
+   ```
+   workflow_guidance(action="start", context="workflow: {workflow_name}\\nyaml: <your_yaml_content>")
+   ```
+
+**Note:** Server-side discovery is preferred for better performance."""
+
+
+def _handle_workflow_start_logic(client_id, task_description, context, loader):
+    """Handle the complex workflow starting logic.
+
+    Args:
+        client_id: Client identifier
+        task_description: Task description
+        context: Context string with workflow information
+        loader: WorkflowLoader instance
+
+    Returns:
+        Response string or None if workflow name should be handled differently
+    """
+    # Extract workflow name from context
+    workflow_name = _extract_workflow_name_from_context(context)
+
+    if workflow_name:
+        # Try to find workflow in cache first (server-side discovery)
+        cached_workflow = get_cached_workflow(workflow_name)
+
+        if cached_workflow:
+            # Found in cache - use it directly
+            try:
+                return _start_workflow_session(
+                    client_id,
+                    task_description,
+                    cached_workflow,
+                    "Server-side discovery cache",
+                )
+            except Exception as e:
+                return _format_yaml_error_guidance(
+                    f"Error starting cached workflow: {str(e)}",
+                    workflow_name,
+                )
+        else:
+            # Not in cache - check if YAML content was provided as fallback
+            workflow_name, yaml_content, error_msg = parse_and_validate_yaml_context(
+                context
+            )
+
+            if error_msg and "YAML content is missing" in error_msg:
+                # Workflow name provided but not in cache and no YAML - need discovery
+                return _handle_workflow_not_found_error(workflow_name, task_description)
+            elif yaml_content:
+                # YAML content provided as fallback - load it
+                try:
+                    selected_workflow = loader.load_workflow_from_string(
+                        yaml_content, workflow_name
+                    )
+                    if selected_workflow:
+                        return _start_workflow_session(
+                            client_id,
+                            task_description,
+                            selected_workflow,
+                            "YAML fallback (custom workflow)",
+                        )
+                    else:
+                        return _format_yaml_error_guidance(
+                            "Failed to load workflow from provided YAML - invalid structure",
+                            workflow_name,
+                        )
+                except Exception as e:
+                    return _format_yaml_error_guidance(
+                        f"Error loading workflow from YAML: {str(e)}",
+                        workflow_name,
+                    )
+            else:
+                return _format_yaml_error_guidance(error_msg, workflow_name)
+    else:
+        # No workflow name provided - parse as full YAML context
+        workflow_name, yaml_content, error_msg = parse_and_validate_yaml_context(
+            context
+        )
+
+        if error_msg:
+            return _format_yaml_error_guidance(error_msg, workflow_name)
+
+        if workflow_name and yaml_content:
+            # Load workflow from validated YAML string
+            try:
+                selected_workflow = loader.load_workflow_from_string(
+                    yaml_content, workflow_name
+                )
+                if selected_workflow:
+                    return _start_workflow_session(
+                        client_id,
+                        task_description,
+                        selected_workflow,
+                        "YAML content (custom workflow)",
+                    )
+                else:
+                    return _format_yaml_error_guidance(
+                        "Failed to load workflow from provided YAML - invalid structure",
+                        workflow_name,
+                    )
+            except Exception as e:
+                return _format_yaml_error_guidance(
+                    f"Error loading workflow from YAML: {str(e)}",
+                    workflow_name,
+                )
+        else:
+            return _format_yaml_error_guidance("Invalid context format", workflow_name)
+
+
+def _start_workflow_session(client_id, task_description, workflow, source_description):
+    """Create and start a new workflow session.
+
+    Args:
+        client_id: Client identifier
+        task_description: Description of the task
+        workflow: WorkflowDefinition to start
+        source_description: Description of workflow source for display
+
+    Returns:
+        Formatted response string with session ID
+    """
+    # Create dynamic session directly with workflow
+    session = create_dynamic_session(client_id, task_description, workflow)
+
+    # Store workflow definition in cache for later retrieval
+    store_workflow_definition_in_cache(session.session_id, workflow)
+
+    # Get current node info
+    current_node = workflow.workflow.tree[session.current_node]
+    status = format_enhanced_node_status(current_node, workflow, session)
+
+    return add_session_id_to_response(
+        f"""🚀 **Workflow Started:** {workflow.name}
+
+**Task:** {task_description}
+
+**Source:** {source_description}
+
+{status}""",
+        session.session_id,
+    )
+
+
+def _sanitize_workflow_state_parameters(
+    operation: str, updates: str, session_id: str
+) -> tuple[str, str, str]:
+    """Sanitize workflow_state parameters, handling Field objects and ensuring strings.
+
+    Args:
+        operation: Operation parameter (may be FieldInfo object)
+        updates: Updates parameter (may be FieldInfo object)
+        session_id: Session ID parameter (may be FieldInfo object)
+
+    Returns:
+        Tuple of sanitized parameters
+    """
+    # Handle direct function calls where Field defaults may be FieldInfo objects
+    if hasattr(operation, "default"):  # FieldInfo object
+        operation = operation.default if operation.default else ""
+    if hasattr(updates, "default"):  # FieldInfo object
+        updates = updates.default if updates.default else ""
+    if hasattr(session_id, "default"):  # FieldInfo object
+        session_id = session_id.default if session_id.default else ""
+
+    # Ensure parameters are strings
+    operation = str(operation) if operation is not None else ""
+    updates = str(updates) if updates is not None else ""
+    session_id = str(session_id) if session_id is not None else ""
+
+    return operation, updates, session_id
+
+
+def _handle_get_operation(target_session_id: str | None, client_id: str, config) -> str:
+    """Handle the 'get' operation for workflow_state.
+
+    Args:
+        target_session_id: Optional session ID to target
+        client_id: Client identifier
+        config: Server configuration
+
+    Returns:
+        Formatted state response
+    """
+    # Determine which session to work with
+    if target_session_id:
+        # Explicit session ID provided
+        session = get_session(target_session_id)
+        if not session:
+            return add_session_id_to_response(
+                f"❌ **Session Not Found:** {target_session_id}",
+                target_session_id,
+            )
+        workflow_def = get_dynamic_session_workflow_def(target_session_id)
+    else:
+        # Fallback to client-based session (backward compatibility)
+        session_type = get_session_type(client_id)
+        if session_type == "dynamic":
+            session = get_or_create_dynamic_session(client_id, "")
+            workflow_def = get_dynamic_session_workflow_def(
+                session.session_id if session else None
+            )
+            target_session_id = session.session_id if session else None
+        else:
+            session = None
+            workflow_def = None
+
+    # Try on-demand workflow definition restoration if missing
+    if session and not workflow_def:
+        workflow_def = _try_restore_workflow_definition(
+            session, target_session_id, config
+        )
+
+    if session and workflow_def:
+        current_node = workflow_def.workflow.tree.get(session.current_node)
+        summary = get_workflow_summary(workflow_def)
+
+        result = f"""📊 **DYNAMIC WORKFLOW STATE**
+
+**Workflow:** {summary["name"]}
+**Current Node:** {session.current_node}
+**Status:** {session.status}
+
+**Current Goal:** {current_node.goal if current_node else "Unknown"}
+
+**Progress:** {session.current_node} (Node {list(summary["all_nodes"]).index(session.current_node) + 1} of {summary["total_nodes"]})
+
+**Workflow Structure:**
+- **Root:** {summary["root_node"]}
+- **Total Nodes:** {summary["total_nodes"]}
+- **Decision Points:** {", ".join(summary["decision_nodes"]) if summary["decision_nodes"] else "None"}
+- **Terminal Nodes:** {", ".join(summary["terminal_nodes"]) if summary["terminal_nodes"] else "None"}
+
+**Session State:**
+```markdown
+{export_session_to_markdown(target_session_id)}
+```"""
+        return add_session_id_to_response(result, target_session_id)
+    elif session:
+        return add_session_id_to_response(
+            "❌ **Error:** Dynamic session has no workflow definition. Try manually restoring cache with workflow_cache_management(operation='restore').",
+            target_session_id,
+        )
+
+    else:
+        # No dynamic session found
+        return """❌ **No Active Workflow Session**
+
+No YAML workflow session is currently active.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+
+
+def _handle_update_operation(
+    updates: str, target_session_id: str | None, client_id: str
+) -> str:
+    """Handle the 'update' operation for workflow_state.
+
+    Args:
+        updates: JSON string with updates
+        target_session_id: Optional session ID to target
+        client_id: Client identifier
+
+    Returns:
+        Update result response
+    """
+    if not updates:
+        return add_session_id_to_response(
+            "❌ **Error:** No updates provided.", target_session_id
+        )
+
+    try:
+        update_data = json.loads(updates)
+
+        # Determine which session to update
+        update_session_id = target_session_id
+        if not update_session_id:
+            # Fallback to client-based session (backward compatibility)
+            session_type = get_session_type(client_id)
+            if session_type == "dynamic":
+                session = get_or_create_dynamic_session(client_id, "")
+                update_session_id = session.session_id if session else None
+            else:
+                return add_session_id_to_response(
+                    """❌ **No Active Workflow Session**
+
+Cannot update state - no YAML workflow session is currently active.
+
+**⚠️ DISCOVERY REQUIRED:**
+
+1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
+2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
+                    None,
+                )
+
+        if update_session_id:
+            # Update dynamic session
+            if "node" in update_data:
+                update_dynamic_session_node(update_session_id, update_data["node"])
+            if "status" in update_data:
+                update_dynamic_session_status(update_session_id, update_data["status"])
+            if "log_entry" in update_data:
+                add_log_to_session(update_session_id, update_data["log_entry"])
+
+            # Force immediate cache sync after state updates
+            from ..utils.session_manager import sync_session
+
+            sync_session(update_session_id)
+
+        return add_session_id_to_response(
+            "✅ **State updated successfully.**", update_session_id
+        )
+
+    except json.JSONDecodeError:
+        return add_session_id_to_response(
+            "❌ **Error:** Invalid JSON in updates parameter.",
+            target_session_id,
+        )
 
 
 # =============================================================================
@@ -1144,55 +1638,6 @@ def _handle_cache_restore_operation(client_id: str) -> str:
 
     except Exception as e:
         return f"❌ Error restoring sessions from cache: {str(e)}"
-
-
-def _extract_acceptance_criteria_from_text(text: str) -> list[str]:
-    """Extract actual acceptance criteria from text content."""
-    if not text:
-        return []
-
-    # Split text into sentences for analysis
-    sentences = []
-    for delimiter in [".", "!", "?"]:
-        text = text.replace(delimiter, "|||SPLIT|||")
-
-    potential_sentences = text.split("|||SPLIT|||")
-    for sentence in potential_sentences:
-        clean_sentence = sentence.strip()
-        if len(clean_sentence) > 10:  # Ignore very short fragments
-            sentences.append(clean_sentence)
-
-    # Return the sentences as criteria
-    return sentences
-
-
-def _generate_temporal_insights(results: list) -> str:
-    """Generate temporal pattern insights."""
-    if not results:
-        return "No results to analyze"
-
-    from datetime import datetime, timedelta
-
-    now = datetime.now(UTC)
-    recent = len(
-        [
-            r
-            for r in results
-            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=7)
-        ]
-    )
-    this_month = len(
-        [
-            r
-            for r in results
-            if (now - r.metadata.last_updated.replace(tzinfo=None)) < timedelta(days=30)
-        ]
-    )
-
-    oldest = min(results, key=lambda x: x.metadata.last_updated)
-    newest = max(results, key=lambda x: x.metadata.last_updated)
-
-    return f"• Recent activity (last 7 days): {recent} workflows\n• This month: {this_month} workflows\n• Timespan: {oldest.metadata.last_updated.strftime('%Y-%m-%d')} to {newest.metadata.last_updated.strftime('%Y-%m-%d')}"
 
 
 def _handle_cache_list_operation(client_id: str) -> str:
@@ -1303,21 +1748,12 @@ def register_phase_prompts(app: FastMCP, config=None):
         - Use JSON format for ALL node transitions to capture real work details
         """
         try:
-            # Handle direct function calls where Field defaults may be FieldInfo objects
-            if hasattr(action, "default"):  # FieldInfo object
-                action = action.default if action.default else ""
-            if hasattr(context, "default"):  # FieldInfo object
-                context = context.default if context.default else ""
-            if hasattr(session_id, "default"):  # FieldInfo object
-                session_id = session_id.default if session_id.default else ""
-            if hasattr(options, "default"):  # FieldInfo object
-                options = options.default if options.default else ""
-
-            # Ensure parameters are strings
-            action = str(action) if action is not None else ""
-            context = str(context) if context is not None else ""
-            session_id = str(session_id) if session_id is not None else ""
-            options = str(options) if options is not None else ""
+            # Sanitize parameters using helper function
+            action, context, session_id, options = (
+                _sanitize_workflow_guidance_parameters(
+                    action, context, session_id, options
+                )
+            )
 
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(
@@ -1328,86 +1764,32 @@ def register_phase_prompts(app: FastMCP, config=None):
             engine = WorkflowEngine()
             loader = WorkflowLoader()
 
-            # Determine session handling approach
-            if target_session_id:
-                # Explicit session ID provided - work with specific session
-                session = get_session(target_session_id)
-                if not session:
-                    return add_session_id_to_response(
-                        f"❌ **Session Not Found:** {target_session_id}\n\nThe specified session does not exist.",
-                        target_session_id,
-                    )
-                session_type = "dynamic" if session else None
-            else:
-                # No explicit session - check for client sessions (backward compatibility)
-                session_type = (
-                    get_session_type(client_id) if client_id != "default" else None
-                )
+            # Determine session handling using helper function
+            target_session_id, session, session_type = _determine_session_handling(
+                target_session_id, client_id, task_description
+            )
 
-                # For backward compatibility, try to get any existing client session
-                if session_type == "dynamic":
-                    session = get_or_create_dynamic_session(client_id, task_description)
-                    target_session_id = session.session_id if session else None
-                else:
-                    session = None
+            # Check if specific session was requested but not found
+            if session_id and not session:
+                return add_session_id_to_response(
+                    f"❌ **Session Not Found:** {session_id}\n\nThe specified session does not exist.",
+                    session_id,
+                )
 
             if session_type == "dynamic" and session:
                 # Continue with existing dynamic workflow
                 workflow_def = get_dynamic_session_workflow_def(target_session_id)
 
                 # Try on-demand workflow definition restoration if missing
-                if not workflow_def and session and session.workflow_name:
-                    try:
-                        # Use config to construct correct workflows directory
-                        if config is not None:
-                            workflows_dir = str(config.workflows_dir)
-                        else:
-                            workflows_dir = ".accordo/workflows"
-
-                        # Import the restoration function
-                        from ..utils.session_manager import _restore_workflow_definition
-
-                        # Attempt restore with proper path
-                        _restore_workflow_definition(session, workflows_dir)
-
-                        # Check if workflow definition is now available
-                        workflow_def = get_dynamic_session_workflow_def(
-                            target_session_id
-                        )
-
-                    except Exception:
-                        # If on-demand loading fails, continue to discovery requirement
-                        pass
+                if not workflow_def:
+                    workflow_def = _try_restore_workflow_definition(
+                        session, target_session_id, config
+                    )
 
                 # If on-demand loading failed, fall back to discovery requirement
                 if not workflow_def:
-                    # Try on-demand workflow definition loading before giving up
-                    from ..utils.session_manager import _restore_workflow_definition
-
-                    if session and session.workflow_name:
-                        try:
-                            # Use config to construct correct workflows directory
-                            if config is not None:
-                                workflows_dir = str(config.workflows_dir)
-                            else:
-                                workflows_dir = ".accordo/workflows"
-
-                            # Attempt restore with proper path
-                            _restore_workflow_definition(session, workflows_dir)
-
-                            # Check if workflow definition is now available
-                            workflow_def = get_dynamic_session_workflow_def(
-                                target_session_id
-                            )
-
-                        except Exception:
-                            # If on-demand loading fails, continue to discovery requirement
-                            pass
-
-                    # If on-demand loading failed, fall back to discovery requirement
-                    if not workflow_def:
-                        return add_session_id_to_response(
-                            f"""❌ **Missing Workflow Definition**
+                    return add_session_id_to_response(
+                        f"""❌ **Missing Workflow Definition**
 
 Dynamic session exists but workflow definition is missing.
 
@@ -1415,8 +1797,8 @@ Dynamic session exists but workflow definition is missing.
 
 1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
 2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                            target_session_id,
-                        )
+                        target_session_id,
+                    )
 
                 result = _handle_dynamic_workflow(
                     session, workflow_def, action, context, engine, loader
@@ -1428,194 +1810,10 @@ Dynamic session exists but workflow definition is missing.
                 # MANDATORY DISCOVERY-FIRST ENFORCEMENT
 
                 if action.lower() == "start" and context and isinstance(context, str):
-                    # First, try to extract workflow name from context
-                    workflow_name = None
-                    if context.startswith("workflow:"):
-                        workflow_name = context.split("workflow:", 1)[1].strip()
-                        # Remove any additional content after workflow name
-                        if "\n" in workflow_name:
-                            workflow_name = workflow_name.split("\n")[0].strip()
-
-                    if workflow_name:
-                        # Try to find workflow in cache first (server-side discovery)
-                        cached_workflow = get_cached_workflow(workflow_name)
-
-                        if cached_workflow:
-                            # Found in cache - use it directly
-                            try:
-                                # Create dynamic session directly with cached workflow
-                                session = create_dynamic_session(
-                                    client_id, task_description, cached_workflow
-                                )
-
-                                # Store workflow definition in cache for later retrieval
-                                store_workflow_definition_in_cache(
-                                    session.session_id, cached_workflow
-                                )
-
-                                # Get current node info
-                                current_node = cached_workflow.workflow.tree[
-                                    session.current_node
-                                ]
-                                status = format_enhanced_node_status(
-                                    current_node, cached_workflow, session
-                                )
-
-                                return add_session_id_to_response(
-                                    f"""🚀 **Workflow Started:** {cached_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** Server-side discovery cache
-
-{status}""",
-                                    session.session_id,
-                                )
-
-                            except Exception as e:
-                                return _format_yaml_error_guidance(
-                                    f"Error starting cached workflow: {str(e)}",
-                                    workflow_name,
-                                )
-                        else:
-                            # Not in cache - check if YAML content was provided as fallback
-                            workflow_name, yaml_content, error_msg = (
-                                parse_and_validate_yaml_context(context)
-                            )
-
-                            if error_msg and "YAML content is missing" in error_msg:
-                                # Workflow name provided but not in cache and no YAML - need discovery
-                                return f"""❌ **Workflow Not Found:** {workflow_name}
-
-The workflow '{workflow_name}' was not found in the server cache.
-
-**🔍 SOLUTION OPTIONS:**
-
-1. **Run discovery first:** `workflow_discovery(task_description="{task_description}")`
-   - This will discover and cache available workflows
-   - Then retry with: `workflow_guidance(action="start", context="workflow: {workflow_name}")`
-
-2. **Provide YAML directly:** Use the format:
-   ```
-   workflow_guidance(action="start", context="workflow: {workflow_name}\\nyaml: <your_yaml_content>")
-   ```
-
-**Note:** Server-side discovery is preferred for better performance."""
-
-                            elif yaml_content:
-                                # YAML content provided as fallback - load it
-                                try:
-                                    selected_workflow = (
-                                        loader.load_workflow_from_string(
-                                            yaml_content, workflow_name
-                                        )
-                                    )
-
-                                    if selected_workflow:
-                                        # Create dynamic session directly with selected workflow
-                                        session = create_dynamic_session(
-                                            client_id,
-                                            task_description,
-                                            selected_workflow,
-                                        )
-
-                                        # Store workflow definition in cache for later retrieval
-                                        store_workflow_definition_in_cache(
-                                            session.session_id, selected_workflow
-                                        )
-
-                                        # Get current node info
-                                        current_node = selected_workflow.workflow.tree[
-                                            session.current_node
-                                        ]
-                                        status = format_enhanced_node_status(
-                                            current_node, selected_workflow, session
-                                        )
-
-                                        return add_session_id_to_response(f"""🚀 **Workflow Started:** {selected_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** YAML fallback (custom workflow)
-
-{status}""",
-                                            session.session_id,
-                                        )
-                                    else:
-                                        return _format_yaml_error_guidance(
-                                            "Failed to load workflow from provided YAML - invalid structure",
-                                            workflow_name,
-                                        )
-
-                                except Exception as e:
-                                    return _format_yaml_error_guidance(
-                                        f"Error loading workflow from YAML: {str(e)}",
-                                        workflow_name,
-                                    )
-                            else:
-                                return _format_yaml_error_guidance(
-                                    error_msg, workflow_name
-                                )
-
-                    else:
-                        # No workflow name provided - parse as full YAML context
-                        workflow_name, yaml_content, error_msg = (
-                            parse_and_validate_yaml_context(context)
-                        )
-
-                        if error_msg:
-                            return _format_yaml_error_guidance(error_msg, workflow_name)
-
-                        if workflow_name and yaml_content:
-                            # Load workflow from validated YAML string
-                            try:
-                                selected_workflow = loader.load_workflow_from_string(
-                                    yaml_content, workflow_name
-                                )
-
-                                if selected_workflow:
-                                    # Create dynamic session directly with selected workflow
-                                    session = create_dynamic_session(
-                                        client_id, task_description, selected_workflow
-                                    )
-
-                                    # Store workflow definition in cache for later retrieval
-                                    store_workflow_definition_in_cache(
-                                        session.session_id, selected_workflow
-                                    )
-
-                                    # Get current node info
-                                    current_node = selected_workflow.workflow.tree[
-                                        session.current_node
-                                    ]
-                                    status = format_enhanced_node_status(
-                                        current_node, selected_workflow, session
-                                    )
-
-                                    return add_session_id_to_response(f"""🚀 **Workflow Started:** {selected_workflow.name}
-
-**Task:** {task_description}
-
-**Source:** YAML content (custom workflow)
-
-{status}""",
-                                            session.session_id,
-                                        )
-                                else:
-                                    return _format_yaml_error_guidance(
-                                        "Failed to load workflow from provided YAML - invalid structure",
-                                        workflow_name,
-                                    )
-
-                            except Exception as e:
-                                return _format_yaml_error_guidance(
-                                    f"Error loading workflow from YAML: {str(e)}",
-                                    workflow_name,
-                                )
-                        else:
-                            return _format_yaml_error_guidance(
-                                "Invalid context format", workflow_name
-                            )
+                    # Use helper function to handle complex workflow starting logic
+                    return _handle_workflow_start_logic(
+                        client_id, task_description, context, loader
+                    )
 
                 elif action.lower() == "start":
                     # No context provided - show discovery
@@ -1630,29 +1828,25 @@ The workflow '{workflow_name}' was not found in the server cache.
 
                 else:
                     # NO SESSION + NON-START ACTION = FORCE DISCOVERY FIRST
-                    return f"""❌ **No Active Workflow Session**
+                    return _create_discovery_required_message(
+                        task_description,
+                        f"""You called workflow_guidance with action="{action}" but there's no active workflow session.
 
-You called workflow_guidance with action="{action}" but there's no active workflow session.
+🚨 **CRITICAL:** You must start a workflow session before using action="{action}". The system enforces discovery-first workflow initiation.
 
-**⚠️ DISCOVERY REQUIRED FIRST:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** Use the discovery instructions to start a workflow
-3. **Then continue:** `workflow_guidance(action="{action}", ...)`
-
-🚨 **CRITICAL:** You must start a workflow session before using action="{action}". The system enforces discovery-first workflow initiation."""
+**Steps to continue:**
+2. **Start workflow:** Use the discovery instructions to start a workflow  
+3. **Then retry:** `workflow_guidance(action="{action}", ...)`""",
+                    )
 
         except Exception as e:
             # Any error requires workflow discovery
             import traceback
 
             traceback.print_exc()
-            return f"""❌ **Error in schema-driven workflow:** {str(e)}
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="{task_description}")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+            return _create_discovery_required_message(
+                task_description, f"❌ **Error in schema-driven workflow:** {str(e)}"
+            )
 
     @app.tool()
     def workflow_state(
@@ -1675,180 +1869,19 @@ You called workflow_guidance with action="{action}" but there's no active workfl
     ) -> str:
         """Get or update workflow state."""
         try:
+            # Sanitize parameters using helper function
+            operation, updates, session_id = _sanitize_workflow_state_parameters(
+                operation, updates, session_id
+            )
+
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(session_id, "", ctx)
 
             if operation == "get":
-                # Determine which session to work with
-                if target_session_id:
-                    # Explicit session ID provided
-                    session = get_session(target_session_id)
-                    if not session:
-                        return add_session_id_to_response(
-                            f"❌ **Session Not Found:** {target_session_id}",
-                            target_session_id,
-                        )
-                    workflow_def = get_dynamic_session_workflow_def(target_session_id)
-                else:
-                    # Fallback to client-based session (backward compatibility)
-                    session_type = get_session_type(client_id)
-                    if session_type == "dynamic":
-                        session = get_or_create_dynamic_session(client_id, "")
-                        workflow_def = get_dynamic_session_workflow_def(
-                            session.session_id if session else None
-                        )
-                        target_session_id = session.session_id if session else None
-                    else:
-                        session = None
-                        workflow_def = None
-
-                # Try on-demand workflow definition restoration if missing
-                if session and not workflow_def and session.workflow_name:
-                    try:
-                        # Use config to construct correct workflows directory (same approach as workflow_guidance)
-                        if config is not None:
-                            workflows_dir = str(config.workflows_dir)
-                        else:
-                            workflows_dir = ".accordo/workflows"
-
-                        print(
-                            f"🚨 DEBUG: Attempting on-demand workflow definition restore for session {target_session_id}"
-                        )
-                        print(
-                            f"🚨 DEBUG: Session workflow_name: {session.workflow_name}"
-                        )
-                        print(f"🚨 DEBUG: Using workflows_dir: {workflows_dir}")
-
-                        # Import the restoration function
-                        from ..utils.session_manager import _restore_workflow_definition
-
-                        # Attempt restore with proper path
-                        _restore_workflow_definition(session, workflows_dir)
-                        print(
-                            "🚨 DEBUG: _restore_workflow_definition completed without exception"
-                        )
-
-                        # Check if workflow definition is now available
-                        workflow_def = get_dynamic_session_workflow_def(
-                            target_session_id
-                        )
-                        print(
-                            f"🚨 DEBUG: After restore, workflow_def is: {workflow_def is not None}"
-                        )
-
-                    except Exception as e:
-                        # If on-demand loading fails, continue with error
-                        print(
-                            f"🚨 DEBUG: On-demand workflow definition restore failed: {e}"
-                        )
-                        import traceback
-
-                        traceback.print_exc()
-
-                if session and workflow_def:
-                    current_node = workflow_def.workflow.tree.get(session.current_node)
-                    summary = get_workflow_summary(workflow_def)
-
-                    result = f"""📊 **DYNAMIC WORKFLOW STATE**
-
-**Workflow:** {summary["name"]}
-**Current Node:** {session.current_node}
-**Status:** {session.status}
-
-**Current Goal:** {current_node.goal if current_node else "Unknown"}
-
-**Progress:** {session.current_node} (Node {list(summary["all_nodes"]).index(session.current_node) + 1} of {summary["total_nodes"]})
-
-**Workflow Structure:**
-- **Root:** {summary["root_node"]}
-- **Total Nodes:** {summary["total_nodes"]}
-- **Decision Points:** {", ".join(summary["decision_nodes"]) if summary["decision_nodes"] else "None"}
-- **Terminal Nodes:** {", ".join(summary["terminal_nodes"]) if summary["terminal_nodes"] else "None"}
-
-**Session State:**
-```markdown
-{export_session_to_markdown(target_session_id)}
-```"""
-                    return add_session_id_to_response(result, target_session_id)
-                elif session:
-                    return add_session_id_to_response(
-                        "❌ **Error:** Dynamic session has no workflow definition. Try manually restoring cache with workflow_cache_management(operation='restore').",
-                        target_session_id,
-                    )
-
-                else:
-                    # No dynamic session found
-                    return """❌ **No Active Workflow Session**
-
-No YAML workflow session is currently active.
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content"""
+                return _handle_get_operation(target_session_id, client_id, config)
 
             elif operation == "update":
-                if not updates:
-                    return add_session_id_to_response(
-                        "❌ **Error:** No updates provided.", target_session_id
-                    )
-
-                try:
-                    update_data = json.loads(updates)
-
-                    # Determine which session to update
-                    update_session_id = target_session_id
-                    if not update_session_id:
-                        # Fallback to client-based session (backward compatibility)
-                        session_type = get_session_type(client_id)
-                        if session_type == "dynamic":
-                            session = get_or_create_dynamic_session(client_id, "")
-                            update_session_id = session.session_id if session else None
-                        else:
-                            return add_session_id_to_response(
-                                """❌ **No Active Workflow Session**
-
-Cannot update state - no YAML workflow session is currently active.
-
-**⚠️ DISCOVERY REQUIRED:**
-
-1. **Discover workflows:** `workflow_discovery(task_description="Your task description")`
-2. **Start workflow:** Follow the discovery instructions to provide workflow YAML content""",
-                                None,
-                            )
-
-                    if update_session_id:
-                        # Update dynamic session
-                        if "node" in update_data:
-                            update_dynamic_session_node(
-                                update_session_id, update_data["node"]
-                            )
-                        if "status" in update_data:
-                            update_dynamic_session_status(
-                                update_session_id, update_data["status"]
-                            )
-                        if "log_entry" in update_data:
-                            add_log_to_session(
-                                update_session_id, update_data["log_entry"]
-                            )
-
-                        # Force immediate cache sync after state updates
-                        from ..utils.session_manager import sync_session
-
-                        sync_result = sync_session(update_session_id)
-                        print(
-                            f"Debug: Immediate cache sync after state update - session: {update_session_id[:8]}, success: {sync_result}"
-                        )
-
-                    return add_session_id_to_response(
-                        "✅ **State updated successfully.**", update_session_id
-                    )
-
-                except json.JSONDecodeError:
-                    return add_session_id_to_response(
-                        "❌ **Error:** Invalid JSON in updates parameter.",
-                        target_session_id,
-                    )
+                return _handle_update_operation(updates, target_session_id, client_id)
 
             elif operation == "reset":
                 # Reset session (implementation depends on session manager)
