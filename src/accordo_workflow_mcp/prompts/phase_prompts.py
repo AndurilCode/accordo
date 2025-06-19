@@ -1128,13 +1128,13 @@ def _sanitize_workflow_guidance_parameters(
     action: str, context: str, session_id: str, options: str
 ) -> tuple[str, str, str, str]:
     """Sanitize workflow_guidance parameters, handling Field objects and ensuring strings.
-    
+
     Args:
         action: Action parameter (may be FieldInfo object)
         context: Context parameter (may be FieldInfo object)
         session_id: Session ID parameter (may be FieldInfo object)
         options: Options parameter (may be FieldInfo object)
-        
+
     Returns:
         Tuple of sanitized string parameters: (action, context, session_id, options)
     """
@@ -1153,7 +1153,7 @@ def _sanitize_workflow_guidance_parameters(
     context = str(context) if context is not None else ""
     session_id = str(session_id) if session_id is not None else ""
     options = str(options) if options is not None else ""
-    
+
     return action, context, session_id, options
 
 
@@ -1161,12 +1161,12 @@ def _determine_session_handling(
     target_session_id: str | None, client_id: str, task_description: str
 ) -> tuple[str | None, Any | None, str | None]:
     """Determine how to handle session for workflow guidance.
-    
+
     Args:
         target_session_id: Optional explicit session ID
         client_id: Client identifier
         task_description: Task description for session creation
-        
+
     Returns:
         Tuple of (resolved_session_id, session, session_type)
     """
@@ -1177,9 +1177,7 @@ def _determine_session_handling(
         return target_session_id, session, session_type
     else:
         # No explicit session - check for client sessions (backward compatibility)
-        session_type = (
-            get_session_type(client_id) if client_id != "default" else None
-        )
+        session_type = get_session_type(client_id) if client_id != "default" else None
 
         # For backward compatibility, try to get any existing client session
         if session_type == "dynamic":
@@ -1193,7 +1191,7 @@ def _determine_session_handling(
 
 
 # =============================================================================
-# WORKFLOW_STATE HELPER FUNCTIONS  
+# WORKFLOW_STATE HELPER FUNCTIONS
 # =============================================================================
 
 
@@ -1201,12 +1199,12 @@ def _sanitize_workflow_state_parameters(
     operation: str, updates: str, session_id: str
 ) -> tuple[str, str, str]:
     """Sanitize workflow_state parameters, handling Field objects and ensuring strings.
-    
+
     Args:
         operation: Operation parameter (may be FieldInfo object)
         updates: Updates parameter (may be FieldInfo object)
         session_id: Session ID parameter (may be FieldInfo object)
-        
+
     Returns:
         Tuple of sanitized parameters
     """
@@ -1217,25 +1215,23 @@ def _sanitize_workflow_state_parameters(
         updates = updates.default if updates.default else ""
     if hasattr(session_id, "default"):  # FieldInfo object
         session_id = session_id.default if session_id.default else ""
-    
+
     # Ensure parameters are strings
     operation = str(operation) if operation is not None else ""
     updates = str(updates) if updates is not None else ""
     session_id = str(session_id) if session_id is not None else ""
-    
+
     return operation, updates, session_id
 
 
-def _handle_get_operation(
-    target_session_id: str | None, client_id: str, config
-) -> str:
+def _handle_get_operation(target_session_id: str | None, client_id: str, config) -> str:
     """Handle the 'get' operation for workflow_state.
-    
+
     Args:
         target_session_id: Optional session ID to target
         client_id: Client identifier
         config: Server configuration
-        
+
     Returns:
         Formatted state response
     """
@@ -1331,12 +1327,12 @@ def _handle_update_operation(
     updates: str, target_session_id: str | None, client_id: str
 ) -> str:
     """Handle the 'update' operation for workflow_state.
-    
+
     Args:
         updates: JSON string with updates
         target_session_id: Optional session ID to target
         client_id: Client identifier
-        
+
     Returns:
         Update result response
     """
@@ -1372,17 +1368,11 @@ Cannot update state - no YAML workflow session is currently active.
         if update_session_id:
             # Update dynamic session
             if "node" in update_data:
-                update_dynamic_session_node(
-                    update_session_id, update_data["node"]
-                )
+                update_dynamic_session_node(update_session_id, update_data["node"])
             if "status" in update_data:
-                update_dynamic_session_status(
-                    update_session_id, update_data["status"]
-                )
+                update_dynamic_session_status(update_session_id, update_data["status"])
             if "log_entry" in update_data:
-                add_log_to_session(
-                    update_session_id, update_data["log_entry"]
-                )
+                add_log_to_session(update_session_id, update_data["log_entry"])
 
             # Force immediate cache sync after state updates
             from ..utils.session_manager import sync_session
@@ -1585,8 +1575,10 @@ def register_phase_prompts(app: FastMCP, config=None):
         """
         try:
             # Sanitize parameters using helper function
-            action, context, session_id, options = _sanitize_workflow_guidance_parameters(
-                action, context, session_id, options
+            action, context, session_id, options = (
+                _sanitize_workflow_guidance_parameters(
+                    action, context, session_id, options
+                )
             )
 
             # Resolve session using new session ID approach
@@ -1598,11 +1590,11 @@ def register_phase_prompts(app: FastMCP, config=None):
             engine = WorkflowEngine()
             loader = WorkflowLoader()
 
-            # Determine session handling using helper function  
+            # Determine session handling using helper function
             target_session_id, session, session_type = _determine_session_handling(
                 target_session_id, client_id, task_description
             )
-            
+
             # Check if specific session was requested but not found
             if session_id and not session:
                 return add_session_id_to_response(
@@ -1791,7 +1783,8 @@ The workflow '{workflow_name}' was not found in the server cache.
                                             current_node, selected_workflow, session
                                         )
 
-                                        return add_session_id_to_response(f"""🚀 **Workflow Started:** {selected_workflow.name}
+                                        return add_session_id_to_response(
+                                            f"""🚀 **Workflow Started:** {selected_workflow.name}
 
 **Task:** {task_description}
 
@@ -1851,15 +1844,16 @@ The workflow '{workflow_name}' was not found in the server cache.
                                         current_node, selected_workflow, session
                                     )
 
-                                    return add_session_id_to_response(f"""🚀 **Workflow Started:** {selected_workflow.name}
+                                    return add_session_id_to_response(
+                                        f"""🚀 **Workflow Started:** {selected_workflow.name}
 
 **Task:** {task_description}
 
 **Source:** YAML content (custom workflow)
 
 {status}""",
-                                            session.session_id,
-                                        )
+                                        session.session_id,
+                                    )
                                 else:
                                     return _format_yaml_error_guidance(
                                         "Failed to load workflow from provided YAML - invalid structure",
@@ -1938,7 +1932,7 @@ You called workflow_guidance with action="{action}" but there's no active workfl
             operation, updates, session_id = _sanitize_workflow_state_parameters(
                 operation, updates, session_id
             )
-            
+
             # Resolve session using new session ID approach
             target_session_id, client_id = resolve_session_context(session_id, "", ctx)
 
