@@ -57,11 +57,6 @@ class DynamicWorkflowState(BaseModel):
 
     # Execution tracking
     current_item: str | None = None
-    plan: str = Field(
-        default="",
-        description="DEPRECATED: Plan field is unused in YAML workflows. "
-        "Workflow structure is defined by YAML definition instead.",
-    )
     items: list[WorkflowItem] = Field(default_factory=list)
     log: list[str] = Field(default_factory=list)
     archive_log: list[str] = Field(default_factory=list)
@@ -295,9 +290,6 @@ class DynamicWorkflowState(BaseModel):
         else:
             items_table = "| id | description | status |\n|----|-------------|--------|\n<!-- No items yet -->"
 
-        # Format plan (deprecated for YAML workflows)
-        plan_section = "*DEPRECATED: Plan section unused in YAML workflows. See 'Current Workflow' section above for goal and structure.*"
-
         # Format log
         log_content = "\n".join(self.log) if self.log else "<!-- No log entries yet -->"
 
@@ -305,7 +297,7 @@ class DynamicWorkflowState(BaseModel):
         archive_log_content = (
             "\n".join(self.archive_log)
             if self.archive_log
-            else "<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->"
+            else "<!-- logs archived -->"
         )
 
         # Get workflow-specific information
@@ -364,10 +356,6 @@ class DynamicWorkflowState(BaseModel):
                                         # Always show full evidence without truncation
                                         progress_lines.append(
                                             f"   ✅ **{criterion}**: {evidence}"
-                                        )
-                                        # Also show the original criterion description for context
-                                        progress_lines.append(
-                                            f"      📋 Criterion satisfied: {description}"
                                         )
                                     else:
                                         progress_lines.append(
@@ -445,8 +433,7 @@ _Last updated: {timestamp}_
 ### Workflow Information
 **Task:** {current_item}
 {workflow_info}
-{completed_nodes_progress}### Plan
-{plan_section}
+{completed_nodes_progress}
 
 ### Rules
 > **Dynamic workflow execution based on YAML definition**
