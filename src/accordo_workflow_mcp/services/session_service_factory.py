@@ -67,7 +67,8 @@ class SessionServiceFactory:
 
         print("🚨 DEBUG: Registering services with dependency injection...")
 
-        # Register services with dependency injection
+        # Register services with dependency injection as direct instances
+        # These are already created instances that should be shared across the application
         self._service_registry.register_service(
             SessionRepositoryProtocol, session_repository
         )
@@ -81,7 +82,7 @@ class SessionServiceFactory:
             WorkflowDefinitionCacheProtocol, workflow_definition_cache
         )
 
-        # Register concrete classes as well for direct access
+        # Register concrete classes as well for direct access - use same instances
         self._service_registry.register_service(SessionRepository, session_repository)
         self._service_registry.register_service(
             SessionSyncService, session_sync_service

@@ -1472,9 +1472,26 @@ def _get_latest_active_session() -> tuple[str | None, Any | None]:
         Tuple of (session_id, session) for the most recently updated active session,
         or (None, None) if no active sessions exist.
     """
+    # Try to get sessions from session repository first
     from ..utils.session_manager import get_all_sessions
     
     all_sessions = get_all_sessions()
+    
+    # If session repository is empty, try to restore from cache automatically
+    if not all_sessions:
+        try:
+            from ..services import get_session_sync_service
+            
+            session_sync_service = get_session_sync_service()
+            restored_count = session_sync_service.restore_sessions_from_cache("default")
+            
+            # If sessions were restored, get them again
+            if restored_count > 0:
+                all_sessions = get_all_sessions()
+        except Exception:
+            # If auto-restore fails, continue with empty sessions
+            pass
+    
     if not all_sessions:
         return None, None
     
