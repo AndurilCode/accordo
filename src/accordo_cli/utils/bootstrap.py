@@ -39,10 +39,43 @@ alwaysApply: true
 - Direct copy/paste operations
 - Immediate answers to factual questions
 
-### 🔄 MANDATORY WORKFLOW ENTRY PROCESS
-**⚠️ NON-NEGOTIABLE:** For ALL qualifying tasks, you MUST follow this exact sequence:
+### 🔍 SESSION AWARENESS & WORKFLOW DISCOVERY
+**⚠️ MANDATORY PRE-WORKFLOW CHECK:** Before starting ANY new workflow, check for existing sessions:**
 
-#### STEP 1: DISCOVER (REQUIRED FIRST STEP)
+#### STEP 0: CHECK EXISTING SESSIONS (REQUIRED FIRST STEP)
+```
+workflow_cache_management(operation="list")
+```
+**Purpose:** Check for existing workflow sessions to avoid conflicts and enable session resumption
+**Results:** 
+- **Active Session Found & Applicable:** Resume existing workflow using its session_id
+- **Active Session Found & NOT Applicable:** Start new workflow for current task
+- **No Active Sessions:** Proceed to workflow discovery
+- **Multiple Sessions:** Choose appropriate session, complete irrelevant ones, or start new
+
+#### Session Applicability Assessment:
+Before resuming any existing session, verify:
+- Is the existing workflow relevant to the current task?
+- Are you continuing the same work or starting something different?
+- **If the task is different or unrelated → START NEW WORKFLOW**
+
+#### Session Resumption Pattern:
+If existing session found AND applicable to current task, resume with:
+```
+workflow_guidance(session_id="found-session-id", action="next", context='{"choose": "current_node"}')
+```
+
+#### Session Conflict Resolution:
+If multiple active sessions exist:
+1. **Check session status** with `workflow_cache_management(operation="list")`
+2. **Evaluate session relevance** to current task  
+3. **CRITICAL:** Only resume if directly related to current task
+4. **If unrelated:** Complete or abandon existing sessions and start new workflow
+
+### 🔄 MANDATORY WORKFLOW ENTRY PROCESS
+**⚠️ NON-NEGOTIABLE:** For ALL qualifying tasks, follow this exact sequence:
+
+#### STEP 1: DISCOVER (REQUIRED AFTER SESSION CHECK)
 ```
 workflow_discovery(task_description="[Exact user request]")
 ```
@@ -90,9 +123,10 @@ The workflow system operates on these principles:
 5. **No Hardcoded Routes**: All transitions defined in YAML `next_allowed_nodes`
 
 ### 📋 Available Workflow Tools
-- `workflow_discovery` - **START HERE ALWAYS** - Discover available YAML workflows
+- `workflow_cache_management` - **CHECK FIRST ALWAYS** - List and manage cached sessions for conflict resolution  
+- `workflow_discovery` - **START HERE FOR NEW WORKFLOWS** - Discover available YAML workflows
 - `workflow_guidance` - Main execution engine for dynamic workflows
-- `workflow_state` - Check and update current workflow state
+- `workflow_state` - Check specific session state (requires session_id)
 - `workflow_creation_guidance` - Create custom workflows when existing ones don't fit
 
 ### 📚 Supporting Tools
@@ -100,23 +134,19 @@ The workflow system operates on these principles:
 - GitHub: Repository file access
 - Standard coding tools: file operations, terminal, search, etc.
 
-### ⚡ Enforcement Rules
-1. **NEVER skip workflow discovery** for multi-step tasks
-2. **ALWAYS start with `workflow_discovery()`** before other workflow tools
-3. **NEVER use legacy approaches** when workflow tools are available
-4. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
-5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
-
-### 🆔 SESSION ID MANAGEMENT (NEW)
+### 🆔 SESSION ID MANAGEMENT
 **All workflows auto-generate unique session IDs for multi-session support:**
 
 #### Session ID Usage Patterns:
 ```
-# Start workflow - returns session_id in response
+# Check existing sessions first (MANDATORY)
+workflow_cache_management(operation="list")
+
+# If no active sessions, start new workflow
 workflow_discovery(task_description="Your task")
 workflow_guidance(action="start", context="workflow: Selected Workflow")
 
-# Continue with session_id for targeted operations
+# Continue with session_id for targeted operations (returned in response)
 workflow_guidance(session_id="abc-123", action="next", context='{"choose": "option"}')
 workflow_state(session_id="abc-123", operation="get")
 ```
@@ -127,11 +157,33 @@ workflow_state(session_id="abc-123", operation="get")
 - **Session Isolation**: Keep different tasks completely separate
 - **Session Tracking**: Monitor progress of individual workflows
 
+#### Session Discovery Commands:
+```
+# List all cached sessions for current client (DISCOVERY PRIMARY METHOD)
+workflow_cache_management(operation="list")
+
+# Get specific session state
+workflow_state(session_id="session-id", operation="get")
+
+# Restore sessions from cache after restart
+workflow_cache_management(operation="restore")
+```
+
 #### Best Practices:
+- **ALWAYS check existing sessions BEFORE starting new workflows**
 - **ALWAYS save session_id** from workflow start responses
-- **ALWAYS include session_id** in subsequent workflow calls
+- **ALWAYS include session_id** in subsequent workflow calls when available
 - **Use session_id** when managing multiple concurrent workflows
-- **Fallback handling**: System supports backward compatibility without session_id"""
+- **Check session cache** after MCP server restarts for workflow continuity
+
+### ⚡ Enforcement Rules
+1. **NEVER skip session checking** before starting workflows
+2. **ALWAYS start with `workflow_cache_management(operation="list")`** for session awareness
+3. **ALWAYS use `workflow_discovery()`** for new workflows after session check
+4. **NEVER use legacy approaches** when workflow tools are available
+5. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
+6. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
+7. **ALWAYS handle session conflicts** before proceeding with new workflows"""
 
     # Core content without YAML frontmatter for other assistants
     CORE_CONTENT = """## Task Execution Guidelines
@@ -154,10 +206,43 @@ workflow_state(session_id="abc-123", operation="get")
 - Direct copy/paste operations
 - Immediate answers to factual questions
 
-### 🔄 MANDATORY WORKFLOW ENTRY PROCESS
-**⚠️ NON-NEGOTIABLE:** For ALL qualifying tasks, you MUST follow this exact sequence:
+### 🔍 SESSION AWARENESS & WORKFLOW DISCOVERY
+**⚠️ MANDATORY PRE-WORKFLOW CHECK:** Before starting ANY new workflow, check for existing sessions:**
 
-#### STEP 1: DISCOVER (REQUIRED FIRST STEP)
+#### STEP 0: CHECK EXISTING SESSIONS (REQUIRED FIRST STEP)
+```
+workflow_cache_management(operation="list")
+```
+**Purpose:** Check for existing workflow sessions to avoid conflicts and enable session resumption
+**Results:** 
+- **Active Session Found & Applicable:** Resume existing workflow using its session_id
+- **Active Session Found & NOT Applicable:** Start new workflow for current task
+- **No Active Sessions:** Proceed to workflow discovery
+- **Multiple Sessions:** Choose appropriate session, complete irrelevant ones, or start new
+
+#### Session Applicability Assessment:
+Before resuming any existing session, verify:
+- Is the existing workflow relevant to the current task?
+- Are you continuing the same work or starting something different?
+- **If the task is different or unrelated → START NEW WORKFLOW**
+
+#### Session Resumption Pattern:
+If existing session found AND applicable to current task, resume with:
+```
+workflow_guidance(session_id="found-session-id", action="next", context='{"choose": "current_node"}')
+```
+
+#### Session Conflict Resolution:
+If multiple active sessions exist:
+1. **Check session status** with `workflow_cache_management(operation="list")`
+2. **Evaluate session relevance** to current task  
+3. **CRITICAL:** Only resume if directly related to current task
+4. **If unrelated:** Complete or abandon existing sessions and start new workflow
+
+### 🔄 MANDATORY WORKFLOW ENTRY PROCESS
+**⚠️ NON-NEGOTIABLE:** For ALL qualifying tasks, follow this exact sequence:
+
+#### STEP 1: DISCOVER (REQUIRED AFTER SESSION CHECK)
 ```
 workflow_discovery(task_description="[Exact user request]")
 ```
@@ -205,9 +290,10 @@ The workflow system operates on these principles:
 5. **No Hardcoded Routes**: All transitions defined in YAML `next_allowed_nodes`
 
 ### 📋 Available Workflow Tools
-- `workflow_discovery` - **START HERE ALWAYS** - Discover available YAML workflows
+- `workflow_cache_management` - **CHECK FIRST ALWAYS** - List and manage cached sessions for conflict resolution  
+- `workflow_discovery` - **START HERE FOR NEW WORKFLOWS** - Discover available YAML workflows
 - `workflow_guidance` - Main execution engine for dynamic workflows
-- `workflow_state` - Check and update current workflow state
+- `workflow_state` - Check specific session state (requires session_id)
 - `workflow_creation_guidance` - Create custom workflows when existing ones don't fit
 
 ### 📚 Supporting Tools
@@ -215,23 +301,19 @@ The workflow system operates on these principles:
 - GitHub: Repository file access
 - Standard coding tools: file operations, terminal, search, etc.
 
-### ⚡ Enforcement Rules
-1. **NEVER skip workflow discovery** for multi-step tasks
-2. **ALWAYS start with `workflow_discovery()`** before other workflow tools
-3. **NEVER use legacy approaches** when workflow tools are available
-4. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
-5. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
-
-### 🆔 SESSION ID MANAGEMENT (NEW)
+### 🆔 SESSION ID MANAGEMENT
 **All workflows auto-generate unique session IDs for multi-session support:**
 
 #### Session ID Usage Patterns:
 ```
-# Start workflow - returns session_id in response
+# Check existing sessions first (MANDATORY)
+workflow_cache_management(operation="list")
+
+# If no active sessions, start new workflow
 workflow_discovery(task_description="Your task")
 workflow_guidance(action="start", context="workflow: Selected Workflow")
 
-# Continue with session_id for targeted operations
+# Continue with session_id for targeted operations (returned in response)
 workflow_guidance(session_id="abc-123", action="next", context='{"choose": "option"}')
 workflow_state(session_id="abc-123", operation="get")
 ```
@@ -242,11 +324,33 @@ workflow_state(session_id="abc-123", operation="get")
 - **Session Isolation**: Keep different tasks completely separate
 - **Session Tracking**: Monitor progress of individual workflows
 
+#### Session Discovery Commands:
+```
+# List all cached sessions for current client (DISCOVERY PRIMARY METHOD)
+workflow_cache_management(operation="list")
+
+# Get specific session state
+workflow_state(session_id="session-id", operation="get")
+
+# Restore sessions from cache after restart
+workflow_cache_management(operation="restore")
+```
+
 #### Best Practices:
+- **ALWAYS check existing sessions BEFORE starting new workflows**
 - **ALWAYS save session_id** from workflow start responses
-- **ALWAYS include session_id** in subsequent workflow calls
+- **ALWAYS include session_id** in subsequent workflow calls when available
 - **Use session_id** when managing multiple concurrent workflows
-- **Fallback handling**: System supports backward compatibility without session_id"""
+- **Check session cache** after MCP server restarts for workflow continuity
+
+### ⚡ Enforcement Rules
+1. **NEVER skip session checking** before starting workflows
+2. **ALWAYS start with `workflow_cache_management(operation="list")`** for session awareness
+3. **ALWAYS use `workflow_discovery()`** for new workflows after session check
+4. **NEVER use legacy approaches** when workflow tools are available
+5. **ALWAYS follow YAML schema transitions** rather than making ad-hoc decisions
+6. **WHEN UNCERTAIN → USE WORKFLOWS** (fail-safe principle)
+7. **ALWAYS handle session conflicts** before proceeding with new workflows"""
 
     def _log_info(self, message: str) -> None:
         """Log info message with colored output."""

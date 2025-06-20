@@ -1017,7 +1017,7 @@ def _handle_dynamic_workflow(
 {status}"""
                     else:
                         # Transition failed (likely due to missing approval)
-                        return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Current node requires explicit user approval before transition. Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL."
+                        return f"❌ **Transition Failed:** Unable to transition to '{choice}'. Current node requires explicit user approval before transition. Provide 'user_approval': true in your context to proceed, ONLY WHEN THE USER HAS PROVIDED EXPLICIT APPROVAL. NEVER CONSIDER PAST USER APPROVALS AS CURRENT USER APPROVAL."
 
                 elif choice in (current_node.next_allowed_workflows or []):
                     # Workflow transition - not implemented yet
@@ -1667,7 +1667,7 @@ def _handle_cache_list_operation(client_id: str) -> str:
                     result += f"- Newest entry: {session['newest_entry']}\n"
             else:
                 # Individual session info
-                result += f"**Session: {session['session_id'][:8]}...**\n"
+                result += f"**Session: {session['session_id']}**\n"
                 result += f"- Workflow: {session.get('workflow_name', 'Unknown')}\n"
                 result += f"- Status: {session.get('status', 'Unknown')}\n"
                 result += f"- Current Node: {session.get('current_node', 'Unknown')}\n"
