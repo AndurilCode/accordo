@@ -624,40 +624,35 @@ class TestHelperFunctions:
         assert session == mock_session
         assert session_type == "dynamic"
 
-    @patch("src.accordo_workflow_mcp.prompts.phase_prompts.get_session_type")
-    @patch(
-        "src.accordo_workflow_mcp.prompts.phase_prompts.get_or_create_dynamic_session"
-    )
-    def test_determine_session_handling_with_client_session(
-        self, mock_get_or_create, mock_get_type
+    @patch("src.accordo_workflow_mcp.prompts.phase_prompts._get_latest_active_session")
+    def test_determine_session_handling_with_latest_active_session(
+        self, mock_get_latest
     ):
-        """Test _determine_session_handling with client session."""
+        """Test _determine_session_handling with latest active session."""
         mock_session = Mock()
-        mock_session.session_id = "client-session-456"
-        mock_get_type.return_value = "dynamic"
-        mock_get_or_create.return_value = mock_session
+        mock_session.session_id = "latest-session-456"
+        mock_get_latest.return_value = ("latest-session-456", mock_session)
 
         session_id, session, session_type = _determine_session_handling(
             None, "client-1", "test task"
         )
 
-        assert session_id == "client-session-456"
+        assert session_id == "latest-session-456"
         assert session == mock_session
         assert session_type == "dynamic"
 
-    def test_determine_session_handling_no_session(self):
-        """Test _determine_session_handling with no session."""
-        with patch(
-            "src.accordo_workflow_mcp.prompts.phase_prompts.get_session_type",
-            return_value=None,
-        ):
-            session_id, session, session_type = _determine_session_handling(
-                None, "default", "test task"
-            )
+    @patch("src.accordo_workflow_mcp.prompts.phase_prompts._get_latest_active_session")
+    def test_determine_session_handling_no_session(self, mock_get_latest):
+        """Test _determine_session_handling with no active session."""
+        mock_get_latest.return_value = (None, None)
 
-            assert session_id is None
-            assert session is None
-            assert session_type is None
+        session_id, session, session_type = _determine_session_handling(
+            None, "default", "test task"
+        )
+
+        assert session_id is None
+        assert session is None
+        assert session_type is None
 
     @patch(
         "src.accordo_workflow_mcp.prompts.phase_prompts.get_dynamic_session_workflow_def"

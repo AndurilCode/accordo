@@ -299,8 +299,15 @@ inputs:
 
         for action in valid_actions:
             result = workflow_tool.fn(action=action, task_description=task)
-            assert isinstance(result, str)
-            assert len(result) > 0
+            
+            # Handle both string and dict response formats
+            if isinstance(result, dict):
+                content = result.get("content", str(result))
+                assert isinstance(content, str)
+                assert len(content) > 0
+            else:
+                assert isinstance(result, str)
+                assert len(result) > 0
 
     @pytest.mark.asyncio
     async def test_workflow_state_operations(self, mock_context):
@@ -345,8 +352,14 @@ inputs:
         # The function now returns a workflow response even for invalid actions
         # Since it may fallback to dynamic workflow or legacy handler
         result = workflow_tool.fn(action="invalid_action", task_description=task)
-        # Just verify we get a valid response string
-        assert isinstance(result, str) and len(result) > 10
+        # Just verify we get a valid response
+        
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+            assert isinstance(content, str) and len(content) > 10
+        else:
+            assert isinstance(result, str) and len(result) > 10
 
     @pytest.mark.asyncio
     async def test_error_handling_invalid_operation(self, mock_context):
@@ -394,8 +407,15 @@ inputs:
 
         # Test basic functionality by calling with minimal parameters
         result = workflow_tool.fn(task_description="test task")
-        assert isinstance(result, str)
-        assert len(result) > 0
+        
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+            assert isinstance(content, str)
+            assert len(content) > 0
+        else:
+            assert isinstance(result, str)
+            assert len(result) > 0
 
     @pytest.mark.asyncio
     async def test_mandatory_execution_emphasis(self, mock_context):
@@ -408,10 +428,16 @@ inputs:
 
         result = workflow_tool.fn(task_description="test task with mandatory execution")
 
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         # Check for mandatory execution emphasis
         mandatory_indicators = ["MANDATORY", "MUST", "REQUIRED", "🚨"]
         # Should contain at least one mandatory indicator
-        assert any(indicator in result for indicator in mandatory_indicators)
+        assert any(indicator in content for indicator in mandatory_indicators)
 
     @pytest.mark.asyncio
     async def test_enhanced_criteria_evidence_emphasis(self, mock_context):
@@ -446,10 +472,16 @@ inputs:
         # Test actual tool output contains emphasis
         result = workflow_tool.fn(task_description="test enhanced emphasis")
 
+        # Handle both string and dict response formats
+        if isinstance(result, dict):
+            content = result.get("content", str(result))
+        else:
+            content = result
+
         # Should contain multiple emphasis indicators
         emphasis_indicators = ["🚨", "MANDATORY", "CRITICAL", "ALWAYS", "REQUIRED"]
         found_indicators = [
-            indicator for indicator in emphasis_indicators if indicator in result
+            indicator for indicator in emphasis_indicators if indicator in content
         ]
 
         # Should contain at least 2 different emphasis indicators

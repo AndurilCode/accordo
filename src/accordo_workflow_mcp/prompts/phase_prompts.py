@@ -1176,18 +1176,15 @@ def _determine_session_handling(
         session_type = "dynamic" if session else None
         return target_session_id, session, session_type
     else:
-        # No explicit session - check for client sessions (backward compatibility)
-        session_type = get_session_type(client_id) if client_id != "default" else None
-
-        # For backward compatibility, try to get any existing client session
-        if session_type == "dynamic":
-            session = get_or_create_dynamic_session(client_id, task_description)
-            target_session_id = session.session_id if session else None
+        # No explicit session - get the latest active session
+        target_session_id, session = _get_latest_active_session()
+        
+        if session:
+            session_type = "dynamic"
+            return target_session_id, session, session_type
         else:
-            session = None
-            target_session_id = None
-
-        return target_session_id, session, session_type
+            # No active sessions found
+            return None, None, None
 
 
 # =============================================================================
@@ -1468,6 +1465,52 @@ def _sanitize_workflow_state_parameters(
     return operation, updates, session_id
 
 
+def _get_latest_active_session() -> tuple[str | None, Any | None]:
+    """Get the latest active session across all clients.
+    
+    Returns:
+        Tuple of (session_id, session) for the most recently updated active session,
+        or (None, None) if no active sessions exist.
+    """
+    from ..utils.session_manager import get_all_sessions
+    
+    all_sessions = get_all_sessions()
+    if not all_sessions:
+        return None, None
+    
+    # Filter for active sessions (RUNNING status)
+    active_sessions = [
+        (session_id, session) 
+        for session_id, session in all_sessions.items() 
+        if session.status == "RUNNING"
+    ]
+    
+    if not active_sessions:
+        # If no RUNNING sessions, fall back to READY sessions
+        ready_sessions = [
+            (session_id, session) 
+            for session_id, session in all_sessions.items() 
+            if session.status == "READY"
+        ]
+        if ready_sessions:
+            # Get the most recently updated READY session
+            latest_session_id, latest_session = max(
+                ready_sessions, 
+                key=lambda x: x[1].last_updated if hasattr(x[1], 'last_updated') else x[1].created_at
+            )
+            return latest_session_id, latest_session
+        else:
+            return None, None
+    
+    # Get the most recently updated active session
+    latest_session_id, latest_session = max(
+        active_sessions, 
+        key=lambda x: x[1].last_updated if hasattr(x[1], 'last_updated') else x[1].created_at
+    )
+    
+    return latest_session_id, latest_session
+
+
 def _handle_get_operation(target_session_id: str | None, client_id: str, config) -> str:
     """Handle the 'get' operation for workflow_state.
 
@@ -1490,15 +1533,13 @@ def _handle_get_operation(target_session_id: str | None, client_id: str, config)
             )
         workflow_def = get_dynamic_session_workflow_def(target_session_id)
     else:
-        # Fallback to client-based session (backward compatibility)
-        session_type = get_session_type(client_id)
-        if session_type == "dynamic":
-            session = get_or_create_dynamic_session(client_id, "")
-            workflow_def = get_dynamic_session_workflow_def(
-                session.session_id if session else None
-            )
-            target_session_id = session.session_id if session else None
+        # No session ID provided - get the latest active session
+        target_session_id, session = _get_latest_active_session()
+        
+        if session:
+            workflow_def = get_dynamic_session_workflow_def(target_session_id)
         else:
+            # No active sessions found
             session = None
             workflow_def = None
 
@@ -1575,12 +1616,10 @@ def _handle_update_operation(
         # Determine which session to update
         update_session_id = target_session_id
         if not update_session_id:
-            # Fallback to client-based session (backward compatibility)
-            session_type = get_session_type(client_id)
-            if session_type == "dynamic":
-                session = get_or_create_dynamic_session(client_id, "")
-                update_session_id = session.session_id if session else None
-            else:
+            # No session ID provided - get the latest active session
+            update_session_id, session = _get_latest_active_session()
+            
+            if not update_session_id:
                 return add_session_id_to_response(
                     """❌ **No Active Workflow Session**
 
@@ -1721,7 +1760,7 @@ def register_phase_prompts(app: FastMCP, config=None):
             description="Optional session ID to target specific workflow session. "
             "🎯 **MULTI-SESSION SUPPORT**: Use this for parallel workflows or session continuity. "
             "Examples: workflow_guidance(session_id='abc-123', ...) to target specific session. "
-            "If not provided, determines session from client context (backward compatibility). "
+            "If not provided, automatically finds and uses the latest active session (RUNNING or READY status). "
             "🔄 **BEST PRACTICE**: Always include session_id when working with multiple concurrent workflows.",
         ),
         ctx: Context = None,
@@ -1862,7 +1901,7 @@ Dynamic session exists but workflow definition is missing.
             description="Optional session ID to target specific workflow session. "
             "🎯 **MULTI-SESSION SUPPORT**: Use this to track state for specific workflow sessions. "
             "Examples: workflow_state(operation='get', session_id='abc-123') to check specific session status. "
-            "If not provided, determines session from client context (backward compatibility). "
+            "If not provided, automatically finds and uses the latest active session (RUNNING or READY status). "
             "🔄 **BEST PRACTICE**: Always include session_id when managing multiple concurrent workflows.",
         ),
         ctx: Context = None,
